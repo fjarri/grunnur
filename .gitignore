@@ -1,0 +1,6 @@
+__pycache__
+htmlcov
+.coverage
+*.egg-info
+.mypy_cache
+build

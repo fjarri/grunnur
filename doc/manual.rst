@@ -1,0 +1,4 @@
+Manual
+======
+
+Some stuff.
