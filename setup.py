@@ -12,6 +12,8 @@ import sys
 from shutil import rmtree
 
 from setuptools import find_packages, setup, Command
+from setuptools.command.test import test as TestCommand
+
 
 # Package meta-data.
 NAME = 'grunnur'
@@ -19,7 +21,7 @@ DESCRIPTION = 'Uniform API for PyOpenCL and PyCUDA.'
 URL = 'https://github.com/fjarri/grunnur'
 EMAIL = 'bogdan@opanchuk.net'
 AUTHOR = 'Bogdan Opanchuk'
-REQUIRES_PYTHON = '>=3.6.0'
+REQUIRES_PYTHON = '>=3.7.0'
 VERSION = '0.0.1'
 
 
@@ -31,10 +33,10 @@ REQUIRED = [
 
 EXTRAS = {
     'pyopencl': [
-        'pyopencl>=2018.1.1',
+        'pyopencl>=2019.1.1',
         ],
     'pycuda': [
-        'pycuda>=2018.1.1',
+        'pycuda>=2019.1.1',
         ],
     'dev': [
         'pytest>=4',
@@ -63,6 +65,21 @@ if not VERSION:
         exec(f.read(), about)
 else:
     about['__version__'] = VERSION
+
+
+class PyTest(TestCommand):
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        # Specifying the directory with tests explicitly
+        # to prevent Travis CI from running tests from dependencies' eggs
+        # (which are copied to the same directory).
+        self.test_args = ['-x', 'test']
+        self.test_suite = True
+
+    def run_tests(self):
+        import pytest
+        errno = pytest.main(self.test_args)
+        sys.exit(errno)
 
 
 class UploadCommand(Command):
@@ -129,15 +146,14 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Topic :: Software Development',
         'Topic :: Scientific/Engineering',
         'Operating System :: OS Independent'
     ],
-    # $ setup.py publish support.
     cmdclass={
         'upload': UploadCommand,
+        'test': PyTest,
     },
 )

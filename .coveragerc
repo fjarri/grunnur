@@ -1,5 +1,6 @@
 [run]
 branch = True
+source = grunnur
 
 [report]
 exclude_lines =

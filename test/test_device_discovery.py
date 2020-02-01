@@ -3,7 +3,7 @@ import pytest
 from grunnur.api_discovery import all_api_factories
 from grunnur.opencl import OPENCL_API_FACTORY
 
-from utils import mock_backend, mock_input
+from .utils import mock_backend, mock_input
 
 
 def check_select_devices(monkeypatch, capsys, platforms_devices, inputs=None, **kwds):

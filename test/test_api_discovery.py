@@ -3,7 +3,7 @@ import pytest
 from grunnur.api_discovery import all_api_factories
 from grunnur import available_apis, find_apis
 
-from utils import mock_backend, mock_backend_obj
+from .utils import mock_backend, mock_backend_obj
 
 
 def test_available_apis(monkeypatch):

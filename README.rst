@@ -1,6 +1,18 @@
 Grunnur, a base layer for GPGPU
 ===============================
 
+.. image:: https://readthedocs.org/projects/grunnur/badge/?version=latest
+    :target: http://grunnur.readthedocs.org/en/latest/?badge=latest
+    :alt: Documentation status
+
+.. image:: https://travis-ci.org/fjarri/grunnur.svg?branch=master
+    :target: https://travis-ci.org/fjarri/grunnur
+    :alt: Tests status
+
+.. image:: https://coveralls.io/repos/fjarri/grunnur/badge.svg?branch=master
+    :target: https://coveralls.io/r/fjarri/grunnur
+    :alt: Coverage status
+
 
 What's with the name?
 ---------------------

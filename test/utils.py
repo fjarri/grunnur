@@ -2,8 +2,8 @@ import io
 
 from grunnur import CUDA_API_ID, OPENCL_API_ID
 
-from mock_pycuda import MockPyCUDA
-from mock_pyopencl import MockPyOpenCL
+from .mock_pycuda import MockPyCUDA
+from .mock_pyopencl import MockPyOpenCL
 
 
 def mock_input(monkeypatch, inputs):

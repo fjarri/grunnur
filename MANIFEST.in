@@ -1,11 +1,6 @@
-recursive-include doc/source *.rst
-recursive-include test *.py
 recursive-include examples *.py
 
-include doc/Makefile
-include doc/source/conf.py
-include LICENSE.txt
+include LICENSE.md
 include MANIFEST.in
 include README.rst
-include test/pylintrc
-include test/.coveragerc
+include pytest.ini

@@ -1,7 +1,7 @@
 from grunnur.cuda import CUDA_API_FACTORY
 
-from mock_pycuda import MockPyCUDA
-from utils import mock_backend, mock_backend_obj
+from .mock_pycuda import MockPyCUDA
+from .utils import mock_backend, mock_backend_obj
 
 
 def test_context_from_pycuda_devices(monkeypatch):

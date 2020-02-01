@@ -6,7 +6,7 @@ from grunnur import CUDA_API_ID, OPENCL_API_ID
 from grunnur.cuda import CUDA_API_FACTORY
 from grunnur.opencl import OPENCL_API_FACTORY
 
-from utils import mock_backend, disable_backend
+from .utils import mock_backend, disable_backend
 
 
 def test_cuda_api(monkeypatch):
