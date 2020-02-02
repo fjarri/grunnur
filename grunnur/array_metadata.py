@@ -66,6 +66,8 @@ class ArrayMetadata:
 
     def __getitem__(self, slices):
         slices = wrap_in_tuple(slices)
+        if len(slices) < len(self.shape):
+            slices += (slice(None),) * (len(self.shape) - len(slices))
         new_fe_offset, new_shape, new_strides = get_view(self.shape, self.strides, slices)
         return ArrayMetadata(
             new_shape, self.dtype, strides=new_strides, first_element_offset=new_fe_offset)
@@ -88,15 +90,11 @@ def normalize_slice(length: int, stride: int, slice_: slice) -> Tuple[int, int, 
     element of the resulting view, ``last`` is the index of the last element of the view (0-based),
     and ``stride`` is the new stride between elements.
     """
-    start = 0 if slice_.start is None else slice_.start
-    stop = length - 1 if slice_.stop is None else slice_.stop - 1
-    step = 1 if slice_.step is None else slice_.step
-
-    start = start if start >= 0 else length + start
-    stop = stop if stop >= 0 else length + stop
+    start, stop, step = slice_.indices(length)
 
     offset = start * stride
-    length = (stop - start + 1) // step
+    total_elems = abs(stop - start)
+    length = (total_elems - 1) // abs(step) + 1
     new_stride = stride * step
 
     return offset, length, new_stride
