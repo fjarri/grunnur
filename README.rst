@@ -9,8 +9,8 @@ Grunnur, a base layer for GPGPU
     :target: https://travis-ci.org/fjarri/grunnur
     :alt: Tests status
 
-.. image:: https://coveralls.io/repos/fjarri/grunnur/badge.svg?branch=master
-    :target: https://coveralls.io/r/fjarri/grunnur
+.. image:: https://coveralls.io/repos/github/fjarri/grunnur/badge.svg?branch=master
+    :target: https://coveralls.io/github/fjarri/grunnur?branch=master
     :alt: Coverage status
 
 
