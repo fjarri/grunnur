@@ -2,12 +2,12 @@ import numpy
 from collections import defaultdict
 import itertools
 
-from .template import render_template, template_for
+from .template import Template
 from .modules import Module, Snippet
 from .utils import log2, min_blocks, wrap_in_tuple, prod
 
 
-TEMPLATE = template_for(__file__)
+TEMPLATE = Template.from_associated_file(__file__)
 
 
 class OutOfResourcesError(Exception):

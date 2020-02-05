@@ -9,7 +9,7 @@ import re
 import numpy
 
 from .array_metadata import ArrayMetadata
-from .modules import render_template_source
+from .modules import render_with_modules
 from .utils import all_same, all_different, wrap_in_tuple
 
 
@@ -567,7 +567,7 @@ class Context(ABC):
         :param kwds: additional parameters for compilation, see :py:func:`compile`.
         """
 
-        src = render_template_source(
+        src = render_with_modules(
             template_src, render_args=render_args, render_kwds=render_kwds)
 
         if no_prelude:

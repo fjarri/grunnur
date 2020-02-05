@@ -17,11 +17,13 @@ from .base_classes import (
     normalize_base_objects, process_arg, Array, Buffer
     )
 from .utils import all_same, all_different, wrap_in_tuple, prod, factors
-from .template import template_for, render_template
+from .template import Template
 from . import dtypes
 
 
-TEMPLATE = template_for(__file__)
+_TEMPLATE = Template.from_associated_file(__file__)
+_PRELUDE = _TEMPLATE.get_def('prelude')
+_CONSTANT_ARRAYS_DEF = _TEMPLATE.get_def('constant_arrays_def')
 
 
 # Another way would be to place it in the try block and only set `_avaialable`
@@ -361,8 +363,7 @@ class CuContext(Context):
         return _CUDA_API
 
     def _render_prelude(self, fast_math=False, constant_arrays=None):
-        return render_template(
-            TEMPLATE.get_def('prelude'),
+        return _PRELUDE.render(
             fast_math=fast_math,
             dtypes=dtypes,
             constant_arrays=constant_arrays)
@@ -377,8 +378,7 @@ class CuContext(Context):
 
         if constant_arrays is not None:
             constant_arrays = normalize_constant_arrays(constant_arrays)
-            constant_arrays_src = render_template(
-                TEMPLATE.get_def('constant_arrays_def'),
+            constant_arrays_src = _CONSTANT_ARRAYS_DEF.render(
                 dtypes=dtypes,
                 constant_arrays=constant_arrays)
         else:

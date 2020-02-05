@@ -17,11 +17,12 @@ from .base_classes import (
     SingleDeviceProgram, SingleDeviceKernel,
     normalize_base_objects, process_arg, Array)
 from .utils import all_same, all_different, wrap_in_tuple
-from .template import template_for, render_template
+from .template import Template
 from . import dtypes
 
 
-TEMPLATE = template_for(__file__)
+_TEMPLATE = Template.from_associated_file(__file__)
+_PRELUDE = _TEMPLATE.get_def('prelude')
 
 
 class OclAPI(API):
@@ -280,8 +281,7 @@ class OclContext(Context):
         return pyopencl.RuntimeError
 
     def _render_prelude(self, fast_math=False):
-        return render_template(
-            TEMPLATE.get_def('prelude'),
+        return _PRELUDE.render(
             fast_math=fast_math,
             dtypes=dtypes)
 
