@@ -346,7 +346,7 @@ def _get_struct_module(dtype, ignore_alignment=False):
     # Root level import creates an import loop.
     from reikna.cluda.kernel import Module
 
-    return Module.create("\n".join(lines), render_kwds=kwds)
+    return Module.create("\n".join(lines), render_globals=kwds)
 
 
 def ctype_module(dtype, ignore_alignment=False):

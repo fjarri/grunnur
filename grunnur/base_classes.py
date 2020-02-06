@@ -563,12 +563,12 @@ class Context(ABC):
         :param no_prelude: see :py:meth:`compile`.
         :param fast_math: see :py:meth:`compile`.
         :param render_args: see :py:meth:`compile`.
-        :param render_kwds: see :py:meth:`compile`.
+        :param render_globals: see :py:meth:`compile`.
         :param kwds: additional parameters for compilation, see :py:func:`compile`.
         """
 
         src = render_with_modules(
-            template_src, render_args=render_args, render_kwds=render_kwds)
+            template_src, render_args=render_args, render_globals=render_globals)
 
         if no_prelude:
             prelude = ""
@@ -612,7 +612,7 @@ class Context(ABC):
         :param no_prelude: do not add prelude to the rendered source.
         :param fast_math: compile using fast (but less accurate) math functions.
         :param render_args: a list of positional args to pass to the template.
-        :param render_kwds: a dictionary of keyword args to pass to the template.
+        :param render_globals: a dictionary of globals to pass to the template.
         :param compiler_options: a list of options to pass to the backend compiler.
         :param keep: keep the intermediate files in a temporary directory.
         :param constant_arrays: (**CUDA only**) a dictionary ``name: (size, dtype)``
@@ -630,7 +630,7 @@ class Context(ABC):
                 no_prelude=no_prelude,
                 fast_math=fast_math,
                 render_args=render_args,
-                render_kwds=render_kwds,
+                render_globals=render_globals,
                 compiler_options=compiler_options,
                 keep=keep,
                 constant_arrays=constant_arrays)

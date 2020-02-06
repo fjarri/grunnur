@@ -39,7 +39,7 @@ def cast(out_dtype, in_dtype):
     """
     return Module(
         TEMPLATE.get_def('cast'),
-        render_kwds=dict(out_dtype=out_dtype, in_dtype=in_dtype))
+        render_globals=dict(out_dtype=out_dtype, in_dtype=in_dtype))
 
 
 def add(*in_dtypes, **kwds):
@@ -56,7 +56,7 @@ def add(*in_dtypes, **kwds):
     out_dtype = derive_out_dtype(kwds.get('out_dtype', None), *in_dtypes)
     return Module(
         TEMPLATE.get_def('add_or_mul'),
-        render_kwds=dict(op='add', out_dtype=out_dtype, in_dtypes=in_dtypes))
+        render_globals=dict(op='add', out_dtype=out_dtype, in_dtypes=in_dtypes))
 
 
 def mul(*in_dtypes, **kwds):
@@ -70,7 +70,7 @@ def mul(*in_dtypes, **kwds):
     out_dtype = derive_out_dtype(kwds.get('out_dtype', None), *in_dtypes)
     return Module(
         TEMPLATE.get_def('add_or_mul'),
-        render_kwds=dict(op='mul', out_dtype=out_dtype, in_dtypes=in_dtypes))
+        render_globals=dict(op='mul', out_dtype=out_dtype, in_dtypes=in_dtypes))
 
 
 def div(in_dtype1, in_dtype2, out_dtype=None):
@@ -82,7 +82,7 @@ def div(in_dtype1, in_dtype2, out_dtype=None):
     out_dtype = derive_out_dtype(out_dtype, in_dtype1, in_dtype2)
     return Module(
         TEMPLATE.get_def('div'),
-        render_kwds=dict(out_dtype=out_dtype, in_dtype1=in_dtype1, in_dtype2=in_dtype2))
+        render_globals=dict(out_dtype=out_dtype, in_dtype1=in_dtype1, in_dtype2=in_dtype2))
 
 
 def conj(dtype):
@@ -95,7 +95,7 @@ def conj(dtype):
 
     return Module(
         TEMPLATE.get_def('conj'),
-        render_kwds=dict(dtype=dtype))
+        render_globals=dict(dtype=dtype))
 
 
 def polar_unit(dtype):
@@ -109,7 +109,7 @@ def polar_unit(dtype):
 
     return Module(
         TEMPLATE.get_def('polar_unit'),
-        render_kwds=dict(dtype=dtype))
+        render_globals=dict(dtype=dtype))
 
 
 def norm(dtype):
@@ -120,7 +120,7 @@ def norm(dtype):
     """
     return Module(
         TEMPLATE.get_def('norm'),
-        render_kwds=dict(dtype=dtype))
+        render_globals=dict(dtype=dtype))
 
 
 def exp(dtype):
@@ -138,7 +138,7 @@ def exp(dtype):
         polar_unit_ = polar_unit(dtypes.real_for(dtype))
     return Module(
         TEMPLATE.get_def('exp'),
-        render_kwds=dict(dtype=dtype, polar_unit_=polar_unit_))
+        render_globals=dict(dtype=dtype, polar_unit_=polar_unit_))
 
 
 def pow(dtype, exponent_dtype=None, output_dtype=None):
@@ -181,7 +181,7 @@ def pow(dtype, exponent_dtype=None, output_dtype=None):
     if dtypes.is_complex(output_dtype):
         kwds['polar_'] = polar(dtypes.real_for(output_dtype))
 
-    return Module(TEMPLATE.get_def('pow'), render_kwds=kwds)
+    return Module(TEMPLATE.get_def('pow'), render_globals=kwds)
 
 
 def polar(dtype):
@@ -195,4 +195,4 @@ def polar(dtype):
 
     return Module(
         TEMPLATE.get_def('polar'),
-        render_kwds=dict(dtype=dtype, polar_unit_=polar_unit(dtype)))
+        render_globals=dict(dtype=dtype, polar_unit_=polar_unit(dtype)))

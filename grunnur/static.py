@@ -13,7 +13,7 @@ class StaticKernel:
 
     def __init__(
             self, context, src, name, global_size,
-            local_size=None, device_nums=None, render_kwds={}, **kwds):
+            local_size=None, device_nums=None, render_globals={}, **kwds):
 
         self.context = context
 
@@ -45,12 +45,12 @@ class StaticKernel:
                     max_total_local_size_override=max_total_local_size)
 
                 # TODO: check that there are no name clashes with virtual size functions
-                new_render_kwds = dict(render_kwds)
-                new_render_kwds['static'] = vs.vsize_modules
+                new_render_globals = dict(render_globals)
+                new_render_globals['static'] = vs.vsize_modules
 
                 # Try to compile the kernel with the corresponding virtual size functions
                 program = context._render_and_compile_single_device(
-                    device_num, src, render_kwds=new_render_kwds, **kwds)
+                    device_num, src, render_globals=new_render_globals, **kwds)
                 kernel = getattr(program, name)
 
                 if kernel.max_total_local_size >= prod(vs.real_local_size):

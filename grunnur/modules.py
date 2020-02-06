@@ -1,53 +1,67 @@
+from __future__ import annotations
+
 import sys
+from typing import Iterable, Mapping, Callable
+
 from .template import DefTemplate, RenderError
 
 
 class Snippet:
     """
-    Contains a source snippet.
-    See :ref:`tutorial-modules` for details.
-
-    :param template_src: a ``Mako`` template with the module code,
-        or a string with the template source.
-    :type template_src: ``str`` or ``Mako`` template.
-    :param render_kwds: a dictionary which will be used to render the template.
-        Can contain other modules and snippets.
+    Contains a source snippet - a template function that will be rendered in place,
+    with possible context that can include other :py:class:`Snippet`
+    or :py:class:`Module` objects.
     """
-
-    @classmethod
-    def from_function(cls, func, name='_snippet', render_kwds={}):
-        """
-        Creates a snippet from the ``Mako`` def:
-
-        * if ``func_or_str`` is a function, then the def has the same signature as ``func_or_str``,
-          and the body equal to the string it returns;
-        * if ``func_or_str`` is a string, then the def has empty signature.
-        """
-        template = DefTemplate.from_function(name, func)
-        return cls(template, render_kwds=render_kwds)
-
-    @classmethod
-    def from_string(cls, source, name='_snippet', render_kwds={}):
-        template = DefTemplate.from_string(name, source)
-        return cls(template, render_kwds=render_kwds)
-
-    def __init__(self, template, render_kwds={}):
+    def __init__(self, template: DefTemplate, render_globals: Mapping={}):
         self.name = template.name
         self.template = template
-        self.render_kwds = render_kwds
+        self.render_globals = render_globals
 
-    def __process_modules__(self, process):
-        return RenderableSnippet(self.template, process(self.render_kwds))
+    @classmethod
+    def from_callable(
+            cls, callable_: Callable[..., str],
+            name: str='_snippet', render_globals: Mapping={}) -> Snippet:
+        """
+        Creates a snippet from a callable returning a string.
+        The parameter list of the callable is used to create the pararameter list
+        of the resulting template def; the callable should return the body of a
+        Mako template def regardless of the arguments it receives.
+
+        :param func: a callable returning the template source.
+        :param name: the snippet's name (will simplify debugging)
+        :param render_globals: a dictionary of "globals" to be used when rendering the template.
+        """
+        template = DefTemplate.from_callable(name, callable_)
+        return cls(template, render_globals=render_globals)
+
+    @classmethod
+    def from_string(cls, source: str, name: str='_snippet', render_globals: Mapping={}) -> Snippet:
+        """
+        Creates a snippet from a template source, treated as a body of a
+        template def with no arguments.
+
+        :param func: a callable returning the template source.
+        :param name: the snippet's name (will simplify debugging)
+        :param render_globals: a dictionary of "globals" to be used when rendering the template.
+        """
+        template = DefTemplate.from_string(name, source)
+        return cls(template, render_globals=render_globals)
+
+    def __process_modules__(self, process: Callable) -> RenderableSnippet:
+        return RenderableSnippet(self.template, process(self.render_globals))
 
 
 class RenderableSnippet:
+    """
+    A snippet with processed dependencies and ready to be rendered.
+    """
 
-    def __init__(self, template, render_kwds):
+    def __init__(self, template: DefTemplate, render_globals: Mapping):
         self.template = template
-        self.render_kwds = render_kwds
+        self.render_globals = render_globals
 
-    def __call__(self, *args):
-        return self.template.render(*args, **self.render_kwds)
+    def __call__(self, *args) -> str:
+        return self.template.render(*args, **self.render_globals)
 
     def __str__(self):
         return self()
@@ -55,55 +69,65 @@ class RenderableSnippet:
 
 class Module:
     """
-    Contains a source module.
-    See :ref:`tutorial-modules` for details.
-
-    :param template_src: a ``Mako`` template with the module code,
-        or a string with the template source.
-    :type template_src: ``str`` or ``Mako`` template.
-    :param render_kwds: a dictionary which will be used to render the template.
-        Can contain other modules and snippets.
+    Contains a source module - a template function that will be rendered at root level,
+    and the place where it was called will receive its unique identifier (prefix),
+    which is used to prefix all module's functions, types and macros in the global namespace.
     """
 
     @classmethod
-    def from_function(cls, func, name='_module', render_kwds={}):
+    def from_callable(
+            cls, callable_: Callable[..., str],
+            name: str='_module', render_globals: Mapping={}) -> Module:
         """
-        Creates a module from the ``Mako`` def:
+        Creates a module from a callable returning a string.
+        The parameter list of the callable is used to create the pararameter list
+        of the resulting template def; the callable should return the body of a
+        Mako template def regardless of the arguments it receives.
 
-        * if ``func_or_str`` is a function, then the def has the same signature as ``func_or_str``
-          (prefix will be passed as the first positional parameter),
-          and the body equal to the string it returns;
-        * if ``func_or_str`` is a string, then the def has a single positional argument ``prefix``.
-          and the body ``code``.
+        The prefix will be passed as the first argument to the template def on render.
+
+        :param func: a callable returning the template source.
+        :param name: the module's name (will simplify debugging)
+        :param render_globals: a dictionary of "globals" to be used when rendering the template.
         """
-        template = DefTemplate.from_function(name, func)
-        return cls(template, render_kwds=render_kwds)
+        template = DefTemplate.from_callable(name, callable_)
+        return cls(template, render_globals=render_globals)
 
     @classmethod
-    def from_string(cls, source, name='_module', render_kwds={}):
-        template = DefTemplate.from_string(name, source, argnames=['prefix'])
-        return cls(template, render_kwds=render_kwds)
+    def from_string(cls, source: str, name: str='_module', render_globals: Mapping={}) -> Module:
+        """
+        Creates a module from a template source, treated as a body of a
+        template def with a single argument (prefix).
 
-    def __init__(self, template, render_kwds={}):
+        :param func: a callable returning the template source.
+        :param name: the module's name (will simplify debugging)
+        :param render_globals: a dictionary of "globals" to be used when rendering the template.
+        """
+        template = DefTemplate.from_string(name, source, argnames=['prefix'])
+        return cls(template, render_globals=render_globals)
+
+    def __init__(self, template: DefTemplate, render_globals: Mapping={}):
         self.name = template.name
         self.template = template
-        self.render_kwds = render_kwds
+        self.render_globals = render_globals
 
-    def process(self, collector):
+    def process(self, collector: SourceCollector) -> RenderableModule:
         return RenderableModule(
-            collector, id(self), self.template, process(self.render_kwds, collector))
+            collector, id(self), self.template, process(self.render_globals, collector))
 
 
 class RenderableModule:
 
-    def __init__(self, collector, module_id, template, render_kwds):
+    def __init__(
+            self, collector: SourceCollector, module_id: int,
+            template: DefTemplate, render_globals: Mapping):
         self.module_id = module_id
         self.collector = collector
         self.template = template
-        self.render_kwds = render_kwds
+        self.render_globals = render_globals
 
-    def __call__(self, *args):
-        return self.collector.add_module(self.module_id, self.template, args, self.render_kwds)
+    def __call__(self, *args) -> str:
+        return self.collector.add_module(self.module_id, self.template, args, self.render_globals)
 
     def __str__(self):
         return self()
@@ -116,7 +140,9 @@ class SourceCollector:
         self.sources = []
         self.prefix_counter = 0
 
-    def add_module(self, module_id, template, args, render_kwds):
+    def add_module(
+            self, module_id: int, template: DefTemplate,
+            args: Iterable, render_globals: Mapping) -> str:
 
         # This caching serves two purposes.
         # First, it reduces the amount of generated code by not generating
@@ -124,14 +150,14 @@ class SourceCollector:
         # Second, if the same module object is used in other modules,
         # the data structures defined in this module will be suitable
         # for functions in these modules.
-        call_id = (module_id, args)
+        call_id = (module_id, tuple(args))
         if call_id in self.module_cache:
             return self.module_cache[call_id]
 
         prefix = "_mod_" + template.name + "_" + str(self.prefix_counter) + "_"
         self.prefix_counter += 1
 
-        src = template.render(prefix, *args, **render_kwds)
+        src = template.render(prefix, *args, **render_globals)
         self.sources.append(src)
 
         self.module_cache[call_id] = prefix
@@ -142,7 +168,7 @@ class SourceCollector:
         return "\n".join(self.sources)
 
 
-def process(obj, collector):
+def process(obj, collector: SourceCollector):
     if isinstance(obj, Module):
         return obj.process(collector)
     elif hasattr(obj, '__process_modules__'):
@@ -157,7 +183,7 @@ def process(obj, collector):
         return obj
 
 
-def render_with_modules(src, render_args=[], render_kwds={}):
+def render_with_modules(src, render_args: Iterable=[], render_globals: Mapping={}) -> str:
 
     collector = SourceCollector()
     render_args = process(render_args, collector)
@@ -166,11 +192,11 @@ def render_with_modules(src, render_args=[], render_kwds={}):
         name = "_main_"
         if len(render_args) > 0:
             raise ValueError("A textual source cannot have `render_args` set.")
-        snippet = Snippet.from_string(src, name="_main_", render_kwds=render_kwds)
+        snippet = Snippet.from_string(src, name="_main_", render_globals=render_globals)
     elif callable(src):
-        snippet = Snippet.from_function(src, name="_main_", render_kwds=render_kwds)
+        snippet = Snippet.from_callable(src, name="_main_", render_globals=render_globals)
     elif isinstance(DefTemplate, src):
-        snippet = Snippet(src, render_kwds=render_kwds)
+        snippet = Snippet(src, render_globals=render_globals)
     else:
         raise TypeError(f"Cannot render an object of type {type(src)}")
 
@@ -180,7 +206,7 @@ def render_with_modules(src, render_args=[], render_kwds={}):
         main_src = main_renderable(*render_args)
     except RenderError as e:
         print("Failed to render template with")
-        print(f"* args: {e.args}\n* kwds: {e.kwds}\n* source:\n{e.source}\n")
+        print(f"* args: {e.args}\n* globals: {e.globals}\n* source:\n{e.source}\n")
         # The error will come from a chain of modules and snippets rendering each other,
         # so it will be buried deep in the traceback.
         # Setting the cause to None to cut all the intermediate calls which don't carry

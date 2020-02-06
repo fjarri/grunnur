@@ -111,3 +111,19 @@ OpenCL
 .. autoclass:: grunnur.opencl.OclQueue
     :show-inheritance:
     :members: from_pyopencl_commandqueues
+
+
+Utilities
+---------
+
+.. autoclass:: grunnur.template.Template
+    :members:
+
+.. autoclass:: grunnur.template.DefTemplate
+    :members:
+
+.. autoclass:: grunnur.modules.Snippet
+    :members:
+
+.. autoclass:: grunnur.modules.Module
+    :members:

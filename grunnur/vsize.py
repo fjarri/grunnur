@@ -318,70 +318,70 @@ class VsizeModules:
 
         local_id_mod = Module(
             TEMPLATE.get_def('local_id'),
-            render_kwds=dict(
+            render_globals=dict(
                 virtual_local_size=virtual_local_size,
                 local_groups=local_groups))
 
         local_size_mod = Module(
             TEMPLATE.get_def('local_size'),
-            render_kwds=dict(
+            render_globals=dict(
                 virtual_local_size=virtual_local_size))
 
         group_id_mod = Module(
             TEMPLATE.get_def('group_id'),
-            render_kwds=dict(
+            render_globals=dict(
                 virtual_grid_size=virtual_grid_size,
                 grid_groups=grid_groups))
 
         num_groups_mod = Module(
             TEMPLATE.get_def('num_groups'),
-            render_kwds=dict(
+            render_globals=dict(
                 virtual_grid_size=virtual_grid_size))
 
         global_id_mod = Module(
             TEMPLATE.get_def('global_id'),
-            render_kwds=dict(
+            render_globals=dict(
                 local_id_mod=local_id_mod,
                 group_id_mod=group_id_mod,
                 local_size_mod=local_size_mod))
 
         global_size_mod = Module(
             TEMPLATE.get_def('global_size'),
-            render_kwds=dict(
+            render_globals=dict(
                 virtual_global_size=virtual_global_size))
 
         global_flat_id_mod = Module(
             TEMPLATE.get_def('global_flat_id'),
-            render_kwds=dict(
+            render_globals=dict(
                 virtual_global_size=virtual_global_size,
                 global_id_mod=global_id_mod,
                 prod=prod))
 
         global_flat_size_mod = Module(
             TEMPLATE.get_def('global_flat_size'),
-            render_kwds=dict(
+            render_globals=dict(
                 virtual_global_size=virtual_global_size))
 
         skip_local_threads_mod = Module(
             TEMPLATE.get_def('skip_local_threads'),
-            render_kwds=dict(
+            render_globals=dict(
                 local_groups=local_groups))
 
         skip_groups_mod = Module(
             TEMPLATE.get_def('skip_groups'),
-            render_kwds=dict(
+            render_globals=dict(
                 grid_groups=grid_groups))
 
         skip_global_threads_mod = Module(
             TEMPLATE.get_def('skip_global_threads'),
-            render_kwds=dict(
+            render_globals=dict(
                 virtual_global_size=virtual_global_size,
                 bounding_global_size=bounding_global_size,
                 global_id_mod=global_id_mod))
 
         begin_static_kernel = Snippet(
             TEMPLATE.get_def('begin_static_kernel'),
-            render_kwds=dict(
+            render_globals=dict(
                 skip_local_threads_mod=skip_local_threads_mod,
                 skip_groups_mod=skip_groups_mod,
                 skip_global_threads_mod=skip_global_threads_mod))
