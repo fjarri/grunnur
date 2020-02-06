@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from math import log10
-from typing import List, Type, Optional, Tuple, Iterable, Dict, Union, Callable
+from typing import List, Type, Optional, Tuple, Iterable, Mapping, Union, Callable
 import re
 
 import numpy
@@ -532,7 +532,7 @@ class Context(ABC):
             keep: bool=False,
             fast_math: bool=False,
             compiler_options: Iterable[str]=[],
-            constant_arrays: Dict[str, Tuple[int, numpy.dtype]]={}) -> SingleDeviceProgram:
+            constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={}) -> SingleDeviceProgram:
         """
         Compiles the given source with the given prelude on a single device.
 
@@ -553,7 +553,7 @@ class Context(ABC):
             no_prelude: bool=False,
             fast_math: bool=False,
             render_args: Iterable=[],
-            render_kwds: Dict={},
+            render_globals: Mapping={},
             **kwds) -> SingleDeviceProgram:
         """
         Renders and compiles the given template on a single device.
@@ -600,10 +600,10 @@ class Context(ABC):
             no_prelude: bool=False,
             fast_math: bool=False,
             render_args: Iterable=[],
-            render_kwds: Dict={},
+            render_globals: Mapping={},
             compiler_options: Iterable[str]=[],
             keep: bool=False,
-            constant_arrays: Dict[str, Tuple[int, numpy.dtype]]={}) -> Program:
+            constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={}) -> Program:
         """
         Compiles the given source on multiple devices.
 
