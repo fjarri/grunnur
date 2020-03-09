@@ -84,19 +84,19 @@ class DefTemplate:
     """
 
     @classmethod
-    def from_callable(cls, name: str, callable_: Callable[..., str]) -> DefTemplate:
+    def from_callable(cls, name: str, callable_obj: Callable[..., str]) -> DefTemplate:
         """
         Creates a template def from a callable returning a string.
         The parameter list of the callable is used to create the pararameter list
         of the resulting template def; the callable should return the body of a
         Mako template def regardless of the arguments it receives.
         """
-        signature = inspect.signature(callable_)
+        signature = inspect.signature(callable_obj)
 
         # pass mock values to extract the value
         args = [None] * len(signature.parameters)
 
-        return cls._from_signature_and_body(name, signature, callable_(*args))
+        return cls._from_signature_and_body(name, signature, callable_obj(*args))
 
     @classmethod
     def from_string(cls, name: str, source: str, argnames: Iterable[str]=[]) -> DefTemplate:

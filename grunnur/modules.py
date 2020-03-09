@@ -19,7 +19,7 @@ class Snippet:
 
     @classmethod
     def from_callable(
-            cls, callable_: Callable[..., str],
+            cls, callable_obj: Callable[..., str],
             name: str='_snippet', render_globals: Mapping={}) -> Snippet:
         """
         Creates a snippet from a callable returning a string.
@@ -27,11 +27,11 @@ class Snippet:
         of the resulting template def; the callable should return the body of a
         Mako template def regardless of the arguments it receives.
 
-        :param func: a callable returning the template source.
+        :param callable_obj: a callable returning the template source.
         :param name: the snippet's name (will simplify debugging)
         :param render_globals: a dictionary of "globals" to be used when rendering the template.
         """
-        template = DefTemplate.from_callable(name, callable_)
+        template = DefTemplate.from_callable(name, callable_obj)
         return cls(template, render_globals=render_globals)
 
     @classmethod
@@ -40,7 +40,7 @@ class Snippet:
         Creates a snippet from a template source, treated as a body of a
         template def with no arguments.
 
-        :param func: a callable returning the template source.
+        :param source: a string with the template source.
         :param name: the snippet's name (will simplify debugging)
         :param render_globals: a dictionary of "globals" to be used when rendering the template.
         """
@@ -76,7 +76,7 @@ class Module:
 
     @classmethod
     def from_callable(
-            cls, callable_: Callable[..., str],
+            cls, callable_obj: Callable[..., str],
             name: str='_module', render_globals: Mapping={}) -> Module:
         """
         Creates a module from a callable returning a string.
@@ -86,11 +86,11 @@ class Module:
 
         The prefix will be passed as the first argument to the template def on render.
 
-        :param func: a callable returning the template source.
+        :param callable_obj: a callable returning the template source.
         :param name: the module's name (will simplify debugging)
         :param render_globals: a dictionary of "globals" to be used when rendering the template.
         """
-        template = DefTemplate.from_callable(name, callable_)
+        template = DefTemplate.from_callable(name, callable_obj)
         return cls(template, render_globals=render_globals)
 
     @classmethod
@@ -99,7 +99,7 @@ class Module:
         Creates a module from a template source, treated as a body of a
         template def with a single argument (prefix).
 
-        :param func: a callable returning the template source.
+        :param source: a string with the template source.
         :param name: the module's name (will simplify debugging)
         :param render_globals: a dictionary of "globals" to be used when rendering the template.
         """
