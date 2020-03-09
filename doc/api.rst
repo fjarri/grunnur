@@ -131,3 +131,58 @@ Utilities
     :members:
 
 .. autofunction:: grunnur.modules.render_with_modules
+
+
+Data type utilities
+-------------------
+
+.. module:: grunnur.dtypes
+
+C interop
+~~~~~~~~~
+
+.. autofunction:: ctype
+
+.. autofunction:: ctype_module
+
+.. autofunction:: complex_ctr
+
+.. autofunction:: c_constant
+
+.. autofunction:: align
+
+
+Struct helpers
+~~~~~~~~~~~~~~
+
+.. autofunction:: c_path
+
+.. autofunction:: flatten_dtype
+
+.. autofunction:: extract_field
+
+
+Data type checks and conversions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: normalize_type
+
+.. autofunction:: is_complex
+
+.. autofunction:: is_double
+
+.. autofunction:: is_integer
+
+.. autofunction:: is_real
+
+.. autofunction:: result_type
+
+.. autofunction:: min_scalar_type
+
+.. autofunction:: detect_type
+
+.. autofunction:: complex_for
+
+.. autofunction:: real_for
+
+.. autofunction:: cast
