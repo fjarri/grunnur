@@ -122,8 +122,12 @@ Utilities
 .. autoclass:: grunnur.template.DefTemplate
     :members:
 
+.. autoclass:: grunnur.template.RenderError
+
 .. autoclass:: grunnur.modules.Snippet
     :members:
 
 .. autoclass:: grunnur.modules.Module
     :members:
+
+.. autofunction:: grunnur.modules.render_with_modules

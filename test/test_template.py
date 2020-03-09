@@ -74,7 +74,7 @@ def test_render_error():
     assert e.value.globals == dict(kwd=3)
     assert e.value.source == template.source
     assert type(e.value.exception) == NameError
-    assert str(e.value) == str(e.value.exception)
+    assert str(e.value.exception) in str(e.value)
 
 
 def test_render_error_pass_through():
@@ -87,7 +87,7 @@ def test_render_error_pass_through():
     assert e.value.globals == dict()
     assert e.value.source == template1.source
     assert type(e.value.exception) == NameError
-    assert str(e.value) == str(e.value.exception)
+    assert str(e.value.exception) in str(e.value)
 
 
 def test_template_builtins():

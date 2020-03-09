@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Iterable, Mapping, Callable
+from typing import Iterable, Mapping, Callable, Union
 
 from .template import DefTemplate, RenderError
 
@@ -183,7 +183,35 @@ def process(obj, collector: SourceCollector):
         return obj
 
 
-def render_with_modules(src, render_args: Iterable=[], render_globals: Mapping={}) -> str:
+def render_with_modules(
+        src: Union[str, Callable[..., str], DefTemplate, Snippet],
+        render_args: Iterable=[], render_globals: Mapping={}) -> str:
+    """
+    Renders the given source traversing the arguments and globals processing modules.
+    If a module is attempted to be rendered, its source is prepended to the resulting source,
+    and the caller receives the generated module prefix.
+
+    Nested arguments/globals of :py:class:`Module` and :py:class:`Snippet`
+    are traversed automatically. Also traversed are instances of `dict`, `list` and `tuple`.
+    Other classes must define a `__process_modules__(self, process)` method,
+    where `process` is a one-argument function traversing any of the supported objects
+    and returning the resulting object with all nested :py:class:`Module` objects
+    changed to :py:class:`RenderableModule`.
+
+    If ``src`` is a string, a callable or a :py:class:`DefTemplate`,
+    a :py:class:`Snippet` is created with a corresponding classmethod or the constructor.
+
+    If ``src`` is a :py:class:`Snippet`, ``render_globals`` must be empty,
+    and whatever globals needs to be passed to the template, must be included in the
+    :py:class:`Snippet` object itself.
+
+    If any of the nested templates fails to render, a :py:class:`RenderError` is propagated
+    from that place to this function, and raised here.
+
+    :param src: the textual source, template or a snippet to render.
+    :param render_args: a list of arguments to pass to the template def.
+    :param render_globals: a dict of globals to render the template with.
+    """
 
     collector = SourceCollector()
     render_args = process(render_args, collector)
@@ -195,8 +223,14 @@ def render_with_modules(src, render_args: Iterable=[], render_globals: Mapping={
         snippet = Snippet.from_string(src, name="_main_", render_globals=render_globals)
     elif callable(src):
         snippet = Snippet.from_callable(src, name="_main_", render_globals=render_globals)
-    elif isinstance(DefTemplate, src):
+    elif isinstance(src, DefTemplate):
         snippet = Snippet(src, render_globals=render_globals)
+    elif isinstance(src, Snippet):
+        snippet = src
+        if len(render_globals) > 0:
+            raise ValueError(
+                "If a Snippet object is given, its own render_globals are used, "
+                "and the ones given to render_with_modules() must be empty.")
     else:
         raise TypeError(f"Cannot render an object of type {type(src)}")
 
@@ -205,12 +239,10 @@ def render_with_modules(src, render_args: Iterable=[], render_globals: Mapping={
     try:
         main_src = main_renderable(*render_args)
     except RenderError as e:
-        print("Failed to render template with")
-        print(f"* args: {e.args}\n* globals: {e.globals}\n* source:\n{e.source}\n")
         # The error will come from a chain of modules and snippets rendering each other,
         # so it will be buried deep in the traceback.
         # Setting the cause to None to cut all the intermediate calls which don't carry
         # any important information.
-        raise e.exception from None
+        raise e from None
 
     return collector.get_source() + "\n" + main_src

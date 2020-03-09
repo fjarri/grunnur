@@ -18,9 +18,25 @@ _TEMPLATE_OPTIONS = dict(
 class RenderError(Exception):
     """
     A custom wrapper for Mako template render errors, to facilitate debugging.
+
+    .. py:attribute:: exception: Exception
+
+        The original exception thrown by Mako's `render()`.
+
+    .. py:attribute:: args: tuple
+
+        The arguments used to render the template.
+
+    .. py:attribute:: globals: dict
+
+        The globals used to render the template.
+
+    .. py:attribute:: source: str
+
+        The source of the template.
     """
 
-    def __init__(self, exception, args, globals_, source):
+    def __init__(self, exception: Exception, args: tuple, globals_: dict, source: str):
         super().__init__()
         self.exception = exception
         self.args = args
@@ -28,7 +44,10 @@ class RenderError(Exception):
         self.source = source
 
     def __str__(self):
-        return str(self.exception)
+        return (
+            "Failed to render a template with\n"
+            f"* args: {self.args}\n* globals: {self.globals}\n* source:\n{self.source}\n"
+            f"* Mako error: ({type(self.exception).__name__}) {self.exception}")
 
 
 def _extract_def_source(source, name):
@@ -37,7 +56,7 @@ def _extract_def_source(source, name):
     This makes error messages much more readable.
     """
     match = re.search(
-        r"(<%def\s+name\s*=\s*[\"']" + name + r"\(.*>\s*\r?\n.*</%def>)", source, flags=re.DOTALL)
+        r"(<%def\s+name\s*=\s*[\"']" + name + r"\(.*>.*</%def>)", source, flags=re.DOTALL)
     if match:
         return match.group(1)
     else:
