@@ -42,7 +42,7 @@ class StaticKernel:
                 vs = VirtualSizes(
                     max_total_local_size=max_total_local_size,
                     max_local_sizes=device_params.max_local_sizes,
-                    max_num_groups=device_params.num_groups,
+                    max_num_groups=device_params.max_num_groups,
                     local_size_multiple=device_params.warp_size,
                     virtual_global_size=global_size,
                     virtual_local_size=local_size)
