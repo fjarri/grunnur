@@ -16,7 +16,7 @@ from .base_classes import (
     SingleDeviceProgram, SingleDeviceKernel,
     normalize_base_objects, process_arg, Array, Buffer
     )
-from .utils import all_same, all_different, wrap_in_tuple, prod, factors
+from .utils import all_same, all_different, wrap_in_tuple, prod
 from .template import Template
 from . import dtypes
 
@@ -568,31 +568,41 @@ class CuProgram(Program):
             sd_program.set_constant_array(name, arr, queue=queue)
 
 
-def find_local_size(global_size, max_work_item_sizes, max_total_local_size):
+def max_factor(x: int, y: int) -> int:
+    """
+    Find the maximum `d` such that `x % d == 0` and `d <= y`.
+    """
+    if x <= y:
+        return x
+
+    for d in range(y, 0, -1):
+        if x % d == 0:
+            return d
+
+    return 1
+
+
+def find_local_size(
+        global_size: Tuple[int],
+        max_local_sizes: Tuple[int],
+        max_total_local_size: int) -> Tuple[int]:
     """
     Mimics the OpenCL local size finding algorithm.
     Returns the tuple of the same length as ``global_size``, with every element
     being a factor of the corresponding element of ``global_size``.
     Neither of the elements of ``local_size`` are greater then the corresponding element
-    of ``max_work_item_sizes``, and their product is not greater than ``max_total_local_size``.
+    of ``max_local_sizes``, and their product is not greater than ``max_total_local_size``.
     """
-    if len(global_size) == 0:
-        return tuple()
-
     if max_total_local_size == 1:
         return (1,) * len(global_size)
 
-    gs_factors = factors(global_size[0], limit=min(max_work_item_sizes[0], max_total_local_size))
-    local_size_1d, _ = gs_factors[-1]
+    local_size = []
+    for gs, mls in zip(global_size, max_local_sizes):
+        d = max_factor(gs, min(mls, max_total_local_size))
+        max_total_local_size //= d
+        local_size.append(d)
 
-    # TODO:
-    #local_size_1d = max_factor(global_size[0], min(max_work_item_sizes[0], max_total_local_size))
-    # this will be much faster
-
-    remainder = find_local_size(
-        global_size[1:], max_work_item_sizes[1:], max_total_local_size // local_size_1d)
-
-    return (local_size_1d,) + remainder
+    return tuple(local_size)
 
 
 def get_launch_size(max_local_sizes, max_total_local_size, global_size, local_size=None):
