@@ -4,6 +4,7 @@ import inspect
 import os.path
 from typing import Callable, Iterable
 import re
+import warnings
 
 from mako.template import Template as MakoTemplate
 from mako.template import DefTemplate as MakoDefTemplate
@@ -30,20 +31,6 @@ class RenderError(Exception):
         return str(self.exception)
 
 
-def _render(renderable, source, *args, **globals_):
-    try:
-        return renderable.render(*args, **globals_)
-    except RenderError as e:
-        # _render() can be called by a chain of templates which call each other;
-        # passing the original render error to the top so that it could be handled there.
-        raise
-    except Exception as e:
-        # TODO: we could collect mako.exceptions.text_error_template().render() here,
-        # because ideally it should point to the line where the error occurred,
-        # but for some reason it doesn't. So we don't bother for now.
-        raise RenderError(e, args, globals_, source)
-
-
 def _extract_def_source(source, name):
     """
     Attempts to extract the source of a single def from Mako template.
@@ -54,6 +41,7 @@ def _extract_def_source(source, name):
     if match:
         return match.group(1)
     else:
+        warnings.warn(f"Could not find the template definition '{name}'", SyntaxWarning)
         return source
 
 
@@ -67,7 +55,7 @@ class Template:
         """
         Returns a :py:class:`Template` object created from the file
         which has the same name as ``filename`` and the extension ``.mako``.
-        Typically used in computation modules as ``Template.from_associated_file(__filename__)``.
+        Typically used in computation modules as ``Template.from_associated_file(__file__)``.
         """
         path, _ext = os.path.splitext(os.path.abspath(filename))
         template_path = path + '.mako'
@@ -83,15 +71,11 @@ class Template:
         return cls(mako_template)
 
     def __init__(self, mako_template: MakoTemplate):
-        self.name = "<root>"
         self._mako_template = mako_template
-        self.source = mako_template.source
-
-    def render(self, *args, **globals_) -> str:
-        return _render(self._mako_template, self.source, *args, **globals_)
 
     def get_def(self, name: str) -> DefTemplate:
-        return DefTemplate(name, self._mako_template.get_def(name))
+        def_source = _extract_def_source(self._mako_template.source, name)
+        return DefTemplate(name, self._mako_template.get_def(name), def_source)
 
 
 class DefTemplate:
@@ -130,13 +114,24 @@ class DefTemplate:
             cls, name: str, signature: inspect.Signature, body: str) -> DefTemplate:
         # TODO: pass the source to the DefTemplate constructor directly
         # instead of using _extract_def_source()
-        template_src = "<%def name='" + name + str(signature) + "'>\n" + body + "\n</%def>"
-        return Template.from_string(template_src).get_def(name)
+        src = "<%def name='" + name + str(signature) + "'>\n" + body + "\n</%def>"
+        mako_def_template = MakoTemplate(text=src, **_TEMPLATE_OPTIONS).get_def(name)
+        return cls(name, mako_def_template, src)
 
-    def __init__(self, name: str, mako_def_template: MakoDefTemplate):
+    def __init__(self, name: str, mako_def_template: MakoDefTemplate, source: str):
         self.name = name
         self._mako_def_template = mako_def_template
-        self.source = _extract_def_source(mako_def_template.source, name)
+        self.source = source
 
     def render(self, *args, **globals_) -> str:
-        return _render(self._mako_def_template, self.source, *args, **globals_)
+        try:
+            return self._mako_def_template.render(*args, **globals_)
+        except RenderError as e:
+            # _render() can be called by a chain of templates which call each other;
+            # passing the original render error to the top so that it could be handled there.
+            raise
+        except Exception as e:
+            # TODO: we could collect mako.exceptions.text_error_template().render() here,
+            # because ideally it should point to the line where the error occurred,
+            # but for some reason it doesn't. So we don't bother for now.
+            raise RenderError(e, args, globals_, self.source)
