@@ -42,7 +42,7 @@ def ctype(dtype: numpy.dtype) -> Union[str, Module]:
         If ``dtype`` is a struct type, it needs to be aligned
         (see :py:func:`ctype_module` and :py:func:`align`).
 
-    :param dtype: ``numpy`` data type object.
+    :param dtype:
     """
     dtype = normalize_type(dtype)
     if dtype in _DTYPE_TO_BUILTIN_CTYPE:
@@ -57,7 +57,7 @@ def normalize_type(dtype: Union[type, numpy.dtype]) -> numpy.dtype:
     and have slightly different properties from actual ``numpy.dtype`` objects.
     This function converts the former to ``numpy.dtype`` and keeps the latter unchanged.
 
-    :param dtype: data type to normalize.
+    :param dtype:
     """
     return numpy.dtype(dtype)
 
@@ -65,6 +65,8 @@ def normalize_type(dtype: Union[type, numpy.dtype]) -> numpy.dtype:
 def is_complex(dtype: numpy.dtype) -> bool:
     """
     Returns ``True`` if ``dtype`` is complex.
+
+    :param dtype:
     """
     dtype = normalize_type(dtype)
     return numpy.issubdtype(dtype, numpy.complexfloating)
@@ -73,6 +75,8 @@ def is_complex(dtype: numpy.dtype) -> bool:
 def is_double(dtype: numpy.dtype) -> bool:
     """
     Returns ``True`` if ``dtype`` is double precision floating point.
+
+    :param dtype:
     """
     dtype = normalize_type(dtype)
     return numpy.issubdtype(dtype, numpy.float_) or numpy.issubdtype(dtype, numpy.complex_)
@@ -81,6 +85,8 @@ def is_double(dtype: numpy.dtype) -> bool:
 def is_integer(dtype: numpy.dtype) -> bool:
     """
     Returns ``True`` if ``dtype`` is an integer.
+
+    :param dtype:
     """
     dtype = normalize_type(dtype)
     return numpy.issubdtype(dtype, numpy.integer)
@@ -89,6 +95,8 @@ def is_integer(dtype: numpy.dtype) -> bool:
 def is_real(dtype: numpy.dtype) -> bool:
     """
     Returns ``True`` if ``dtype`` is a real number (but not complex).
+
+    :param dtype:
     """
     dtype = normalize_type(dtype)
     return numpy.issubdtype(dtype, numpy.floating)
@@ -110,6 +118,8 @@ def result_type(*dtypes: numpy.dtype) -> numpy.dtype:
     """
     Wrapper for ``numpy.result_type()``
     which takes into account types supported by GPUs.
+
+    :param dtypes:
     """
     return _promote_type(numpy.result_type(*dtypes))
 
@@ -135,6 +145,8 @@ def detect_type(val) -> numpy.dtype:
 def complex_for(dtype: numpy.dtype) -> numpy.dtype:
     """
     Returns complex dtype corresponding to given floating point ``dtype``.
+
+    :param dtype:
     """
     dtype = normalize_type(dtype)
     if dtype == numpy.float32:
@@ -148,6 +160,8 @@ def complex_for(dtype: numpy.dtype) -> numpy.dtype:
 def real_for(dtype: numpy.dtype) -> numpy.dtype:
     """
     Returns floating point dtype corresponding to given complex ``dtype``.
+
+    :param dtype:
     """
     dtype = normalize_type(dtype)
     if dtype == numpy.complex64:
@@ -161,6 +175,8 @@ def real_for(dtype: numpy.dtype) -> numpy.dtype:
 def complex_ctr(dtype: numpy.dtype) -> str:
     """
     Returns name of the constructor for the given ``dtype``.
+
+    :param dtype:
     """
     return 'COMPLEX_CTR(' + ctype(dtype) + ')'
 
@@ -168,6 +184,8 @@ def complex_ctr(dtype: numpy.dtype) -> str:
 def cast(dtype: numpy.dtype) -> Callable[[Any], Any]:
     """
     Returns function that takes one argument and casts it to ``dtype``.
+
+    :param dtype:
     """
     def _cast(val) -> dtype:
         # Numpy cannot handle casts to struct dtypes (#4148),
@@ -194,6 +212,9 @@ def c_constant(val, dtype: Optional[numpy.dtype]=None) -> str:
     Returns a C-style numerical constant.
     If ``val`` has a struct dtype, the generated constant will have the form ``{ ... }``
     and can be used as an initializer for a variable.
+
+    :param val:
+    :param dtype:
     """
     if dtype is None:
         dtype = detect_type(val)
@@ -397,6 +418,8 @@ def align(dtype: numpy.dtype) -> numpy.dtype:
     Returns a new struct dtype with the field offsets changed to the ones a compiler would use
     (without being given any explicit alignment qualifiers).
     Ignores all existing explicit itemsizes and offsets.
+
+    :param dtype:
     """
     dtype = normalize_type(dtype)
     wrapped_dtype = _align(dtype)
@@ -486,6 +509,9 @@ def ctype_module(dtype: numpy.dtype, ignore_alignment: bool=False) -> Module:
     This results in a behavior characteristic for a structural type system,
     same as for the basic dtype-ctype conversion.
 
+    :param dtype:
+    :param ignore_alignment:
+
     .. warning::
 
         As of ``numpy`` 1.8, the ``isalignedstruct`` attribute is not enough to ensure
@@ -538,6 +564,8 @@ def flatten_dtype(dtype: numpy.dtype) -> List[Tuple[List[Union[str, int]], numpy
     Returns a list of tuples ``(path, dtype)`` for each of the basic dtypes in
     a (possibly nested) ``dtype``.
     ``path`` is a list of field names/array indices leading to the corresponding element.
+
+    :param dtype:
     """
     dtype = normalize_type(dtype)
     return _flatten_dtype(dtype)
@@ -548,6 +576,8 @@ def c_path(path: List[Union[str, int]]) -> str:
     Returns a string corresponding to the ``path`` to a struct element in C.
     The ``path`` is the sequence of field names/array indices returned from
     :py:func:`~grunnur.dtypes.flatten_dtype`.
+
+    :param path:
     """
     res = "".join(
         (("." + elem) if isinstance(elem, str) else ("[" + str(elem) + "]"))
@@ -579,5 +609,8 @@ def extract_field(arr: numpy.ndarray, path: List[Union[str, int]]) -> numpy.ndar
     Extracts an element from an array of struct dtype.
     The ``path`` is the sequence of field names/array indices returned from
     :py:func:`~grunnur.dtypes.flatten_dtype`.
+
+    :param arr:
+    :param path:
     """
     return _extract_field(arr, path, [])
