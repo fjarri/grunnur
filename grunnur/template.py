@@ -56,7 +56,7 @@ def _extract_def_source(source, name):
     This makes error messages much more readable.
     """
     match = re.search(
-        r"(<%def\s+name\s*=\s*[\"']" + name + r"\(.*>.*</%def>)", source, flags=re.DOTALL)
+        r"(<%def\s+name\s*=\s*[\"']" + name + r"\(.*?>.*?</%def>)", source, flags=re.DOTALL)
     if match:
         return match.group(1)
     else:

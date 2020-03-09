@@ -16,6 +16,11 @@ def test_extract_def_source():
         </%def>
     """
 
+    def_src = _extract_def_source(src, 'add')
+    template = MakoTemplate(def_src)
+    assert 'add' in template.list_defs()
+    assert 'sub' not in template.list_defs()
+
     def_src = _extract_def_source(src, 'sub')
     template = MakoTemplate(def_src)
     assert 'sub' in template.list_defs()
