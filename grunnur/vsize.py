@@ -1,6 +1,11 @@
-import numpy
+from __future__ import annotations
+
 from collections import defaultdict
 import itertools
+from math import floor, sqrt
+from typing import List, Dict
+
+import numpy
 
 from .template import Template
 from .modules import Module, Snippet
@@ -18,29 +23,32 @@ class OutOfResourcesError(Exception):
     pass
 
 
+def factorize(num: int) -> List[int]:
+    step = lambda x: 1 + (x<<2) - ((x>>1)<<1)
+    maxq = int(floor(sqrt(num)))
+    d = 1
+    q = 2 if num % 2 == 0 else 3
+    while q <= maxq and num % q != 0:
+        q = step(d)
+        d += 1
+    return [q] + factorize(num // q) if q <= maxq else [num]
+
+
 class PrimeFactors:
     """
     Contains a natural number's decomposition into prime factors.
     """
 
-    def __init__(self, factors):
+    def __init__(self, factors: Dict[int, int]):
         self.factors = factors
 
     @classmethod
-    def decompose(cls, num):
+    def decompose(cls, num: int) -> PrimeFactors:
+        factors_list = factorize(num)
         factors = defaultdict(lambda: 0)
-        if num == 1:
-            return cls(dict(factors))
 
-        while num > 1:
-            for i in range(2, int(round(num ** 0.5)) + 1):
-                if num % i == 0:
-                    factors[i] += 1
-                    num //= i
-                    break
-            else:
-                factors[num] += 1
-                num = 1
+        for factor in factors_list:
+            factors[factor] += 1
 
         return cls(dict(factors))
 
