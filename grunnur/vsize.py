@@ -2,25 +2,17 @@ from __future__ import annotations
 
 from collections import defaultdict
 import itertools
-from math import floor, sqrt
+from math import floor, ceil, sqrt
 from typing import List, Dict
 
 import numpy
 
 from .template import Template
 from .modules import Module, Snippet
-from .utils import log2, min_blocks, wrap_in_tuple, prod
+from .utils import min_blocks, wrap_in_tuple, prod
 
 
 TEMPLATE = Template.from_associated_file(__file__)
-
-
-class OutOfResourcesError(Exception):
-    """
-    Thrown by ``compile_static()``
-    if the provided ``local_size`` is too big, or one cannot be found.
-    """
-    pass
 
 
 def factorize(num: int) -> List[int]:
@@ -52,58 +44,63 @@ class PrimeFactors:
 
         return cls(dict(factors))
 
-    def get_value(self):
+    def get_value(self) -> int:
         res = 1
         for pwr, exp in self.factors.items():
             res *= pwr ** exp
         return res
 
-    def get_arrays(self):
+    def get_arrays(self) -> Tuple[List[int], List[int]]:
         return self.factors.keys(), self.factors.values()
 
-    def div_by(self, other):
+    def div_by(self, other: PrimeFactors) -> PrimeFactors:
+        # assumes that `self` is a multiple of `other`
         factors = dict(self.factors)
         for o_pwr, o_exp in other.factors.items():
             factors[o_pwr] -= o_exp
+            assert factors[o_pwr] >= 0 # sanity check
             if factors[o_pwr] == 0:
                 del factors[o_pwr]
         return PrimeFactors(factors)
 
+    def __eq__(self, other: PrimeFactors) -> bool:
+        return self.factors == other.factors
 
-def _get_decompositions(num_factors, parts):
+
+def _get_decompositions(num_factors: PrimeFactors, parts: int) -> Generator[Tuple[int], None, None]:
     """
     Helper recursive function for ``get_decompositions()``.
-    Iterates over all possible decompositions of ``num_factors`` (of type ``PrimeFactors``)
-    into ``parts`` factors.
+    Iterates over all possible decompositions of ``num_factors`` into ``parts`` factors.
     """
     if parts == 1:
         yield (num_factors.get_value(),)
         return
 
-    powers, exponents = num_factors.get_arrays()
+    bases, exponents = num_factors.get_arrays()
     for sub_exps in itertools.product(*[range(exp, -1, -1) for exp in exponents]):
         part_factors = PrimeFactors(
-            dict(((pwr,sub_exp) for pwr, sub_exp in zip(powers, sub_exps) if sub_exp > 0)))
+            dict(((pwr,sub_exp) for pwr, sub_exp in zip(bases, sub_exps) if sub_exp > 0)))
         part = part_factors.get_value()
         remainder = num_factors.div_by(part_factors)
         for decomp in _get_decompositions(remainder, parts - 1):
             yield (part,) + decomp
 
 
-def get_decompositions(num, parts):
+def get_decompositions(num: int, parts: int) -> Generator[Tuple[int], None, None]:
     """
-    Iterates overall possible decompositions of ``num`` into ``parts`` factors.
+    Iterates over all possible decompositions of ``num`` into ``parts`` factors.
     """
     num_factors = PrimeFactors.decompose(num)
     return _get_decompositions(num_factors, parts)
 
 
-def find_local_size(global_size, flat_local_size, threshold=0.05):
+def find_local_size_decomposition(
+        global_size: Tuple[int], flat_local_size: int, threshold: float=0.05) -> Tuple[int]:
     """
     Returns a tuple of the same size as ``global_size``,
     with the product equal to ``flat_local_size``,
     and minimal difference between ``product(global_size)``
-    and ``product(min_blocks(gs, ls) for gs, ls in zip(global_size, local_size))``
+    and ``product(min_blocks(gs, ls) * ls for gs, ls in zip(global_size, local_size))``
     (i.e. tries to minimize the amount of empty threads).
     """
     flat_global_size = prod(global_size)
@@ -119,7 +116,7 @@ def find_local_size(global_size, flat_local_size, threshold=0.05):
         bounding_global_size = tuple(
             ls * min_blocks(gs, ls) for gs, ls in zip(global_size, local_size))
         empty_threads = prod(bounding_global_size) - threads_num
-        ratio = float(empty_threads) / threads_num
+        ratio = empty_threads / threads_num
 
         # Stopping iteration early, because there may be a lot of elements to iterate over,
         # and we do not need the perfect solution.
@@ -137,7 +134,9 @@ def find_local_size(global_size, flat_local_size, threshold=0.05):
     return best_local_size
 
 
-def _group_dimensions(vdim, virtual_shape, adim, available_shape):
+def _group_dimensions(
+        vdim: int, virtual_shape: Tuple[int],
+        adim: int, available_shape: Tuple[int]) -> Tuple[List[Tuple[int]], List[Tuple[int]]]:
     """
     ``vdim`` and ``adim`` are used for the absolute addressing of dimensions during recursive calls.
     """
@@ -179,69 +178,92 @@ def _group_dimensions(vdim, virtual_shape, adim, available_shape):
         return [v_res] + v_remainder, [a_res] + a_remainder
 
 
-def group_dimensions(virtual_shape, available_shape):
+def group_dimensions(
+        virtual_shape: Tuple[int],
+        available_shape: Tuple[int]) -> Tuple[List[Tuple[int]], List[Tuple[int]]]:
     """
-    Returns two lists, one of tuples with numbers of grouped virtual dimensions, the other
-    one of tuples with numbers of corresponding group of available dimensions,
+    Determines which available dimensions the virtual dimensions can be embedded into.
+    Prefers using the maximum number of available dimensions, since in that case
+    less divisions will be needed to calculate virtual indices based on the real ones.
+
+    Returns two lists, one of tuples with indices of grouped virtual dimensions, the other
+    one of tuples with indices of corresponding group of available dimensions,
     such that for any group of virtual dimensions, the total number of elements they cover
     does not exceed the number of elements covered by the
     corresponding group of available dimensions.
+
+    Dimensions are grouped in order, so tuples in both lists, if concatenated,
+    give `(0 ... len(virtual_shape)-1)` and `(0 ... n)`, where `n < len(available_shape`.
     """
     assert prod(virtual_shape) <= prod(available_shape)
     return _group_dimensions(0, virtual_shape, 0, available_shape)
 
 
-def ceiling_root(num, pwr):
-    """
-    Returns the integer ``num ** (1. / pwr)`` if num is a perfect square/cube/etc,
-    or the integer ceiling of this value, if it's not.
-    """
-    res = num ** (1. / pwr)
-    int_res = int(round(res))
-    if int_res ** pwr == num:
-        return int_res
-    else:
-        return int(res + 1)
-
-
-def find_bounding_shape(virtual_size, available_shape):
+def find_bounding_shape(virtual_size: int, available_shape: Tuple[int]) -> Tuple[int]:
     """
     Finds a tuple of the same length as ``available_shape``, with every element
     not greater than the corresponding element of ``available_shape``,
-    and product not lower than ``virtual_size``.
+    and product not lower than ``virtual_size`` (trying to minimize that difference).
     """
+
+    # TODO: in most cases it is possible to find such a tuple that `prod(result) == virtual_size`,
+    # but the current algorithm does not gurantee it. Finding such a tuple would
+    # eliminate some empty threads.
+
     assert virtual_size <= prod(available_shape)
 
     free_size = virtual_size
     free_dims = set(range(len(available_shape)))
     bounding_shape = [None] * len(available_shape)
 
-    while len(free_dims) > 0:
-        guess = ceiling_root(free_size, len(free_dims))
-        for fdim in free_dims:
-            bounding_shape[fdim] = guess
-
-        for fdim in free_dims:
-            if bounding_shape[fdim] > available_shape[fdim]:
-                bounding_shape[fdim] = available_shape[fdim]
+    # The loop terminates, since `virtual_size` is guaranteed to fit into `available_shape`
+    # (worst case scenario, the result will be just `available_shape` itself).
+    while True:
+        guess = ceil(free_size**(1/len(free_dims)))
+        fixed_size = 1
+        for fdim in list(free_dims):
+            if guess > available_shape[fdim]:
+                fixed_size *= available_shape[fdim]
                 free_dims.remove(fdim)
-                free_size = min_blocks(free_size, bounding_shape[fdim])
-                break
-        else:
-            return tuple(bounding_shape)
+                bounding_shape[fdim] = available_shape[fdim]
+            else:
+                bounding_shape[fdim] = guess
 
-    return tuple(available_shape)
+        if fixed_size == 1:
+            break
+
+        free_size = min_blocks(free_size, fixed_size)
+
+    return tuple(bounding_shape)
 
 
 class ShapeGroups:
 
     def __init__(self, virtual_shape, available_shape):
-        self.real_dims = {}
-        self.real_strides = {}
-        self.virtual_strides = {}
-        self.major_vdims = {}
-        self.bounding_shape = tuple()
-        self.skip_thresholds = []
+        # A mapping from a dimension in the virtual shape to a tuple of dimensions
+        # in the real shape it uses (and possibly shares with other virtual dimensions).
+        self.real_dims: Dict[int, Tuple[int]] = {}
+
+        # A mapping from a dimension in the virtual shape to a tuple of strides
+        # used to get a flat index in the group of real dimensions it uses.
+        self.real_strides: Dict[int, Tuple[int]] = {}
+
+        # A mapping from a dimension in the virtual shape to the stride that is used to extract it
+        # from the flat index obtained from the corresponding group of real dimensions.
+        self.virtual_strides: Dict[int, int] = {}
+
+        # A mapping from a dimension in the virtual shape to the major dimension
+        # (the one with the largest stride) in the group of virtual dimensions it belongs to
+        # (the group includes all virtual dimensions using a certain subset of real dimensions).
+        self.major_vdims: Dict[int, int] = {}
+
+        # The actual shape used to enqueue the kernel.
+        self.bounding_shape: Tuple[int] = tuple()
+
+        # A list of tuples `(threshold, stride_info)` used for skipping unused threads.
+        # `stride_info` is a list of 2-tuples `(real_dim, stride)` used to construct
+        # a flat index from several real dimensions, and then compare it with the threshold.
+        self.skip_thresholds: List[Tuple[int, List[Tuple[int, int]]]] = []
 
         v_groups, a_groups = group_dimensions(virtual_shape, available_shape)
 
@@ -409,14 +431,20 @@ class VsizeModules:
 class VirtualSizes:
 
     def __init__(
-            self, device_params, virtual_global_size, virtual_local_size=None,
-            max_total_local_size_override=None):
+            self,
+            max_total_local_size: int,
+            max_local_sizes: Iterable[int],
+            max_num_groups: Iterable[int],
+            local_size_multiple: int,
+            virtual_global_size: Iterable[int],
+            virtual_local_size: Optional[Iterable[int]]=None):
 
         virtual_global_size = wrap_in_tuple(virtual_global_size)
         if virtual_local_size is not None:
             virtual_local_size = wrap_in_tuple(virtual_local_size)
             if len(virtual_local_size) != len(virtual_global_size):
-                raise ValueError("Global size and local size must have the same dimensions")
+                raise ValueError(
+                    "Global size and local size must have the same number of dimensions")
 
         # Since the device uses column-major ordering of sizes, while we get
         # row-major ordered shapes, we invert our shapes
@@ -425,45 +453,34 @@ class VirtualSizes:
         if virtual_local_size is not None:
             virtual_local_size = tuple(reversed(virtual_local_size))
 
-        # Restrict local sizes using the provided explicit limit
-        if max_total_local_size_override is not None:
-            max_total_local_size = min(
-                max_total_local_size_override,
-                device_params.max_total_local_size,
-                prod(device_params.max_local_sizes))
-            max_local_sizes = [
-                min(max_total_local_size_override, mls)
-                for mls in device_params.max_local_sizes]
-        else:
-            # Assuming:
-            # 1) max_total_local_size <= product(max_local_sizes)
-            # 2) max(max_local_sizes) <= max_total_local_size
-            max_total_local_size = device_params.max_total_local_size
-            max_local_sizes = device_params.max_local_sizes
+        # In device parameters `max_total_local_size` is >= any of `max_local_sizes`,
+        # but it can be overridden to get a kernel that uses less resources.
+        max_local_sizes = [min(max_total_local_size, mls) for mls in max_local_sizes]
+
+        assert max_total_local_size <= prod(max_local_sizes) # sanity check
 
         if virtual_local_size is None:
             # FIXME: we can obtain better results by taking occupancy into account here,
             # but for now we will assume that the more threads, the better.
             flat_global_size = prod(virtual_global_size)
-            multiple = device_params.warp_size
 
             if flat_global_size < max_total_local_size:
                 flat_local_size = flat_global_size
-            elif max_total_local_size < multiple:
-                flat_local_size = 1 # FIXME: why not `max_total_local_size`?
             else:
-                # FIXME: assumes `max_total_local_size` is a multiple of `multiple`
-                flat_local_size = multiple * (max_total_local_size // multiple)
+                # A sanity check - it would be very strange if a device had a local size multiple
+                # so big you can't actually launch that many threads.
+                assert max_total_local_size >= local_size_multiple
+                flat_local_size = local_size_multiple * (max_total_local_size // local_size_multiple)
 
             # product(virtual_local_size) == flat_local_size <= max_total_local_size
             # Note: it's ok if local size elements are greater
             # than the corresponding global size elements as long as it minimizes the total
             # number of skipped threads.
-            virtual_local_size = find_local_size(virtual_global_size, flat_local_size)
+            virtual_local_size = find_local_size_decomposition(virtual_global_size, flat_local_size)
         else:
             if prod(virtual_local_size) > max_total_local_size:
-                raise OutOfResourcesError(
-                    "Requested local size is greater than the maximum " + str(max_total_local_size))
+                raise ValueError(
+                    f"Requested local size is greater than the maximum {max_total_local_size}")
 
         # Global and local sizes supported by CUDA or OpenCL restricted number of dimensions,
         # which may have limited size, so we need to pack our multidimensional sizes.
@@ -473,17 +490,16 @@ class VirtualSizes:
         bounding_global_size = tuple(
             grs * ls for grs, ls in zip(virtual_grid_size, virtual_local_size))
 
-        if prod(virtual_grid_size) > prod(device_params.max_num_groups):
-            raise OutOfResourcesError(
-                "Bounding global size " + repr(bounding_global_size) + " is too large")
+        if prod(virtual_grid_size) > prod(max_num_groups):
+            raise ValueError(f"Bounding global size {bounding_global_size} is too large")
 
         local_groups = ShapeGroups(virtual_local_size, max_local_sizes)
-        grid_groups = ShapeGroups(virtual_grid_size, device_params.max_num_groups)
+        grid_groups = ShapeGroups(virtual_grid_size, max_num_groups)
 
         # These can be different lenghts because of expansion into multiple dimensions
         # find_bounding_shape() does.
-        real_local_size = tuple(local_groups.bounding_shape)
-        real_grid_size = tuple(grid_groups.bounding_shape)
+        real_local_size = local_groups.bounding_shape
+        real_grid_size = grid_groups.bounding_shape
 
         diff = len(real_local_size) - len(real_grid_size)
         real_local_size = real_local_size + (1,) * (-diff)
@@ -491,6 +507,7 @@ class VirtualSizes:
 
         # This function will be used to translate between internal column-major vdims
         # and user-supplied row-major vdims.
+
         vsize_modules = VsizeModules.from_shape_data(
             virtual_local_size=virtual_local_size,
             virtual_global_size=virtual_global_size,
@@ -498,6 +515,13 @@ class VirtualSizes:
             virtual_grid_size=virtual_grid_size,
             local_groups=local_groups,
             grid_groups=grid_groups)
+
+        # For testing purposes
+        # (Note that these will have column-major order, same as real_global/local_size)
+        self._virtual_local_size = virtual_local_size
+        self._virtual_global_size = virtual_global_size
+        self._bounding_global_size = bounding_global_size
+        self._virtual_grid_size = virtual_grid_size
 
         self.real_local_size = real_local_size
         self.real_global_size = tuple(gs * ls for gs, ls in zip(real_grid_size, real_local_size))

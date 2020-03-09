@@ -40,9 +40,12 @@ class StaticKernel:
                 # May raise OutOfResourcesError if it's not possible,
                 # just let it pass to the caller.
                 vs = VirtualSizes(
-                    device_params, global_size,
-                    virtual_local_size=local_size,
-                    max_total_local_size_override=max_total_local_size)
+                    max_total_local_size=max_total_local_size,
+                    max_local_sizes=device_params.max_local_sizes,
+                    max_num_groups=device_params.num_groups,
+                    local_size_multiple=device_params.warp_size,
+                    virtual_global_size=global_size,
+                    virtual_local_size=local_size)
 
                 # TODO: check that there are no name clashes with virtual size functions
                 new_render_globals = dict(render_globals)
