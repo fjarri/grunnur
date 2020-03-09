@@ -390,6 +390,7 @@ class VsizeModules:
         global_flat_size_mod = Module(
             TEMPLATE.get_def('global_flat_size'),
             render_globals=dict(
+                global_size_mod=global_size_mod,
                 virtual_global_size=virtual_global_size))
 
         skip_local_threads_mod = Module(
