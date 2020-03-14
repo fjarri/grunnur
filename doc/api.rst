@@ -186,3 +186,10 @@ Data type checks and conversions
 .. autofunction:: real_for
 
 .. autofunction:: cast
+
+
+Function modules
+----------------
+
+.. automodule :: grunnur.functions
+    :members:

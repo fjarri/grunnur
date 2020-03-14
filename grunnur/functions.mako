@@ -7,7 +7,7 @@ WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(${dtypes.ctype(in_dtype)} x)
     elif dtypes.is_complex(out_dtype) == dtypes.is_complex(in_dtype):
         result = "(" + dtypes.ctype(out_dtype) + ")x"
     else:
-        raise NotImplementedError("Cast from " + str(in_dtype) + " to " + str(out_dtype) +
+        raise ValueError("Cast from " + str(in_dtype) + " to " + str(out_dtype) +
             " is not supported")
 %>
     return ${result};
@@ -94,11 +94,11 @@ WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(
 
 <%def name="div(prefix)">
 WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(
-    ${dtypes.ctype(in_dtype1)} a, ${dtypes.ctype(in_dtype2)} b)
+    ${dtypes.ctype(dividend_dtype)} a, ${dtypes.ctype(divisor_dtype)} b)
 {
 <%
-    c1 = dtypes.is_complex(in_dtype1)
-    c2 = dtypes.is_complex(in_dtype2)
+    c1 = dtypes.is_complex(dividend_dtype)
+    c2 = dtypes.is_complex(divisor_dtype)
     if dtypes.is_complex(out_dtype):
         out_ctr = dtypes.complex_ctr(out_dtype)
     else:
@@ -138,7 +138,11 @@ WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
 <%def name="conj(prefix)">
 WITHIN_KERNEL ${dtypes.ctype(dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
 {
+    %if dtypes.is_complex(dtype):
     return ${dtypes.complex_ctr(dtype) + "(a.x, -a.y)"};
+    %else:
+    return a;
+    %endif
 }
 </%def>
 
@@ -193,18 +197,18 @@ WITHIN_KERNEL ${dtypes.ctype(dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
 
 <%def name="pow(prefix)">
 <%
-    base_ctype = dtypes.ctype(output_dtype)
+    base_ctype = dtypes.ctype(out_dtype)
     exp_ctype = dtypes.ctype(exponent_dtype)
 %>
-WITHIN_KERNEL ${base_ctype} ${prefix}(${dtypes.ctype(dtype)} orig_base, ${exp_ctype} e)
+WITHIN_KERNEL ${base_ctype} ${prefix}(${dtypes.ctype(base_dtype)} orig_base, ${exp_ctype} e)
 {
-    %if output_dtype != dtype:
+    %if out_dtype != base_dtype:
     ${base_ctype} base = ${cast_}(orig_base);
     %else:
     ${base_ctype} base = orig_base;
     %endif
 
-    %if dtypes.is_complex(output_dtype):
+    %if dtypes.is_complex(out_dtype):
     if (base.x == 0 && base.y == 0 && e != 0)
         return COMPLEX_CTR(${base_ctype})(0, 0);
     %else:
@@ -212,7 +216,7 @@ WITHIN_KERNEL ${base_ctype} ${prefix}(${dtypes.ctype(dtype)} orig_base, ${exp_ct
         return 0;
     %endif
 
-    %if dtypes.is_real(output_dtype) and dtypes.is_integer(exponent_dtype):
+    %if dtypes.is_real(out_dtype) and dtypes.is_integer(exponent_dtype):
     #ifdef CUDA
     return pow(base, e);
     #else
@@ -220,7 +224,7 @@ WITHIN_KERNEL ${base_ctype} ${prefix}(${dtypes.ctype(dtype)} orig_base, ${exp_ct
     #endif
 
     %elif dtypes.is_integer(exponent_dtype):
-    ${base_ctype} one = ${dtypes.c_constant(1, output_dtype)};
+    ${base_ctype} one = ${dtypes.c_constant(1, out_dtype)};
     if (e == 0)
     {
         return one;
@@ -237,12 +241,12 @@ WITHIN_KERNEL ${base_ctype} ${prefix}(${dtypes.ctype(dtype)} orig_base, ${exp_ct
             return ${div_}(one, res);
     }
 
-    %elif dtypes.is_real(output_dtype):
+    %elif dtypes.is_real(out_dtype):
     return pow(base, e);
 
     %else:
     <%
-        r_ctype = dtypes.ctype(dtypes.real_for(output_dtype))
+        r_ctype = dtypes.ctype(dtypes.real_for(out_dtype))
     %>
     ${r_ctype} base_squared = base.x * base.x + base.y * base.y;
     ${r_ctype} angle = atan2(base.y, base.x);
