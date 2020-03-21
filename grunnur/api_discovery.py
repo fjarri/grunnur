@@ -15,7 +15,8 @@ def all_api_factories():
 
 def available_apis() -> List[API]:
     """
-    Returns a list of :py:class:`~grunnur.API` objects for which backends are available.
+    Returns a list of :py:class:`~grunnur.base_classes.API` objects
+    for which backends are available.
     """
     return [api_factory.make_api() for api_factory in all_api_factories() if api_factory.available]
 
