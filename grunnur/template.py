@@ -131,8 +131,6 @@ class DefTemplate:
     @classmethod
     def _from_signature_and_body(
             cls, name: str, signature: inspect.Signature, body: str) -> DefTemplate:
-        # TODO: pass the source to the DefTemplate constructor directly
-        # instead of using _extract_def_source()
         src = "<%def name='" + name + str(signature) + "'>\n" + body + "\n</%def>"
         mako_def_template = MakoTemplate(text=src, **_TEMPLATE_OPTIONS).get_def(name)
         return cls(name, mako_def_template, src)
