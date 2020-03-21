@@ -1,7 +1,7 @@
 # Avoids errors from using PyCUDA types as annotations when PyCUDA is not present
 from __future__ import annotations
 
-from typing import Iterable, Union, Optional
+from typing import Iterable, Union, Optional, Tuple
 
 import numpy
 
