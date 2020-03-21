@@ -134,12 +134,21 @@ def result_type(*dtypes: numpy.dtype) -> numpy.dtype:
     return _promote_type(numpy.result_type(*dtypes))
 
 
-def min_scalar_type(val) -> numpy.dtype:
+def min_scalar_type(val, force_signed: bool=False) -> numpy.dtype:
     """
     Wrapper for ``numpy.min_scalar_dtype()``
     which takes into account types supported by GPUs.
+
+    If ``force_signed`` is ``True``, a signed type will be returned even if ``val`` is positive.
     """
-    return _promote_type(numpy.min_scalar_type(val))
+    if force_signed and val >= 0:
+        # Signed integer range has one extra element on the negative side.
+        # So if val=2^31, min_scalar_type(-2^31)=int32, but 2^31 will not fit in it.
+        # Therefore we're forcing a larger type by subtracting 1.
+        dtype = numpy.min_scalar_type(-val-1)
+    else:
+        dtype = numpy.min_scalar_type(val)
+    return _promote_type(dtype)
 
 
 def detect_type(val) -> numpy.dtype:

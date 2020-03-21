@@ -54,6 +54,10 @@ def test_min_scalar_type():
     assert dtypes.min_scalar_type(-1) == numpy.int32
     assert dtypes.min_scalar_type(1.) == numpy.float32
 
+    assert dtypes.min_scalar_type(2**31-1, force_signed=True) == numpy.int32
+    # 2**31 will not fit into int32 type
+    assert dtypes.min_scalar_type(2**31, force_signed=True) == numpy.int64
+
 
 def test_detect_type():
     assert dtypes.detect_type(numpy.int8(-1)) == numpy.int32
