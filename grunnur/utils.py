@@ -1,15 +1,15 @@
 import collections
 from functools import reduce
 import os.path
-from typing import Tuple
+from typing import Tuple, Iterable
 
 
-def all_same(seq):
+def all_same(seq: Iterable) -> bool:
     seq = list(seq)
     return all(elem == seq[0] for elem in seq[1:])
 
 
-def all_different(seq):
+def all_different(seq: Iterable) -> bool:
     seq = list(seq)
     return len(seq) == len(set(seq))
 
@@ -18,26 +18,27 @@ def wrap_in_tuple(seq_or_elem) -> Tuple:
     """
     If ``seq_or_elem`` is a sequence, converts it to a ``tuple``,
     otherwise returns a tuple with a single element ``seq_or_elem``.
+    If ``seq_or_elem`` is ``None``, raises ``ValueError``.
     """
     if seq_or_elem is None:
-        return tuple()
-    elif isinstance(seq_or_elem, str):
-        return (seq_or_elem,)
+        raise ValueError("The argument must not be None")
     elif isinstance(seq_or_elem, collections.abc.Iterable):
         return tuple(seq_or_elem)
     else:
         return (seq_or_elem,)
 
 
-def min_blocks(length, block):
+def min_blocks(length: int, block: int) -> int:
     """
     Returns minimum number of blocks with length ``block``
     necessary to cover the array with non-zero length ``length``.
     """
+    if length <= 0:
+        raise ValueError("The length must be positive")
     return (length - 1) // block + 1
 
 
-def log2(num: int):
+def log2(num: int) -> int:
     """
     Integer-valued logarigthm with base 2.
     If ``n`` is not a power of 2, the result is rounded to the smallest number.
