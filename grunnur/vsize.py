@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import defaultdict, Counter
 import itertools
 from math import floor, ceil, sqrt
 from typing import List, Dict
@@ -37,11 +37,7 @@ class PrimeFactors:
     @classmethod
     def decompose(cls, num: int) -> PrimeFactors:
         factors_list = factorize(num)
-        factors = defaultdict(lambda: 0)
-
-        for factor in factors_list:
-            factors[factor] += 1
-
+        factors = Counter(factors_list)
         return cls(dict(factors))
 
     def get_value(self) -> int:
