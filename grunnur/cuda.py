@@ -198,8 +198,9 @@ class CuBuffer(Buffer):
         self._base_buffer = base_buffer
         self._ptr = ptr
 
-        # Allows this object to be passed as an argument to PyCuda kernels
-        self.gpudata = ptr
+    @property
+    def backend_buffer(self):
+        return self._ptr
 
     @property
     def size(self):
@@ -472,10 +473,10 @@ class CuArray(Array):
 
         if async_:
             pycuda_drv.memcpy_htod_async(
-                self.data._ptr, array,
+                self.data.backend_buffer, array,
                 stream=self._queue._pycuda_streams[array_device])
         else:
-            pycuda_drv.memcpy_htod(self.data._ptr, array)
+            pycuda_drv.memcpy_htod(self.data.backend_buffer, array)
 
     def get(self, dest=None, async_=False):
         if dest is None:
@@ -487,10 +488,10 @@ class CuArray(Array):
 
         if async_:
             pycuda_drv.memcpy_dtoh_async(
-                dest, self.data._ptr,
+                dest, self.data.backend_buffer,
                 stream=self._queue._pycuda_streams[array_device])
         else:
-            pycuda_drv.memcpy_dtoh(dest, self.data._ptr)
+            pycuda_drv.memcpy_dtoh(dest, self.data.backend_buffer)
 
         return dest
 
@@ -540,10 +541,10 @@ class CuSingleDeviceProgram(SingleDeviceProgram):
                     f"expected {size} bytes, got {arr.buffer_size}")
 
             if queue is None:
-                pycuda_drv.memcpy_dtod(symbol, arr.data._ptr, arr.buffer_size)
+                pycuda_drv.memcpy_dtod(symbol, arr.data.backend_buffer, arr.buffer_size)
             else:
                 pycuda_drv.memcpy_dtod_async(
-                    symbol, arr.data._ptr, arr.buffer_size, stream=pycuda_stream)
+                    symbol, arr.data.backend_buffer, arr.buffer_size, stream=pycuda_stream)
         elif isinstance(arr, numpy.ndarray):
             if queue is None:
                 pycuda_drv.memcpy_htod(symbol, arr)

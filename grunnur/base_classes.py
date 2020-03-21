@@ -766,11 +766,16 @@ class Buffer(ABC):
 
     @property
     @abstractmethod
+    def backend_buffer(self):
+        pass
+
+    @property
+    @abstractmethod
     def context(self) -> Context:
         """
         The :py:class:`Context` object this buffer object was created in.
         """
-        return self._context
+        pass
 
     @property
     @abstractmethod
@@ -778,7 +783,7 @@ class Buffer(ABC):
         """
         This buffer's size (in bytes).
         """
-        return self._size
+        pass
 
     @property
     @abstractmethod
@@ -787,7 +792,7 @@ class Buffer(ABC):
         This buffer's offset from the start of the physical memory allocation
         (will be non-zero for buffers created using :py:meth:`get_sub_region`).
         """
-        return self._offset
+        pass
 
     @abstractmethod
     def get_sub_region(self, origin: int, size: int) -> Buffer:
@@ -891,7 +896,7 @@ class SingleDeviceFactory:
 
 def process_arg(arg):
     if isinstance(arg, Array):
-        return arg.data
+        return arg.data.backend_buffer
     elif isinstance(arg, (list, tuple)):
         return [process_arg(arg_part) for arg_part in arg]
     else:

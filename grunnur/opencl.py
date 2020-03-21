@@ -14,7 +14,7 @@ except ImportError:
 from .base_classes import (
     APIFactory, APIID, PlatformID, DeviceID, API, Platform,
     Device, DeviceType, DeviceParameters, Context, Queue, Program, Kernel,
-    SingleDeviceProgram, SingleDeviceKernel,
+    SingleDeviceProgram, SingleDeviceKernel, Buffer,
     normalize_base_objects, process_arg, Array)
 from .utils import all_same, all_different, wrap_in_tuple
 from .template import Template
@@ -322,12 +322,7 @@ class OclContext(Context):
         return super().compile(*args, **kwds)
 
     def allocate(self, size):
-
-        flags = pyopencl.mem_flags.READ_WRITE
-        if self._buffers_host_allocation:
-            flags |= pyopencl.mem_flags.ALLOC_HOST_PTR
-
-        return pyopencl.Buffer(self._pyopencl_context, flags, size=size)
+        return OclBuffer.allocate(self, size)
 
     @property
     def _array_class(self):
@@ -336,6 +331,45 @@ class OclContext(Context):
     @property
     def _queue_class(self):
         return OclQueue
+
+
+class OclBuffer(Buffer):
+
+    @classmethod
+    def allocate(cls, context, size):
+        flags = pyopencl.mem_flags.READ_WRITE
+        if context._buffers_host_allocation:
+            flags |= pyopencl.mem_flags.ALLOC_HOST_PTR
+
+        pyopencl_buffer = pyopencl.Buffer(context._pyopencl_context, flags, size=size)
+
+        return cls(context, pyopencl_buffer)
+
+    def __init__(self, context, pyopencl_buffer):
+
+        self._context = context
+        self._size = pyopencl_buffer.size
+        self._offset = pyopencl_buffer.offset
+        self._pyopencl_buffer = pyopencl_buffer
+
+    @property
+    def backend_buffer(self):
+        return self._pyopencl_buffer
+
+    @property
+    def size(self):
+        return self._size
+
+    @property
+    def offset(self):
+        return self._offset
+
+    @property
+    def context(self):
+        return self._context
+
+    def get_sub_region(self, origin, size):
+        return OclBuffer(self._context, self._pyopencl_buffer.get_sub_region(origin, size))
 
 
 class OclQueue(Queue):
@@ -417,13 +451,15 @@ class OclArray(Array):
 
     def set(self, array, async_=False):
         pyopencl.enqueue_copy(
-            self._default_queue, self.data, array, wait_for=self._events(), is_blocking=not async_)
+            self._default_queue, self.data.backend_buffer,
+            array, wait_for=self._events(), is_blocking=not async_)
 
     def get(self, dest=None, async_=False):
         if dest is None:
             dest = numpy.empty(self.shape, self.dtype)
         pyopencl.enqueue_copy(
-            self._default_queue, dest, self.data, wait_for=self._events(), is_blocking=not async_)
+            self._default_queue, dest, self.data.backend_buffer,
+            wait_for=self._events(), is_blocking=not async_)
         return dest
 
 
@@ -433,7 +469,7 @@ class OclSingleDeviceArray(OclArray):
         super().__init__(queue, *args, **kwds)
         self._device_num = device_num
         self._default_queue = queue._pyopencl_queues[device_num]
-        pyopencl.enqueue_migrate_mem_objects(self._default_queue, [self.data])
+        pyopencl.enqueue_migrate_mem_objects(self._default_queue, [self.data.backend_buffer])
 
     def _events(self):
         return []
