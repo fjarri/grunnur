@@ -56,3 +56,20 @@ html_theme = 'alabaster'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+nitpick_ignore = [
+    ('py:class', 'typing.List'),
+    ('py:class', 'typing.Iterable'),
+    ('py:class', 'typing.Mapping'),
+    ('py:class', 'typing.Type'),
+    ('py:data', 'typing.Optional'),
+    ('py:data', 'typing.Callable'),
+    ('py:data', 'typing.Union'),
+    ('py:data', 'typing.Tuple'),
+    ('py:data', 'typing.Any'),
+    ('py:class', 'int'),
+    ('py:class', 'str'),
+    ('py:class', 'bool'),
+    ('py:class', 'numpy.dtype'),
+    ('py:class', 'numpy.ndarray'),
+    ]
