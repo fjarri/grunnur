@@ -193,3 +193,27 @@ Function modules
 
 .. automodule :: grunnur.functions
     :members:
+
+
+Virtual buffers
+---------------
+
+Often one needs temporary buffers that are only used in one place in the code, but used many times.
+Allocating them each time they are used may involve too much overhead; allocating real buffers and storing them increases the program's memory requirements.
+A possible middle ground is using virtual allocations, where several of them can use the samy physical allocation.
+The virtual allocation manager will make sure that two virtual buffers that are used simultaneously (as declared by the user) will not share the same physical space.
+
+.. py:module:: grunnur.virtual_alloc
+
+.. autoclass:: VirtualManager
+    :members:
+
+.. autoclass:: TrivialManager
+
+.. autoclass:: ZeroOffsetManager
+
+.. autoclass:: VirtualAllocator
+
+.. autoclass:: VirtualBuffer
+
+.. autoclass:: VirtualAllocationStatistics
