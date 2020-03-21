@@ -8,7 +8,7 @@ def check_struct_fill(context, dtype):
     Fill every field of the given ``dtype`` with its number and check the results.
     This helps detect issues with offsets in the struct.
     """
-    struct = dtypes.ctype_module(dtype)
+    struct = dtypes.ctype_struct(dtype)
 
     program = context.compile(
     """

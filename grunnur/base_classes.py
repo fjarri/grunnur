@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from math import log10
-from typing import List, Type, Optional, Tuple, Iterable, Mapping, Union, Callable
+from typing import List, Type, Dict, Optional, Tuple, Iterable, Mapping, Union, Callable, Sequence, TypeVar
 import re
 
 import numpy
@@ -182,7 +182,8 @@ class API(ABC):
             device_include_masks: Optional[Iterable[str]]=None,
             device_exclude_masks: Optional[Iterable[str]]=None,
             unique_devices_only: bool=False,
-            include_pure_parallel_devices: bool=False) -> Tuple[Platform, List[Device]]:
+            include_pure_parallel_devices: bool=False) \
+            -> List[Tuple[Platform, List[Device]]]:
         """
         Returns all tuples (platform, list of devices) where the platform name and device names
         satisfy the given criteria, and there are at least ``quantity`` devices in the list.
@@ -326,7 +327,8 @@ class Platform(ABC):
             include_masks: Optional[Iterable[str]]=None,
             exclude_masks: Optional[Iterable[str]]=None,
             unique_devices_only: bool=False,
-            include_pure_parallel_devices: bool=False):
+            include_pure_parallel_devices: bool=False) \
+            -> List[Device]:
         """
         Returns a list of all devices satisfying the given criteria.
 
@@ -552,8 +554,8 @@ class Context(ABC):
             template_src: str,
             no_prelude: bool=False,
             fast_math: bool=False,
-            render_args: Iterable=[],
-            render_globals: Mapping={},
+            render_args: Union[Tuple, List]=[],
+            render_globals: Dict={},
             **kwds) -> SingleDeviceProgram:
         """
         Renders and compiles the given template on a single device.
@@ -599,8 +601,8 @@ class Context(ABC):
             device_nums: Optional[Iterable[int]]=None,
             no_prelude: bool=False,
             fast_math: bool=False,
-            render_args: Iterable=[],
-            render_globals: Mapping={},
+            render_args: Union[List, Tuple]=[],
+            render_globals: Dict={},
             compiler_options: Iterable[str]=[],
             keep: bool=False,
             constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={}) -> Program:
@@ -654,9 +656,9 @@ class Context(ABC):
     def empty_array(
             self,
             queue: Queue,
-            shape: Union[int, Iterable[int]],
+            shape: Union[int, Sequence[int]],
             dtype: numpy.dtype,
-            strides: Optional[Iterable[int]]=None,
+            strides: Optional[Sequence[int]]=None,
             first_element_offset: int=0,
             buffer_size: int=None,
             data: Buffer=None,
@@ -683,34 +685,51 @@ class Context(ABC):
     def _queue_class(self) -> Type[Queue]:
         pass
 
-    def make_queue(self, device_nums: Optional[Iterable[int]]=None) -> Queue:
+    def make_queue(self, device_nums: Optional[Sequence[int]]=None) -> Queue:
         """
         Returns a new :py:class:`Queue` object running on ``device_nums``.
         If it is ``None``, all the context's devices are used.
         """
         return self._queue_class(self, device_nums=device_nums)
 
+    @classmethod
+    @abstractmethod
+    def from_any_base(cls, objs) -> Context:
+        pass
+
+    @property
+    @abstractmethod
+    def devices(self) -> Tuple[Device, ...]:
+        pass
+
 
 class Queue(ABC):
     """
     A queue on multiple devices.
     """
+    def __init__(self, context: Context, device_nums: Optional[Sequence[int]]=None):
+        if device_nums is None:
+            device_nums = tuple(range(len(context.devices)))
+        else:
+            device_nums = tuple(sorted(device_nums))
+
+        self._context = context
+        self._device_nums = device_nums
+        self.devices = tuple(context.devices[device_num] for device_num in device_nums)
 
     @property
-    @abstractmethod
-    def context(self) -> Context:
+    def context(self):
         """
         The :py:class:`Context` object this queue belongs to.
         """
-        pass
+        return self._context
 
     @property
-    @abstractmethod
-    def device_nums(self) -> Tuple[int]:
+    def device_nums(self) -> Tuple[int, ...]:
         """
         Device numbers (in the context, sorted) this queue executes on.
         """
-        pass
+        return self._device_nums
 
     @abstractmethod
     def synchronize(self):
@@ -725,7 +744,7 @@ class Program(ABC):
     A program compiled for multiple devices.
     """
 
-    def __init__(self, context: Context, sd_programs: Iterable[SingleDeviceProgram]):
+    def __init__(self, context: Context, sd_programs: Dict[int, SingleDeviceProgram]):
         self.context = context
         self._sd_programs = sd_programs
 
@@ -827,8 +846,14 @@ class Array:
         The total memory taken by the array in the buffer.
     """
 
-    def __init__(self, array_metadata, data=None, allocator=None):
+    def __init__(
+            self, queue: Queue, array_metadata: ArrayMetadata,
+            data: Optional[Buffer]=None, allocator: Callable[[int], Buffer]=None):
 
+        if allocator is None:
+            allocator = queue.context.allocate
+
+        self._queue = queue
         self._metadata = array_metadata
 
         self.shape = self._metadata.shape
@@ -908,7 +933,7 @@ class Kernel(ABC):
     A kernel compiled for multiple devices.
     """
 
-    def __init__(self, program: Program, sd_kernels: Iterable[SingleDeviceKernel]):
+    def __init__(self, program: Program, sd_kernels: Dict[int, SingleDeviceKernel]):
         self._program = program
         self._device_nums = set(sd_kernels)
         self._sd_kernels = sd_kernels
@@ -955,9 +980,9 @@ class Kernel(ABC):
         # TODO: speed this up. Probably shouldn't create sets on every kernel call.
         if not set(device_nums).issubset(self._device_nums):
             missing_dev_nums = [
-                device_num for device_num in device_nums if device_num not in self._device_nums]
+                str(device_num) for device_num in device_nums if device_num not in self._device_nums]
             raise ValueError(
-                f"This kernel's program was not compiled for devices {missing_dev_nums.join(', ')}")
+                f"This kernel's program was not compiled for devices {', '.join(missing_dev_nums)}")
 
         ret_vals = []
         for i, device_num in enumerate(device_nums):
@@ -987,7 +1012,8 @@ class SingleDeviceKernel(ABC):
             queue: Queue,
             global_size: Union[int, Iterable[int]],
             local_size: Union[int, Iterable[int], None],
-            *args):
+            *args,
+            **kwds):
         """
         Enqueues the kernel on a single device.
 
@@ -995,6 +1021,7 @@ class SingleDeviceKernel(ABC):
         :param global_size: see :py:meth:`Kernel.__call__`.
         :param local_size: see :py:meth:`Kernel.__call__`.
         :param args: see :py:meth:`Kernel.__call__`.
+        :param kwds: see :py:meth:`Kernel.__call__`.
         """
         pass
 

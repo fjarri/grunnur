@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Tuple, Iterable, Optional
+from typing import Tuple, Iterable, Optional, Sequence, Union
 
 import numpy
 
@@ -15,8 +15,8 @@ class ArrayMetadata:
     """
 
     def __init__(
-            self, shape: Iterable[int], dtype: numpy.dtype,
-            strides: Optional[Iterable[int]]=None,
+            self, shape: Union[int, Sequence[int]], dtype: numpy.dtype,
+            strides: Optional[Sequence[int]]=None,
             first_element_offset: int=0,
             buffer_size: Optional[int]=None):
 
@@ -73,7 +73,7 @@ class ArrayMetadata:
             new_shape, self.dtype, strides=new_strides, first_element_offset=new_fe_offset)
 
 
-def get_strides(shape: Iterable[int], itemsize: int) -> Tuple[int]:
+def get_strides(shape: Sequence[int], itemsize: int) -> Tuple[int, ...]:
     # Constructs strides for a contiguous array of shape ``shape`` and item size ``itemsize``.
     strides = []
     stride = itemsize
@@ -101,8 +101,8 @@ def normalize_slice(length: int, stride: int, slice_: slice) -> Tuple[int, int, 
 
 
 def get_view(
-        shape: Iterable[int], strides: Iterable[int], slices: Iterable[slice]) \
-        -> Tuple[int, Tuple[int], Tuple[int]]:
+        shape: Sequence[int], strides: Sequence[int], slices: Sequence[slice]) \
+        -> Tuple[int, Tuple[int, ...], Tuple[int, ...]]:
     """
     Given an array shape and strides, and a sequence of slices defining a view,
     returns a tuple of three elements: the offset of the first element of the view,
@@ -118,7 +118,7 @@ def get_view(
     return sum(offsets), tuple(lengths), tuple(strides)
 
 
-def get_range(shape: Iterable[int], itemsize: int, strides: Iterable[int]) -> Tuple[int, int]:
+def get_range(shape: Sequence[int], itemsize: int, strides: Sequence[int]) -> Tuple[int, int]:
     """
     Given an array shape, item size (in bytes), and a sequence of strides,
     returns a pair ``(min_offset, max_offset)``,

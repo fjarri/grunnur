@@ -325,6 +325,33 @@ def test_ctype_struct():
         '_mod__module_0_')
 
 
+def test_ctype_struct_nested():
+
+    dtype_nested = numpy.dtype(dict(
+        names=['val1', 'pad'],
+        formats=[numpy.int8, numpy.int8]))
+
+    dtype = numpy.dtype(dict(
+        names=['pad', 'struct_arr', 'regular_arr'],
+        formats=[numpy.int32, numpy.dtype((dtype_nested, 2)), numpy.dtype((numpy.int16, 3))]))
+
+    dtype = dtypes.align(dtype)
+    ctype = dtypes.ctype(dtype)
+    src = render_with_modules("${ctype}", render_globals=dict(ctype=ctype)).strip()
+
+    assert src == (
+        'typedef struct _mod__module_1__ {\n'
+        '    char  val1;\n'
+        '    char  pad;\n'
+        '}  _mod__module_1_;\n\n\n'
+        'typedef struct _mod__module_0__ {\n'
+        '    int  pad;\n'
+        '    _mod__module_1_  struct_arr[2];\n'
+        '    short  regular_arr[3];\n'
+        '}  _mod__module_0_;\n\n\n'
+        '_mod__module_0_')
+
+
 def test_ctype_to_ctype_struct():
     # Checks that ctype() on an unknown type calls ctype_struct()
     dtype = dtypes.align(numpy.dtype([('val1', numpy.int32), ('val2', numpy.float32)]))
@@ -339,7 +366,7 @@ def test_ctype_to_ctype_struct():
         '_mod__module_0_')
 
 
-def test_ctype_module():
+def test_ctype_struct():
 
     dtype = numpy.dtype(dict(
         names=['x', 'y', 'z'],
@@ -347,7 +374,7 @@ def test_ctype_module():
         offsets=[0, 4, 16],
         itemsize=64,
         aligned=True))
-    ctype = dtypes.ctype_module(dtype)
+    ctype = dtypes.ctype_struct(dtype)
     src = render_with_modules("${ctype}", render_globals=dict(ctype=ctype)).strip()
     assert src == (
         'typedef struct _mod__module_0__ {\n'
@@ -358,7 +385,7 @@ def test_ctype_module():
         '_mod__module_0_')
 
 
-def test_ctype_module_ignore_alignment():
+def test_ctype_struct_ignore_alignment():
 
     dtype = numpy.dtype(dict(
         names=['x', 'y', 'z'],
@@ -366,7 +393,7 @@ def test_ctype_module_ignore_alignment():
         offsets=[0, 4, 16],
         itemsize=64,
         aligned=True))
-    ctype = dtypes.ctype_module(dtype, ignore_alignment=True)
+    ctype = dtypes.ctype_struct(dtype, ignore_alignment=True)
     src = render_with_modules("${ctype}", render_globals=dict(ctype=ctype)).strip()
     assert src == (
         'typedef struct _mod__module_0__ {\n'
@@ -377,18 +404,22 @@ def test_ctype_module_ignore_alignment():
         '_mod__module_0_')
 
 
-def test_ctype_module_checks_alignment():
+def test_ctype_struct_checks_alignment():
     dtype = numpy.dtype(dict(
         names=['x', 'y', 'z'],
         formats=[numpy.int8, numpy.int16, numpy.int32]))
     with pytest.raises(ValueError):
-        dtypes.ctype_module(dtype)
+        dtypes.ctype_struct(dtype)
 
 
-def test_ctype_module_checks_for_array():
+def test_ctype_struct_for_non_struct():
     dtype = numpy.dtype((numpy.int32, 3))
     with pytest.raises(ValueError):
-        dtypes.ctype_module(dtype)
+        dtypes.ctype_struct(dtype)
+
+    # ctype_struct() is not applicable for simple types
+    with pytest.raises(ValueError):
+        dtypes.ctype_struct(numpy.int32)
 
 
 def test_flatten_dtype():

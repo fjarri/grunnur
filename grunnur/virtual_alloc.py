@@ -4,7 +4,7 @@ import sys
 from abc import abstractmethod
 from collections import namedtuple, Counter
 from collections.abc import Iterable
-from typing import Set, Dict
+from typing import Set, Dict, Optional, cast
 import weakref
 from weakref import ReferenceType
 
@@ -56,7 +56,7 @@ class VirtualBuffer(Buffer):
         self._manager = manager
         self._id = id_
         self._size = size
-        self._real_buffer = None
+        self._real_buffer: Optional[Buffer] = None
 
     @property
     def backend_buffer(self):
@@ -98,7 +98,7 @@ class VirtualManager:
     def __init__(self, queue: Queue, pack_on_alloc: bool=False, pack_on_free: bool=False):
         self.queue = queue
         self._id_counter = 0
-        self._virtual_buffers = {}
+        self._virtual_buffers: Dict[int, ReferenceType[VirtualBuffer]] = {}
         self._pack_on_alloc = pack_on_alloc
         self._pack_on_free = pack_on_free
 
@@ -141,6 +141,7 @@ class VirtualManager:
 
     def _update_buffer(self, id_: int):
         vbuf = self._virtual_buffers[id_]()
+        assert vbuf is not None
         buf = self._get_real_buffer(id_)
         vbuf._set_real_buffer(buf)
 
@@ -168,10 +169,15 @@ class VirtualManager:
         """
         return VirtualAllocationStatistics(
             self._real_buffers(),
-            [vb() for vb in self._virtual_buffers.values()])
+            # cast() to override inference here - we know that vb() will not return `None`
+            [cast(VirtualBuffer, vb()) for vb in self._virtual_buffers.values()])
 
     @abstractmethod
     def _allocate_specific(self, new_id: int, size:int, dependencies: Set[int], pack: bool):
+        pass
+
+    @abstractmethod
+    def _get_real_buffer(self, id_: int) -> Buffer:
         pass
 
     @abstractmethod

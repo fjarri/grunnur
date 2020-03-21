@@ -1,7 +1,7 @@
 # Avoids errors from using PyCUDA types as annotations when PyCUDA is not present
 from __future__ import annotations
 
-from typing import Iterable, Union, Optional, Tuple
+from typing import Iterable, Union, Optional, Tuple, List, Sequence, cast
 
 import numpy
 
@@ -339,11 +339,16 @@ class CuContext(Context):
             self.activate_device(context_num)
             self._pycuda_devices.append(context.get_device())
 
-        self.devices = [CuDevice.from_pycuda_device(device) for device in self._pycuda_devices]
+        self._devices = tuple(
+            CuDevice.from_pycuda_device(device) for device in self._pycuda_devices)
 
         # TODO: do we activate here if owns_context=False? What are the general behavior
         # rules for owns_context=False?
         self.activate_device(0)
+
+    @property
+    def devices(self) -> Tuple[CuDevice, ...]:
+        return self._devices
 
     def activate_device(self, device_num: int):
         """
@@ -397,7 +402,7 @@ class CuContext(Context):
         return CuProgram
 
     def allocate(self, size):
-        managed = len(self.devices) > 1
+        managed = len(self._devices) > 1
         self.activate_device(0)
         return CuBuffer(self, size=size, managed=managed)
 
@@ -412,30 +417,16 @@ class CuContext(Context):
 
 class CuQueue(Queue):
 
-    def __init__(self, context, device_nums=None):
-        if device_nums is None:
-            device_nums = tuple(range(len(context.devices)))
-        else:
-            device_nums = tuple(sorted(device_nums))
+    def __init__(self, context: CuContext, device_nums: Optional[Sequence[int]]=None):
+        super().__init__(context, device_nums=device_nums)
 
         streams = []
-        for device_num in device_nums:
+        for device_num in self._device_nums:
             context.activate_device(device_num)
             stream = pycuda_drv.Stream()
             streams.append(stream)
 
-        self._context = context
         self._pycuda_streams = streams
-        self._device_nums = device_nums
-        self.devices = tuple(context.devices[device_num] for device_num in device_nums)
-
-    @property
-    def context(self):
-        return self._context
-
-    @property
-    def device_nums(self):
-        return self._device_nums
 
     def synchronize(self):
         for device_num, context_device_num in enumerate(self.device_nums):
@@ -445,16 +436,6 @@ class CuQueue(Queue):
 
 class CuArray(Array):
 
-    def __init__(self, queue, *args, **kwds):
-
-        if 'allocator' not in kwds or kwds['allocator'] is None:
-            kwds['allocator'] = queue.context.allocate
-
-        super().__init__(*args, **kwds)
-
-        self.context = queue.context
-        self._queue = queue
-
     def _new_like_me(self, *args, device_num=None, **kwds):
         if device_num is None:
             return CuArray(self._queue, *args, **kwds)
@@ -463,13 +444,13 @@ class CuArray(Array):
 
     def _synchronize_other_streams(self):
         for device_num, context_device_num in enumerate(self._queue.device_nums[1:]):
-            self.context.activate_device(context_device_num)
+            self._queue.context.activate_device(context_device_num)
             self._queue._pycuda_streams[device_num].synchronize()
 
     def set(self, array, async_=False):
         self._synchronize_other_streams()
         array_device = self._queue.device_nums[0]
-        self.context.activate_device(array_device)
+        self._queue.context.activate_device(array_device)
 
         if async_:
             pycuda_drv.memcpy_htod_async(
@@ -484,7 +465,7 @@ class CuArray(Array):
 
         self._synchronize_other_streams()
         array_device = self._queue.device_nums[0]
-        self.context.activate_device(array_device)
+        self._queue.context.activate_device(array_device)
 
         if async_:
             pycuda_drv.memcpy_dtoh_async(
@@ -515,7 +496,7 @@ class CuSingleDeviceProgram(SingleDeviceProgram):
         return CuSingleDeviceKernel(self, self._device_num, func)
 
     def set_constant_array(
-            self, name: str, arr: Union[CuArray, numpy.ndarray], queue: Optional[Queue]=None):
+            self, name: str, arr: Union[CuArray, numpy.ndarray], queue: Optional[CuQueue]=None):
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
@@ -561,11 +542,12 @@ class CuProgram(Program):
         return CuKernel
 
     def set_constant_array(
-            self, name: str, arr: Union[CuArray, numpy.ndarray], queue: Optional[Queue]=None):
+            self, name: str, arr: Union[CuArray, numpy.ndarray], queue: Optional[CuQueue]=None):
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
         for sd_program in self._sd_programs.values():
+            sd_program = cast(CuSingleDeviceProgram, sd_program)
             sd_program.set_constant_array(name, arr, queue=queue)
 
 
@@ -584,9 +566,9 @@ def max_factor(x: int, y: int) -> int:
 
 
 def find_local_size(
-        global_size: Tuple[int],
-        max_local_sizes: Tuple[int],
-        max_total_local_size: int) -> Tuple[int]:
+        global_size: Sequence[int],
+        max_local_sizes: Sequence[int],
+        max_total_local_size: int) -> Tuple[int, ...]:
     """
     Mimics the OpenCL local size finding algorithm.
     Returns the tuple of the same length as ``global_size``, with every element
@@ -606,7 +588,11 @@ def find_local_size(
     return tuple(local_size)
 
 
-def get_launch_size(max_local_sizes, max_total_local_size, global_size, local_size=None):
+def get_launch_size(
+        max_local_sizes: Sequence[int],
+        max_total_local_size: int,
+        global_size: Sequence[int],
+        local_size: Optional[Sequence[int]]=None) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     """
     Constructs the grid and block tuples to launch a CUDA kernel
     based on the provided global and local sizes.
@@ -622,15 +608,15 @@ def get_launch_size(max_local_sizes, max_total_local_size, global_size, local_si
     else:
         local_size = find_local_size(global_size, max_local_sizes, max_total_local_size)
 
-    grid = []
+    grid_list = []
     for gs, ls in zip(global_size, local_size):
         if gs % ls != 0:
             raise ValueError("Global sizes must be multiples of corresponding local sizes")
-        grid.append(gs // ls)
+        grid_list.append(gs // ls)
 
     # append missing dimensions, otherwise PyCUDA will complain
     block = local_size + (1,) * (3 - len(grid))
-    grid = tuple(grid) + (1,) * (3 - len(grid))
+    grid: Tuple[int, ...] = tuple(grid_list) + (1,) * (3 - len(grid))
 
     return grid, block
 

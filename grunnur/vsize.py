@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict, Counter
 import itertools
 from math import floor, ceil, sqrt
-from typing import List, Dict, Iterable, Optional, Tuple, Generator
+from typing import List, Dict, Iterable, Optional, Tuple, Generator, Sequence
 
 import numpy
 
@@ -47,7 +47,9 @@ class PrimeFactors:
         return res
 
     def get_arrays(self) -> Tuple[List[int], List[int]]:
-        return self.factors.keys(), self.factors.values()
+        bases = list(self.factors.keys())
+        exponents = [self.factors[base] for base in bases]
+        return bases, exponents
 
     def div_by(self, other: PrimeFactors) -> PrimeFactors:
         # assumes that `self` is a multiple of `other`
@@ -59,11 +61,12 @@ class PrimeFactors:
                 del factors[o_pwr]
         return PrimeFactors(factors)
 
-    def __eq__(self, other: PrimeFactors) -> bool:
+    def __eq__(self, other) -> bool:
         return self.factors == other.factors
 
 
-def _get_decompositions(num_factors: PrimeFactors, parts: int) -> Generator[Tuple[int], None, None]:
+def _get_decompositions(
+        num_factors: PrimeFactors, parts: int) -> Generator[Tuple[int, ...], None, None]:
     """
     Helper recursive function for ``get_decompositions()``.
     Iterates over all possible decompositions of ``num_factors`` into ``parts`` factors.
@@ -82,7 +85,7 @@ def _get_decompositions(num_factors: PrimeFactors, parts: int) -> Generator[Tupl
             yield (part,) + decomp
 
 
-def get_decompositions(num: int, parts: int) -> Generator[Tuple[int], None, None]:
+def get_decompositions(num: int, parts: int) -> Generator[Tuple[int, ...], None, None]:
     """
     Iterates over all possible decompositions of ``num`` into ``parts`` factors.
     """
@@ -91,7 +94,8 @@ def get_decompositions(num: int, parts: int) -> Generator[Tuple[int], None, None
 
 
 def find_local_size_decomposition(
-        global_size: Tuple[int], flat_local_size: int, threshold: float=0.05) -> Tuple[int]:
+        global_size: Tuple[int, ...], flat_local_size: int, threshold: float=0.05) \
+        -> Tuple[int, ...]:
     """
     Returns a tuple of the same size as ``global_size``,
     with the product equal to ``flat_local_size``,
@@ -127,12 +131,15 @@ def find_local_size_decomposition(
     # but providing flat_local_size <= product(global_size),
     # there is at least one decomposition (flat_local_size, 1, 1, ...).
 
+    assert best_local_size is not None # sanity check to catch a possible bug early
+
     return best_local_size
 
 
 def _group_dimensions(
-        vdim: int, virtual_shape: Tuple[int],
-        adim: int, available_shape: Tuple[int]) -> Tuple[List[Tuple[int]], List[Tuple[int]]]:
+        vdim: int, virtual_shape: Tuple[int, ...],
+        adim: int, available_shape: Tuple[int, ...]) \
+        -> Tuple[List[Tuple[int, ...]], List[Tuple[int, ...]]]:
     """
     ``vdim`` and ``adim`` are used for the absolute addressing of dimensions during recursive calls.
     """
@@ -176,7 +183,7 @@ def _group_dimensions(
 
 def group_dimensions(
         virtual_shape: Tuple[int],
-        available_shape: Tuple[int]) -> Tuple[List[Tuple[int]], List[Tuple[int]]]:
+        available_shape: Tuple[int]) -> Tuple[List[Tuple[int, ...]], List[Tuple[int, ...]]]:
     """
     Determines which available dimensions the virtual dimensions can be embedded into.
     Prefers using the maximum number of available dimensions, since in that case
@@ -195,7 +202,7 @@ def group_dimensions(
     return _group_dimensions(0, virtual_shape, 0, available_shape)
 
 
-def find_bounding_shape(virtual_size: int, available_shape: Tuple[int]) -> Tuple[int]:
+def find_bounding_shape(virtual_size: int, available_shape: Tuple[int, ...]) -> Tuple[int, ...]:
     """
     Finds a tuple of the same length as ``available_shape``, with every element
     not greater than the corresponding element of ``available_shape``,
@@ -210,7 +217,7 @@ def find_bounding_shape(virtual_size: int, available_shape: Tuple[int]) -> Tuple
 
     free_size = virtual_size
     free_dims = set(range(len(available_shape)))
-    bounding_shape = [None] * len(available_shape)
+    bounding_shape = [0] * len(available_shape)
 
     # The loop terminates, since `virtual_size` is guaranteed to fit into `available_shape`
     # (worst case scenario, the result will be just `available_shape` itself).
@@ -238,11 +245,11 @@ class ShapeGroups:
     def __init__(self, virtual_shape, available_shape):
         # A mapping from a dimension in the virtual shape to a tuple of dimensions
         # in the real shape it uses (and possibly shares with other virtual dimensions).
-        self.real_dims: Dict[int, Tuple[int]] = {}
+        self.real_dims: Dict[int, Tuple[int, ...]] = {}
 
         # A mapping from a dimension in the virtual shape to a tuple of strides
         # used to get a flat index in the group of real dimensions it uses.
-        self.real_strides: Dict[int, Tuple[int]] = {}
+        self.real_strides: Dict[int, Tuple[int, ...]] = {}
 
         # A mapping from a dimension in the virtual shape to the stride that is used to extract it
         # from the flat index obtained from the corresponding group of real dimensions.
@@ -254,7 +261,7 @@ class ShapeGroups:
         self.major_vdims: Dict[int, int] = {}
 
         # The actual shape used to enqueue the kernel.
-        self.bounding_shape: Tuple[int] = tuple()
+        self.bounding_shape: Tuple[int, ...] = tuple()
 
         # A list of tuples `(threshold, stride_info)` used for skipping unused threads.
         # `stride_info` is a list of 2-tuples `(real_dim, stride)` used to construct
@@ -433,8 +440,8 @@ class VirtualSizes:
             max_local_sizes: Iterable[int],
             max_num_groups: Iterable[int],
             local_size_multiple: int,
-            virtual_global_size: Iterable[int],
-            virtual_local_size: Optional[Iterable[int]]=None):
+            virtual_global_size: Sequence[int],
+            virtual_local_size: Optional[Sequence[int]]=None):
 
         virtual_global_size = wrap_in_tuple(virtual_global_size)
         if virtual_local_size is not None:

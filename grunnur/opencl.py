@@ -1,7 +1,7 @@
 # Avoids errors from using PyOpenCL types as annotations when PyOpenCL is not present
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Iterable, List, Tuple, Optional, Sequence
 
 import numpy
 
@@ -218,7 +218,7 @@ class OclContext(Context):
         if isinstance(objs[0], pyopencl.Device):
             return cls.from_pyopencl_devices(objs)
         elif isinstance(objs[0], pyopencl.Context):
-            return cls.from_pyopencl_contexts(objs)
+            return cls.from_pyopencl_context(objs)
         elif isinstance(objs[0], OclDevice):
             return cls.from_devices(objs)
         else:
@@ -261,7 +261,8 @@ class OclContext(Context):
         self._pyopencl_context = pyopencl_context
         self._pyopencl_devices = pyopencl_devices
 
-        self.devices = [OclDevice.from_pyopencl_device(device) for device in self._pyopencl_devices]
+        self._devices = tuple(
+            OclDevice.from_pyopencl_device(device) for device in self._pyopencl_devices)
         self.platform = self.devices[0].platform
 
         # On an Apple platform, in a multi-device context with nVidia cards it is necessary to have
@@ -271,6 +272,10 @@ class OclContext(Context):
             len(self._pyopencl_devices) > 1 and
             self._pyopencl_devices[0].platform.name == 'Apple' and
             any('GeForce' in device.name for device in self._pyopencl_devices))
+
+    @property
+    def devices(self) -> Tuple[OclDevice, ...]:
+        return self._devices
 
     @property
     def api(self):
@@ -392,34 +397,22 @@ class OclQueue(Queue):
             raise ValueError("All CommandQueue objects must run on different devices")
 
         context = OclContext.from_pyopencl_context(pyopencl_contexts[0])
+        devices = [
+            OclDevice.from_pyopencl_device(pyopencl_device)
+            for pyopencl_device in pyopencl_devices]
 
         device_nums = [context.devices.index(device) for device in devices]
 
         return cls(context, device_nums=device_nums)
 
-    def __init__(self, context, device_nums=None):
-        if device_nums is None:
-            device_nums = tuple(range(len(context.devices)))
-        else:
-            device_nums = tuple(sorted(device_nums))
+    def __init__(self, context: OclContext, device_nums: Optional[Sequence[int]]=None):
+        super().__init__(context, device_nums=device_nums)
 
         self._pyopencl_queues = [
             pyopencl.CommandQueue(
                 context._pyopencl_context,
                 device=context._pyopencl_devices[device_num])
-            for device_num in device_nums]
-
-        self._context = context
-        self.devices = tuple(context.devices[device_num] for device_num in device_nums)
-        self._device_nums = device_nums
-
-    @property
-    def context(self):
-        return self._context
-
-    @property
-    def device_nums(self):
-        return self._device_nums
+            for device_num in self._device_nums]
 
     def synchronize(self):
         for queue in self._pyopencl_queues:
@@ -429,13 +422,7 @@ class OclQueue(Queue):
 class OclArray(Array):
 
     def __init__(self, queue, *args, **kwds):
-
-        if 'allocator' not in kwds or kwds['allocator'] is None:
-            kwds['allocator'] = queue.context.allocate
-
-        super().__init__(*args, **kwds)
-
-        self._context = queue.context
+        super().__init__(queue, *args, **kwds)
         self._queue = queue
         self._pyopencl_queues = queue._pyopencl_queues
         self._default_queue = self._pyopencl_queues[0]

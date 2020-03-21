@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Iterable, Mapping, Callable, Union
+from typing import Iterable, Mapping, Callable, Union, Tuple, List, Dict
 
 from .template import DefTemplate, RenderError
 
@@ -185,7 +185,7 @@ def process(obj, collector: SourceCollector):
 
 def render_with_modules(
         src: Union[str, Callable[..., str], DefTemplate, Snippet],
-        render_args: Iterable=[], render_globals: Mapping={}) -> str:
+        render_args: Union[Tuple, List]=[], render_globals: Dict={}) -> str:
     """
     Renders the given source traversing the arguments and globals processing modules.
     If a module is attempted to be rendered, its source is prepended to the resulting source,

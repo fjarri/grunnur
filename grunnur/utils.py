@@ -1,6 +1,7 @@
 import collections
 from functools import reduce
 import os.path
+from typing import Tuple
 
 
 def all_same(seq):
@@ -13,7 +14,7 @@ def all_different(seq):
     return len(seq) == len(set(seq))
 
 
-def wrap_in_tuple(seq_or_elem):
+def wrap_in_tuple(seq_or_elem) -> Tuple:
     """
     If ``seq_or_elem`` is a sequence, converts it to a ``tuple``,
     otherwise returns a tuple with a single element ``seq_or_elem``.

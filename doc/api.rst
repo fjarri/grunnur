@@ -143,7 +143,7 @@ C interop
 
 .. autofunction:: ctype
 
-.. autofunction:: ctype_module
+.. autofunction:: ctype_struct
 
 .. autofunction:: complex_ctr
 
