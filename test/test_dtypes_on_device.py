@@ -1,6 +1,6 @@
 import numpy
 
-from grunnur import dtypes
+from grunnur import dtypes, Program, Queue, Array
 
 
 def check_struct_fill(context, dtype):
@@ -10,30 +10,32 @@ def check_struct_fill(context, dtype):
     """
     struct = dtypes.ctype_struct(dtype)
 
-    program = context.compile(
-    """
-    KERNEL void test(GLOBAL_MEM ${struct} *dest, GLOBAL_MEM int *itemsizes)
-    {
-        const SIZE_T i = get_global_id(0);
-        ${struct} res;
+    program = Program(
+        context,
+        """
+        KERNEL void test(GLOBAL_MEM ${struct} *dest, GLOBAL_MEM int *itemsizes)
+        {
+            const SIZE_T i = get_global_id(0);
+            ${struct} res;
 
-        %for i, field_info in enumerate(dtypes.flatten_dtype(dtype)):
-        res.${dtypes.c_path(field_info[0])} = ${i};
-        %endfor
+            %for i, field_info in enumerate(dtypes.flatten_dtype(dtype)):
+            res.${dtypes.c_path(field_info[0])} = ${i};
+            %endfor
 
-        dest[i] = res;
-        itemsizes[i] = sizeof(${struct});
-    }
-    """, render_globals=dict(
-        struct=struct,
-        dtypes=dtypes,
-        dtype=dtype))
+            dest[i] = res;
+            itemsizes[i] = sizeof(${struct});
+        }
+        """,
+        render_globals=dict(
+            struct=struct,
+            dtypes=dtypes,
+            dtype=dtype))
 
     test = program.test
-    queue = context.make_queue()
+    queue = Queue.from_device_nums(context)
 
-    a_dev = context.empty_array(queue, 128, dtype)
-    itemsizes_dev = context.empty_array(queue, 128, numpy.int32)
+    a_dev = Array.empty(queue, 128, dtype)
+    itemsizes_dev = Array.empty(queue, 128, numpy.int32)
     test(queue, 128, None, a_dev, itemsizes_dev)
     a = a_dev.get()
     itemsizes = itemsizes_dev.get()

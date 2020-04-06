@@ -1,7 +1,7 @@
 import pytest
 import numpy
 
-from grunnur import StaticKernel
+from grunnur import StaticKernel, Queue, Array
 from grunnur import CUDA_API_ID, OPENCL_API_ID
 
 
@@ -23,12 +23,12 @@ def test_compile_static(context):
     b = numpy.arange(15).astype(numpy.int32)
     ref = numpy.outer(a, b)
 
-    queue = context.make_queue()
+    queue = Queue.from_device_nums(context)
 
-    a_dev = context.upload(queue, a)
-    b_dev = context.upload(queue, b)
+    a_dev = Array.from_host(queue, a)
+    b_dev = Array.from_host(queue, b)
 
-    res_dev = context.empty_array(queue, (11, 15), numpy.int32)
+    res_dev = Array.empty(queue, (11, 15), numpy.int32)
 
     multiply = StaticKernel(context, src, 'multiply', (11, 15))
     multiply(queue, res_dev, a_dev, b_dev)
@@ -46,24 +46,24 @@ def test_compile_static_multi_device(multi_device_context):
     b = numpy.arange(15).astype(numpy.int32)
     ref = numpy.outer(a, b)
 
-    queue = context.make_queue(device_nums=[0, 1])
+    queue = Queue.from_device_nums(context, device_nums=[0, 1])
 
-    a_dev = context.upload(queue, a)
-    b_dev = context.upload(queue, b)
+    a_dev = Array.from_host(queue, a)
+    b_dev = Array.from_host(queue, b)
 
-    res_dev = context.empty_array(queue, (22, 15), numpy.int32)
+    res_dev = Array.empty(queue, (22, 15), numpy.int32)
 
     a_dev_1 = a_dev.single_device_view(0)[:11]
     a_dev_2 = a_dev.single_device_view(1)[11:]
 
-    #b_dev_1 = b_dev.single_device_view(0)[:]
-    #b_dev_2 = b_dev.single_device_view(0)[:]
+    b_dev_1 = b_dev.single_device_view(0)[:]
+    b_dev_2 = b_dev.single_device_view(0)[:]
 
     res_dev_1 = res_dev.single_device_view(0)[:11,:]
     res_dev_2 = res_dev.single_device_view(1)[11:,:]
 
     multiply = StaticKernel(context, src, 'multiply', (11, 15), device_nums=[0, 1])
-    multiply(queue, [res_dev_1, res_dev_2], [a_dev_1, a_dev_2], b_dev)
+    multiply(queue, [res_dev_1, res_dev_2], [a_dev_1, a_dev_2], [b_dev_1, b_dev_2])
 
     res = res_dev.get()
     correct_result = (res == ref).all()

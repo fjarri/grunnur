@@ -14,6 +14,13 @@ class ArrayMetadata:
     without actual data attached to it.
     """
 
+    @classmethod
+    def from_arraylike(cls, array):
+        return cls(
+            array.shape,
+            array.dtype,
+            strides=getattr(array, 'strides', None))
+
     def __init__(
             self, shape: Union[int, Sequence[int]], dtype: numpy.dtype,
             strides: Optional[Sequence[int]]=None,

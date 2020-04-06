@@ -2,6 +2,7 @@ import itertools
 
 import numpy
 
+from grunnur import Queue, Program, Array
 from grunnur.vsize import VirtualSizes
 from grunnur.utils import prod, min_blocks
 
@@ -107,7 +108,9 @@ def test_ids(context, vstest):
         virtual_global_size=vstest.global_size,
         virtual_local_size=vstest.local_size)
 
-    program = context.compile("""
+    program = Program(
+        context,
+        """
         KERNEL void get_ids(
             GLOBAL_MEM int *local_ids,
             GLOBAL_MEM int *group_ids,
@@ -125,10 +128,10 @@ def test_ids(context, vstest):
 
     get_ids = program.get_ids
 
-    queue = context.make_queue()
-    local_ids = context.empty_array(queue, ref.global_size, numpy.int32)
-    group_ids = context.empty_array(queue, ref.global_size, numpy.int32)
-    global_ids = context.empty_array(queue, ref.global_size, numpy.int32)
+    queue = Queue.from_device_nums(context)
+    local_ids = Array.empty(queue, ref.global_size, numpy.int32)
+    group_ids = Array.empty(queue, ref.global_size, numpy.int32)
+    global_ids = Array.empty(queue, ref.global_size, numpy.int32)
 
     for vdim in range(len(vstest.global_size)):
 
@@ -158,7 +161,9 @@ def test_sizes(context, vstest):
 
     vdims = len(vstest.global_size)
 
-    program = context.compile("""
+    program = Program(
+        context,
+        """
         KERNEL void get_sizes(GLOBAL_MEM int *sizes)
         {
             if (${static.global_id}(0) > 0) return;
@@ -176,8 +181,8 @@ def test_sizes(context, vstest):
 
     get_sizes = program.get_sizes
 
-    queue = context.make_queue()
-    sizes = context.empty_array(queue, vdims * 3 + 1, numpy.int32)
+    queue = Queue.from_device_nums(context)
+    sizes = Array.empty(queue, vdims * 3 + 1, numpy.int32)
     get_sizes(queue, vs.real_global_size, vs.real_local_size, sizes)
 
     sizes = sizes.get()

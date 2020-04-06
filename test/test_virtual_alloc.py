@@ -4,6 +4,8 @@ import weakref
 import numpy
 import pytest
 
+from grunnur.backend_base import APIID
+from grunnur import Queue, Program, Array, Context, Buffer
 import grunnur.dtypes as dtypes
 from grunnur.virtual_alloc import extract_dependencies, TrivialManager, ZeroOffsetManager
 
@@ -15,11 +17,27 @@ valloc_cls_fixture = pytest.mark.parametrize(
 
 
 def mock_fill(buf, val):
-    buf.backend_buffer[:buf.size] = val
+    buf.kernel_arg[:buf.size] = val
 
 
 def mock_get(buf):
-    return buf.backend_buffer[:buf.size]
+    return buf.kernel_arg[:buf.size]
+
+
+class MockAPI:
+    id = APIID("mock")
+
+
+class MockPlatform:
+    api = MockAPI()
+    name = "mock"
+    platform_num = 0
+
+
+class MockDevice():
+    platform = MockPlatform()
+    name = "mock"
+    device_num = 0
 
 
 class MockBuffer:
@@ -28,7 +46,7 @@ class MockBuffer:
         self.id = id_
         self.size = size
         self.context = context
-        self.backend_buffer = numpy.empty(size, numpy.int64)
+        self.kernel_arg = numpy.empty(size, numpy.int64)
 
 
 class MockContext:
@@ -36,6 +54,7 @@ class MockContext:
     def __init__(self):
         self._allocation_id = 0
         self.allocations = weakref.WeakValueDictionary()
+        self.devices = [MockDevice()]
 
     def allocate(self, size):
         buf = MockBuffer(self, self._allocation_id, size)
@@ -43,7 +62,7 @@ class MockContext:
         self._allocation_id += 1
         return buf
 
-    def make_queue(self):
+    def make_multi_queue(self, device_nums):
         return MockQueue(self)
 
 
@@ -51,6 +70,7 @@ class MockQueue:
 
     def __init__(self, context):
         self.context = context
+        self.devices = context.devices
 
     def synchronize(self):
         pass
@@ -64,7 +84,7 @@ def test_extract_dependencies(monkeypatch):
 
     class MockArray:
         def __init__(self, id_):
-            self.data = MockVirtualBuffer(id_)
+            self.data = Buffer(None, MockVirtualBuffer(id_))
 
     monkeypatch.setattr('grunnur.virtual_alloc.VirtualBuffer', MockVirtualBuffer)
     monkeypatch.setattr('grunnur.virtual_alloc.Array', MockArray)
@@ -113,8 +133,8 @@ def allocate_test_set(virtual_alloc, allocate_callable):
 @pytest.mark.parametrize('pack', [False, True], ids=['no_pack', 'pack'])
 def test_contract(valloc_cls, pack):
 
-    context = MockContext()
-    queue = context.make_queue()
+    context = Context(MockContext())
+    queue = Queue.from_device_nums(context)
     virtual_alloc = valloc_cls(queue)
 
     buffers_metadata, buffers = allocate_test_set(
@@ -124,28 +144,27 @@ def test_contract(valloc_cls, pack):
         # Virtual buffer size should be exactly as requested
         assert buffers[name].size == size
         # The real buffer behind the virtual buffer may be larger
-        assert buffers[name].backend_buffer.size >= size
+        assert buffers[name].kernel_arg.size >= size
 
     if pack:
         virtual_alloc.pack()
 
     # Clear all buffers
     for name, _, _ in buffers_metadata:
-        mock_fill(buffers[name], 0)
+        mock_fill(buffers[name], -1)
 
     for i, metadata in enumerate(buffers_metadata):
         name, size, deps = metadata
-        val = i + 1
-        mock_fill(buffers[name], val)
+        mock_fill(buffers[name], i)
         # According to the virtual allocator contract, the allocated buffer
         # will not intersect with the buffers from the specified dependencies.
         # So we're filling the buffer and checking that the dependencies did not change.
         for dep in deps:
-            assert (mock_get(buffers[dep]) != val).all()
+            assert (mock_get(buffers[dep]) != i).all()
 
     # Check that after deleting virtual buffers all the real buffers are freed as well
     del buffers
-    assert len(context.allocations) == 0
+    assert len(context._backend_context.allocations) == 0
 
 
 @valloc_cls_fixture
@@ -154,23 +173,25 @@ def test_contract_on_device(context, valloc_cls, pack):
 
     dtype = numpy.int32
 
-    program = context.compile(
-    """
-    KERNEL void fill(GLOBAL_MEM ${ctype} *dest, ${ctype} val)
-    {
-        const SIZE_T i = get_global_id(0);
-        dest[i] = val;
-    }
-    """, render_globals=dict(ctype=dtypes.ctype(dtype)))
+    program = Program(
+        context,
+        """
+        KERNEL void fill(GLOBAL_MEM ${ctype} *dest, ${ctype} val)
+        {
+            const SIZE_T i = get_global_id(0);
+            dest[i] = val;
+        }
+        """,
+        render_globals=dict(ctype=dtypes.ctype(dtype)))
     fill = program.fill
 
-    queue = context.make_queue()
+    queue = Queue.from_device_nums(context)
     virtual_alloc = valloc_cls(queue)
 
     buffers_metadata, arrays = allocate_test_set(
         virtual_alloc,
         # Bump size to make sure buffer alignment doesn't hide any out-of-bounds access
-        lambda allocator, size: context.empty_array(queue, size * 100, dtype, allocator=allocator))
+        lambda allocator, size: Array.empty(queue, size * 100, dtype, allocator=allocator))
     dependencies = {id_: deps for id_, _, deps in buffers_metadata}
 
     if pack:
@@ -203,8 +224,8 @@ def check_statistics(buffers_metadata, stats):
 @valloc_cls_fixture
 def test_statistics(valloc_cls):
 
-    context = MockContext()
-    queue = context.make_queue()
+    context = Context(MockContext())
+    queue = Queue.from_device_nums(context)
     virtual_alloc = valloc_cls(queue)
 
     buffers_metadata, buffers = allocate_test_set(
@@ -227,23 +248,23 @@ def test_statistics(valloc_cls):
 
 @valloc_cls_fixture
 def test_non_existent_dependencies(valloc_cls):
-    context = MockContext()
-    queue = context.make_queue()
+    context = Context(MockContext())
+    queue = Queue.from_device_nums(context)
     virtual_alloc = valloc_cls(queue)
     with pytest.raises(ValueError, match="12345"):
         virtual_alloc._allocate_virtual(100, {12345})
 
 
 def test_virtual_buffer():
-    context = MockContext()
-    queue = context.make_queue()
+    context = Context(MockContext())
+    queue = Queue.from_device_nums(context)
     virtual_alloc = TrivialManager(queue)
 
     allocator = virtual_alloc.allocator()
     vbuf = allocator(100)
 
     assert vbuf.size == 100
-    assert isinstance(vbuf.backend_buffer, numpy.ndarray)
+    assert isinstance(vbuf.kernel_arg, numpy.ndarray)
     assert vbuf.context is context
     with pytest.raises(NotImplementedError):
         vbuf.get_sub_region(0, 50)
@@ -252,8 +273,8 @@ def test_virtual_buffer():
 
 @valloc_cls_fixture
 def test_continuous_pack(valloc_cls):
-    context = MockContext()
-    queue = context.make_queue()
+    context = Context(MockContext())
+    queue = Queue.from_device_nums(context)
     virtual_alloc_ref = valloc_cls(queue, pack_on_alloc=False, pack_on_free=False)
     virtual_alloc = valloc_cls(queue, pack_on_alloc=True, pack_on_free=True)
 

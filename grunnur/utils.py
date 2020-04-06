@@ -2,6 +2,7 @@ import collections
 from functools import reduce
 import os.path
 from typing import Tuple, Iterable
+import re
 
 
 def all_same(seq: Iterable) -> bool:
@@ -59,3 +60,43 @@ def bounding_power_of_2(num):
 def prod(seq):
     # Integer product. `numpy.prod` returns a float when given an empty sequence.
     return reduce(lambda x, y: x * y, seq, 1)
+
+
+def name_matches_masks(name, include_masks=None, exclude_masks=None):
+
+    if include_masks is None:
+        include_masks = []
+    if exclude_masks is None:
+        exclude_masks = []
+
+    if len(include_masks) > 0:
+        for include_mask in include_masks:
+            if re.search(include_mask, name):
+                break
+        else:
+            return False
+
+    if len(exclude_masks) > 0:
+        for exclude_mask in exclude_masks:
+            if re.search(exclude_mask, name):
+                return False
+
+    return True
+
+
+def normalize_base_objects(objs, expected_cls):
+
+    objs = wrap_in_tuple(objs)
+
+    elems = list(objs) # in case it is a generic iterable
+    if len(elems) == 0:
+        raise ValueError("The iterable of base objects for the context cannot be empty")
+
+    if not all_different(elems):
+        raise ValueError("All base objects must be different")
+
+    types = [type(elem) for elem in elems]
+    if not all(issubclass(tp, expected_cls) for tp in types):
+        raise ValueError(f"The iterable must contain only subclasses of {expected_cls}, got {types}")
+
+    return objs

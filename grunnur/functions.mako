@@ -156,7 +156,7 @@ WITHIN_KERNEL ${c_ctype} ${prefix}(${s_ctype} theta)
 {
     ${dtypes.ctype(dtypes.complex_for(dtype))} res;
 
-    #ifdef CUDA
+    #ifdef GRUNNUR_CUDA_API
         ${"sincos" + ("" if dtypes.is_double(dtype) else "f")}(theta, &(res.y), &(res.x));
     #else
     ## It seems that native_cos/sin option is only available for single precision.
@@ -217,7 +217,7 @@ WITHIN_KERNEL ${base_ctype} ${prefix}(${dtypes.ctype(base_dtype)} orig_base, ${e
     %endif
 
     %if dtypes.is_real(out_dtype) and dtypes.is_integer(exponent_dtype):
-    #ifdef CUDA
+    #ifdef GRUNNUR_CUDA_API
     return pow(base, e);
     #else
     return pown(base, e);

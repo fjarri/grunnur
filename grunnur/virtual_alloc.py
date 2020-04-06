@@ -9,7 +9,10 @@ import weakref
 from weakref import ReferenceType
 
 from .sorted_list import SortedList
-from .base_classes import Buffer, Array, Queue, Context
+from .buffer import Buffer
+from .array import Array
+from .queue import Queue
+from .context import Context
 
 
 def extract_dependencies(dependencies) -> Set[int]:
@@ -18,7 +21,9 @@ def extract_dependencies(dependencies) -> Set[int]:
     """
     if isinstance(dependencies, VirtualBuffer):
         return {dependencies._id}
-    if isinstance(dependencies, Array) and isinstance(dependencies.data, VirtualBuffer):
+    if isinstance(dependencies, Buffer):
+        return extract_dependencies(dependencies.backend_buffer)
+    if isinstance(dependencies, Array):
         return extract_dependencies(dependencies.data)
     if isinstance(dependencies, Iterable):
         results = set()
@@ -47,7 +52,7 @@ class VirtualAllocator:
         return self.manager._allocate_virtual(size, self.dependencies)
 
 
-class VirtualBuffer(Buffer):
+class VirtualBuffer:
     """
     A virtual buffer object.
     """
@@ -59,8 +64,8 @@ class VirtualBuffer(Buffer):
         self._real_buffer: Optional[Buffer] = None
 
     @property
-    def backend_buffer(self):
-        return self._real_buffer.backend_buffer
+    def kernel_arg(self):
+        return self._real_buffer.kernel_arg
 
     @property
     def context(self) -> Context:
@@ -69,6 +74,12 @@ class VirtualBuffer(Buffer):
     def get_sub_region(self, origin, size):
         # FIXME: how to handle it?
         raise NotImplementedError("Virtual buffers do not support subregions")
+
+    def get(self, *args, **kwds):
+        return self._real_buffer.get(*args, **kwds)
+
+    def set(self, *args, **kwds):
+        return self._real_buffer.set(*args, **kwds)
 
     @property
     def offset(self) -> int:
@@ -79,7 +90,7 @@ class VirtualBuffer(Buffer):
         return self._size
 
     def _set_real_buffer(self, buf: Buffer):
-        self._real_buffer = buf
+        self._real_buffer = buf.backend_buffer
 
 
 class VirtualManager:
@@ -130,6 +141,7 @@ class VirtualManager:
 
         self._allocate_specific(new_id, size, dependencies, self._pack_on_alloc)
         vbuf = VirtualBuffer(self, size, new_id)
+        buf = Buffer(self.queue.context, vbuf)
         self._virtual_buffers[new_id] = weakref.ref(vbuf, lambda _: self._free(new_id))
 
         if self._pack_on_alloc:
@@ -137,7 +149,7 @@ class VirtualManager:
         else:
             self._update_buffer(new_id)
 
-        return vbuf
+        return buf
 
     def _update_buffer(self, id_: int):
         vbuf = self._virtual_buffers[id_]()
@@ -270,7 +282,7 @@ class TrivialManager(VirtualManager):
         self._rbuffers = {}
 
     def _allocate_specific(self, new_id, size, _dependencies, _pack):
-        buf = self.queue.context.allocate(size)
+        buf = Buffer.allocate(self.queue.context, size)
         self._rbuffers[new_id] = buf
 
     def _get_real_buffer(self, id_):
@@ -347,7 +359,7 @@ class ZeroOffsetManager(VirtualManager):
                 break
         else:
             # If no suitable real allocation is found, create a new one.
-            buf = self.queue.context.allocate(size)
+            buf = Buffer.allocate(self.queue.context, size)
             real_id = self._real_id_counter
             self._real_id_counter += 1
 

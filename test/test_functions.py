@@ -4,6 +4,7 @@ from warnings import catch_warnings, filterwarnings
 
 import pytest
 
+from grunnur import Program, Queue, Array
 import grunnur.dtypes as dtypes
 import grunnur.functions as functions
 from grunnur.template import RenderError
@@ -35,7 +36,8 @@ def get_func_kernel(context, func_module, out_dtype, in_dtypes):
     }
     """
 
-    program = context.compile(
+    program = Program(
+        context,
         src,
         render_globals=dict(dtypes=dtypes, in_dtypes=in_dtypes, out_dtype=out_dtype, func=func_module))
 
@@ -63,13 +65,14 @@ def check_func(context, func_module, reference_func, out_dtype, in_dtypes, atol=
 
     test = get_func_kernel(context, func_module, out_dtype, in_dtypes)
 
-    queue = context.make_queue()
+    queue = Queue.from_device_nums(context)
 
     arrays = [get_test_array(N, dt, no_zeros=True, high=8) for dt in in_dtypes]
-    arrays_dev = [context.upload(queue, array) for array in arrays]
-    dest_dev = context.empty_array(queue, N, out_dtype)
+    arrays_dev = [Array.from_host(queue, array) for array in arrays]
+    dest_dev = Array.empty(queue, N, out_dtype)
 
     test(queue, N, None, dest_dev, *arrays_dev)
+
     assert numpy.allclose(
         dest_dev.get(),
         reference_func(*arrays).astype(out_dtype), atol=atol, rtol=rtol)
@@ -130,18 +133,18 @@ def test_pow_zero_base(context, out_code, in_codes):
     func_module = functions.pow(in_dtypes[0], exponent_dtype=in_dtypes[1], out_dtype=out_dtype)
     test = get_func_kernel(context, func_module, out_dtype, in_dtypes)
 
-    queue = context.make_queue()
-    bases = context.upload(queue, numpy.zeros(N, in_dtypes[0]))
+    queue = Queue.from_device_nums(context)
+    bases = Array.from_host(queue, numpy.zeros(N, in_dtypes[0]))
 
     # zero exponents
-    exponents = context.upload(queue, numpy.zeros(N, in_dtypes[1]))
-    dest_dev = context.empty_array(queue, N, out_dtype)
+    exponents = Array.from_host(queue, numpy.zeros(N, in_dtypes[1]))
+    dest_dev = Array.empty(queue, N, out_dtype)
     test(queue, N, None, dest_dev, bases, exponents)
     assert numpy.allclose(dest_dev.get(), numpy.ones(N, in_dtypes[0]))
 
     # non-zero exponents
-    exponents = context.upload(queue, numpy.ones(N, in_dtypes[1]))
-    dest_dev = context.empty_array(queue, N, out_dtype)
+    exponents = Array.from_host(queue, numpy.ones(N, in_dtypes[1]))
+    dest_dev = Array.empty(queue, N, out_dtype)
     test(queue, N, None, dest_dev, bases, exponents)
     assert numpy.allclose(dest_dev.get(), numpy.zeros(N, in_dtypes[0]))
 

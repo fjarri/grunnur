@@ -1,4 +1,4 @@
-from grunnur.cuda import CUDA_API_FACTORY
+from grunnur import API, CUDA_API_ID, Context, Platform, Device
 
 from .mock_pycuda import MockPyCUDA
 from .utils import mock_backend, mock_backend_obj
@@ -6,37 +6,17 @@ from .utils import mock_backend, mock_backend_obj
 
 def test_context_from_pycuda_devices(monkeypatch):
 
-    api_factory = CUDA_API_FACTORY
     backend = MockPyCUDA(['Device1', 'Device2', 'Device3'])
-    mock_backend_obj(monkeypatch, api_factory, backend)
-
-    api = api_factory.make_api()
+    mock_backend_obj(monkeypatch, CUDA_API_ID, backend)
 
     devices = [backend.Device(0), backend.Device(2)]
-    context = api.create_context(devices)
-
-
-def test_context_from_pycuda_devices_generic(monkeypatch):
-
-    api_factory = CUDA_API_FACTORY
-    backend = MockPyCUDA(['Device1', 'Device2', 'Device3'])
-    mock_backend_obj(monkeypatch, api_factory, backend)
-
-    api = api_factory.make_api()
-
-    devices = [backend.Device(0), backend.Device(2)]
-    context = api.create_context(devices)
-
-    assert isinstance(context, api._context_class)
+    context = Context.from_backend_devices(devices)
 
 
 def test_context_from_pycuda_contexts(monkeypatch):
 
-    api_factory = CUDA_API_FACTORY
     backend = MockPyCUDA(['Device1', 'Device2', 'Device3'])
-    mock_backend_obj(monkeypatch, api_factory, backend)
-
-    api = api_factory.make_api()
+    mock_backend_obj(monkeypatch, CUDA_API_ID, backend)
 
     devices = [backend.Device(0), backend.Device(2)]
     contexts = []
@@ -45,16 +25,16 @@ def test_context_from_pycuda_contexts(monkeypatch):
         context.pop()
         contexts.append(context)
 
-    context = api.create_context(contexts)
+    context = Context.from_backend_contexts(contexts)
 
 
 def test_context_from_grunnur_devices(monkeypatch):
 
-    api_factory = CUDA_API_FACTORY
     backend = MockPyCUDA(['Device1', 'Device2', 'Device3'])
-    mock_backend_obj(monkeypatch, api_factory, backend)
+    mock_backend_obj(monkeypatch, CUDA_API_ID, backend)
+    api = API.from_api_id(CUDA_API_ID)
 
-    api = api_factory.make_api()
-    platform = api.get_platforms()[0]
-    devices = platform.get_devices()[0:2]
-    context = api.create_context(devices)
+    platform = Platform.all(api)[0]
+    devices = Device.all(platform)[0:2]
+
+    context = Context.from_devices(devices)

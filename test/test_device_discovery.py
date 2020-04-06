@@ -1,7 +1,7 @@
 import pytest
 
-from grunnur.api_discovery import all_api_factories
-from grunnur.opencl import OPENCL_API_FACTORY
+from grunnur import API, OPENCL_API_ID
+from grunnur.device import select_devices
 
 from .utils import mock_backend, mock_input
 
@@ -9,17 +9,15 @@ from .utils import mock_backend, mock_input
 def check_select_devices(monkeypatch, capsys, platforms_devices, inputs=None, **kwds):
 
     # CUDA API has a single fixed platform, so using the OpenCL one
-    api_factory = OPENCL_API_FACTORY
-
-    mock_backend(monkeypatch, api_factory, platforms_devices)
+    mock_backend(monkeypatch, OPENCL_API_ID, platforms_devices)
 
     if inputs is not None:
         mock_input(monkeypatch, inputs)
 
-    api = api_factory.make_api()
+    api = API.from_api_id(OPENCL_API_ID)
 
     try:
-        devices = api.select_devices(**kwds)
+        devices = select_devices(api, **kwds)
     finally:
         if inputs is not None:
             # Otherwise the output will be shown in the console

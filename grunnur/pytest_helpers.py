@@ -2,12 +2,15 @@ from functools import lru_cache
 
 import pytest
 
-from .api_discovery import all_api_factories, find_apis
+from .api import API, all_api_ids
+from .platform import Platform
+from .device import Device
+from .context import Context
 
 
 def addoption(parser):
 
-    api_shortcuts = [api_factory.api_id.shortcut for api_factory in all_api_factories()]
+    api_shortcuts = [api_id.shortcut for api_id in all_api_ids()]
     parser.addoption(
         "--api",
         action="store",
@@ -45,7 +48,7 @@ def addoption(parser):
 
 @lru_cache()
 def get_apis(config):
-    return find_apis(config.option.api)
+    return API.all_by_shortcut(config.option.api)
 
 
 def concatenate(lists):
@@ -56,7 +59,8 @@ def concatenate(lists):
 def get_platforms(config):
     apis = get_apis(config)
     return concatenate(
-        api.find_platforms(
+        Platform.all_by_masks(
+            api,
             include_masks=config.option.platform_include_mask,
             exclude_masks=config.option.platform_exclude_mask)
         for api in apis)
@@ -72,7 +76,8 @@ def get_device_sets(config, unique_devices_only_override=None):
 
     platforms = get_platforms(config)
     return [
-        platform.find_devices(
+        Device.all_by_masks(
+            platform,
             include_masks=config.option.device_include_mask,
             exclude_masks=config.option.device_exclude_mask,
             unique_devices_only=unique_devices_only)
@@ -93,40 +98,33 @@ def get_multi_device_sets(config):
 @pytest.fixture
 def context(request):
     device = request.param
-    api = device.platform.api
-    context = api.create_context([device])
+    context = Context.from_devices(device)
     yield context
 
 
 @pytest.fixture
 def multi_device_context(request):
     devices = request.param
-    api = devices[0].platform.api
-    context = api.create_context(devices)
+    context = Context.from_devices(devices)
     yield context
 
 
 def generate_tests(metafunc):
 
-    api_factories = all_api_factories()
     apis = get_apis(metafunc.config)
     platforms = get_platforms(metafunc.config)
     devices = get_devices(metafunc.config)
 
     api_ids = [api.id for api in apis]
-    platform_ids = [platform.id for platform in platforms]
-    device_ids = [device.id for device in devices]
 
     idgen = lambda val: val.short_name
 
     fixtures = [
-        ('api_factory', api_factories),
         ('api_id', api_ids),
         ('api', apis),
-        ('platform_id', platform_ids),
         ('platform', platforms),
-        ('device_id', device_ids),
-        ('device', devices)]
+        ('device', devices),
+        ]
 
     for name, vals in fixtures:
         if name in metafunc.fixturenames:
@@ -140,11 +138,11 @@ def generate_tests(metafunc):
             metafunc.parametrize('context', [])
         else:
             metafunc.parametrize(
-                'context', devices, ids=lambda device: device.id.shortcut, indirect=True)
+                'context', devices, ids=lambda device: device.shortcut, indirect=True)
 
     if 'multi_device_context' in metafunc.fixturenames:
         device_sets = get_multi_device_sets(metafunc.config)
-        ids = ["+".join(device.id.shortcut for device in device_set) for device_set in device_sets]
+        ids = ["+".join(device.shortcut for device in device_set) for device_set in device_sets]
         metafunc.parametrize('multi_device_context', device_sets, ids=ids, indirect=True)
 
 

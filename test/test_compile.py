@@ -2,7 +2,7 @@ import numpy
 
 import pytest
 
-from grunnur import CUDA_API_ID, OPENCL_API_ID
+from grunnur import CUDA_API_ID, OPENCL_API_ID, Program, Queue, Array
 from grunnur.template import Template
 
 
@@ -39,17 +39,17 @@ def test_compile(context, no_prelude):
     else:
         src = src_generic
 
-    program = context.compile(src, no_prelude=no_prelude)
+    program = Program(context, src, no_prelude=no_prelude)
     a = numpy.arange(16).astype(numpy.int32)
     b = numpy.arange(16).astype(numpy.int32) + 1
     ref = a * b
 
-    queue = context.make_queue()
+    queue = Queue.from_device_nums(context)
 
-    a_dev = context.upload(queue, a)
-    b_dev = context.upload(queue, b)
+    a_dev = Array.from_host(queue, a)
+    b_dev = Array.from_host(queue, b)
 
-    res_dev = context.empty_array(queue, 16, numpy.int32)
+    res_dev = Array.empty(queue, 16, numpy.int32)
 
     program.multiply(queue, 16, None, res_dev, a_dev, b_dev)
 
@@ -62,16 +62,16 @@ def test_compile_multi_device(multi_device_context):
 
     context = multi_device_context
 
-    program = context.compile(src_generic)
+    program = Program(context, src_generic)
     a = numpy.arange(16).astype(numpy.int32)
     b = numpy.arange(16).astype(numpy.int32) + 1
     ref = a * b
 
-    queue = context.make_queue(device_nums=[0, 1])
+    queue = Queue.from_device_nums(context, device_nums=[0, 1])
 
-    a_dev = context.upload(queue, a)
-    b_dev = context.upload(queue, b)
-    res_dev = context.empty_array(queue, 16, numpy.int32)
+    a_dev = Array.from_host(queue, a)
+    b_dev = Array.from_host(queue, b)
+    res_dev = Array.empty(queue, 16, numpy.int32)
 
     a_dev_1 = a_dev.single_device_view(0)[:8]
     a_dev_2 = a_dev.single_device_view(1)[8:]
@@ -84,6 +84,8 @@ def test_compile_multi_device(multi_device_context):
 
     program.multiply(
         queue, 8, None, [res_dev_1, res_dev_2], [a_dev_1, a_dev_2], [b_dev_1, b_dev_2])
+
+    queue.synchronize()
 
     res = res_dev.get()
     correct_result = (res == ref).all()
@@ -126,19 +128,19 @@ def test_constant_memory(context):
     cm1 = numpy.arange(16).astype(numpy.int32)
     cm2 = numpy.arange(16).astype(numpy.int32) * 2
 
-    queue = context.make_queue()
+    queue = Queue.from_device_nums(context)
 
-    cm1_dev = context.upload(queue, cm1)
-    cm2_dev = context.upload(queue, cm2)
-    res_dev = context.empty_array(queue, 16, numpy.int32)
+    cm1_dev = Array.from_host(queue, cm1)
+    cm2_dev = Array.from_host(queue, cm2)
+    res_dev = Array.empty(queue, 16, numpy.int32)
 
     if context.api.id == CUDA_API_ID:
-        program = context.compile(src_constant_mem, constant_arrays=dict(cm1=cm1, cm2=cm2))
+        program = Program(context, src_constant_mem, constant_arrays=dict(cm1=cm1, cm2=cm2))
         program.set_constant_array('cm1', cm1_dev) # setting from a device array
         program.set_constant_array('cm2', cm2, queue=queue) # setting from a host array
         program.copy_from_cm(queue, 16, None, res_dev)
     else:
-        program = context.compile(src_constant_mem)
+        program = Program(context, src_constant_mem)
         program.copy_from_cm(queue, 16, None, res_dev, cm1_dev, cm2_dev)
 
     res = res_dev.get()

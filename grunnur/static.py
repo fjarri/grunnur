@@ -1,5 +1,6 @@
 from .utils import prod
 from .vsize import VirtualSizes
+from .program import Program, SingleDeviceProgram, process_arg
 
 
 class StaticKernel:
@@ -52,8 +53,8 @@ class StaticKernel:
                 new_render_globals['static'] = vs.vsize_modules
 
                 # Try to compile the kernel with the corresponding virtual size functions
-                program = context._render_and_compile_single_device(
-                    device_num, src, render_globals=new_render_globals, **kwds)
+                program = SingleDeviceProgram(
+                    context, device_num, src, render_globals=new_render_globals, **kwds)
                 kernel = getattr(program, name)
 
                 if kernel.max_total_local_size >= prod(vs.real_local_size):
@@ -96,6 +97,8 @@ class StaticKernel:
             raise ValueError(
                 f"This kernel's program was not compiled for devices {missing_dev_nums.join(', ')}")
 
+        args = process_arg(args)
+
         # TODO: support "single-device" kernels to streamline the logic of kernel.__call__()
         # and reduce overheads?
         events = []
@@ -103,7 +106,7 @@ class StaticKernel:
             kernel = self._kernels[i]
             vs = self._vs_metadata[i]
             kernel_args = [arg[i] if isinstance(arg, (list, tuple)) else arg for arg in args]
-            event = kernel(queue, vs.real_global_size, vs.real_local_size, *kernel_args)
+            event = kernel(queue.backend_queue, vs.real_global_size, vs.real_local_size, *kernel_args)
             events.append(event)
         return events
 
