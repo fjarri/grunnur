@@ -15,18 +15,18 @@ class Queue:
         else:
             device_nums = tuple(sorted(device_nums))
 
-        backend_queue = context._backend_context.make_multi_queue(device_nums)
-        return cls(context, backend_queue, device_nums)
+        queue_adapter = context._context_adapter.make_multi_queue(device_nums)
+        return cls(context, queue_adapter, device_nums)
 
-    def __init__(self, context, backend_queue, device_nums):
+    def __init__(self, context, queue_adapter, device_nums):
         self.context = context
-        self.backend_queue = backend_queue
+        self._queue_adapter = queue_adapter
         self.device_nums = device_nums
         self.devices = [
-            Device.from_backend_device(backend_device) for backend_device in backend_queue.devices]
+            Device.from_backend_device(device_adapter) for device_adapter in queue_adapter.devices]
 
     def synchronize(self):
         """
         Blocks until sub-queues on all devices are empty.
         """
-        self.backend_queue.synchronize()
+        self._queue_adapter.synchronize()

@@ -17,27 +17,27 @@ def mock_input(monkeypatch, inputs):
 
 def mock_backend_obj(monkeypatch, api_id, backend):
     if api_id == CUDA_API_ID:
-        monkeypatch.setattr('grunnur.backend_cuda.pycuda_drv', backend)
+        monkeypatch.setattr('grunnur.adapter_cuda.pycuda_drv', backend)
     elif api_id == OPENCL_API_ID:
-        monkeypatch.setattr('grunnur.backend_opencl.pyopencl', backend)
+        monkeypatch.setattr('grunnur.adapter_opencl.pyopencl', backend)
     else:
         raise ValueError(f"Unknown API ID: {api_id}")
 
 
 def mock_backend(monkeypatch, api_id, *args):
     if api_id == CUDA_API_ID:
-        monkeypatch.setattr('grunnur.backend_cuda.pycuda_drv', MockPyCUDA(*args))
+        monkeypatch.setattr('grunnur.adapter_cuda.pycuda_drv', MockPyCUDA(*args))
     elif api_id == OPENCL_API_ID:
-        monkeypatch.setattr('grunnur.backend_opencl.pyopencl', MockPyOpenCL(*args))
+        monkeypatch.setattr('grunnur.adapter_opencl.pyopencl', MockPyOpenCL(*args))
     else:
         raise ValueError(f"Unknown API ID: {api_id}")
 
 
 def disable_backend(monkeypatch, api_id):
     if api_id == CUDA_API_ID:
-        monkeypatch.setattr('grunnur.backend_cuda.pycuda_drv', None)
+        monkeypatch.setattr('grunnur.adapter_cuda.pycuda_drv', None)
     elif api_id == OPENCL_API_ID:
-        monkeypatch.setattr('grunnur.backend_opencl.pyopencl', None)
+        monkeypatch.setattr('grunnur.adapter_opencl.pyopencl', None)
     else:
         raise ValueError(f"Unknown API ID: {api_id}")
 

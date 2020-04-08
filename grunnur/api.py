@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import Optional, Iterable, List
 
-#from .backend_base import BackendAPI
-from .backend_cuda import CuAPIFactory
-from .backend_opencl import OclAPIFactory
+from .adapter_cuda import CuAPIFactory
+from .adapter_opencl import OclAPIFactory
 
 
 CUDA_API_ID = CuAPIFactory().api_id
@@ -51,8 +50,8 @@ class API:
         # TODO: rename to `all_available()`?
         return [
             cls.from_api_id(api_id)
-            for api_id, backend_api_factory in _ALL_API_FACTORIES.items()
-            if backend_api_factory.available]
+            for api_id, api_factory in _ALL_API_FACTORIES.items()
+            if api_factory.available]
 
     @classmethod
     def all_by_shortcut(cls, shortcut: Optional[str]=None) -> List[API]:
@@ -70,9 +69,9 @@ class API:
         if shortcut is None:
             apis = cls.all()
         else:
-            for api_id, backend_api_factory in _ALL_API_FACTORIES.items():
+            for api_id, api_factory in _ALL_API_FACTORIES.items():
                 if shortcut == api_id.shortcut:
-                    if not backend_api_factory.available:
+                    if not api_factory.available:
                         raise ValueError(str(shortcut) + " API is not available")
                     apis = [cls.from_api_id(api_id)]
                     break
@@ -83,12 +82,12 @@ class API:
 
     @classmethod
     def from_api_id(cls, api_id):
-        backend_api = _ALL_API_FACTORIES[api_id].make_api()
-        return cls(backend_api)
+        api_adapter = _ALL_API_FACTORIES[api_id].make_api()
+        return cls(api_adapter)
 
-    def __init__(self, backend_api):
-        self.id = backend_api.id
-        self._backend_api = backend_api
+    def __init__(self, api_adapter):
+        self.id = api_adapter.id
+        self._api_adapter = api_adapter
         self.shortcut = self.id.shortcut
         self.short_name = f"api({self.shortcut})"
 

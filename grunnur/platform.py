@@ -28,7 +28,7 @@ class Platform:
         """
         return [
             Platform.from_number(api, platform_num)
-            for platform_num in range(api._backend_api.num_platforms)]
+            for platform_num in range(api._api_adapter.num_platforms)]
 
     @classmethod
     def all_by_masks(
@@ -52,6 +52,7 @@ class Platform:
 
     @classmethod
     def from_backend_platform(cls, backend_platform):
+        # FIXME: is it supposed to be a backend platform, or a platform adapter?
         api = API(backend_platform.api)
         return cls(api, backend_platform)
 
@@ -59,20 +60,20 @@ class Platform:
     def from_backend_object(cls, obj):
         for api in API.all():
             if api.is_backend_platform(obj):
-                backend_platform = api.make_platform(obj)
-                return cls(api, backend_platform)
+                platform_adapter = api.make_platform(obj)
+                return cls(api, platform_adapter)
 
         raise ValueError(f"{obj} was not recognized as a platform object by any available API")
 
     @classmethod
     def from_number(cls, api, platform_num):
-        backend_platform = api._backend_api.get_platforms()[platform_num]
-        return cls(api, backend_platform)
+        platform_adapter = api._api_adapter.get_platforms()[platform_num]
+        return cls(api, platform_adapter)
 
-    def __init__(self, api, backend_platform):
+    def __init__(self, api, platform_adapter):
         self.api = api
-        self._backend_platform = backend_platform
-        self.name = self._backend_platform.name
+        self._platform_adapter = platform_adapter
+        self.name = self._platform_adapter.name
 
-        self.shortcut = f"{api.shortcut},{backend_platform.platform_num}"
+        self.shortcut = f"{api.shortcut},{platform_adapter.platform_num}"
         self.short_name = f"platform({self.shortcut})"

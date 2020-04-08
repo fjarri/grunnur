@@ -106,7 +106,7 @@ class StaticKernel:
             kernel = self._kernels[i]
             vs = self._vs_metadata[i]
             kernel_args = [arg[i] if isinstance(arg, (list, tuple)) else arg for arg in args]
-            event = kernel(queue.backend_queue, vs.real_global_size, vs.real_local_size, *kernel_args)
+            event = kernel(queue._queue_adapter, vs.real_global_size, vs.real_local_size, *kernel_args)
             events.append(event)
         return events
 

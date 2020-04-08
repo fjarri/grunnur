@@ -46,6 +46,7 @@ class APIFactory(ABC):
     A helper class that allows handling cases when an API's backend is unavailable
     or temporarily replaced by a mock object.
     """
+    pass
 
 
 class DeviceParameters(ABC):
@@ -123,7 +124,7 @@ class DeviceParameters(ABC):
         pass
 
 
-class BackendContext(ABC):
+class ContextAdapter(ABC):
 
     @property
     @abstractmethod
@@ -173,11 +174,6 @@ class Buffer(ABC):
     """
     A memory buffer on the device.
     """
-
-    @property
-    @abstractmethod
-    def backend_buffer(self):
-        pass
 
     @property
     @abstractmethod

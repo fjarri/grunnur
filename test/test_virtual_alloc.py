@@ -4,7 +4,7 @@ import weakref
 import numpy
 import pytest
 
-from grunnur.backend_base import APIID
+from grunnur.adapter_base import APIID
 from grunnur import Queue, Program, Array, Context, Buffer
 import grunnur.dtypes as dtypes
 from grunnur.virtual_alloc import extract_dependencies, TrivialManager, ZeroOffsetManager
@@ -164,7 +164,7 @@ def test_contract(valloc_cls, pack):
 
     # Check that after deleting virtual buffers all the real buffers are freed as well
     del buffers
-    assert len(context._backend_context.allocations) == 0
+    assert len(context._context_adapter.allocations) == 0
 
 
 @valloc_cls_fixture

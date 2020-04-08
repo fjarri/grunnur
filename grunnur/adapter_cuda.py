@@ -12,7 +12,7 @@ except ImportError:
 from .utils import all_same, all_different, wrap_in_tuple, prod, normalize_base_objects
 from .template import Template
 from . import dtypes
-from .backend_base import APIID, DeviceType
+from .adapter_base import APIID, DeviceType
 
 
 # Another way would be to place it in the try block and only set `_avaialable`
@@ -77,8 +77,8 @@ class CuAPI:
 
 class CuPlatform:
 
-    def __init__(self, backend_api):
-        self.api = backend_api
+    def __init__(self, api):
+        self.api = api
 
     @property
     def platform_num(self):

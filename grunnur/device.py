@@ -25,7 +25,7 @@ class Device:
     def all(cls, platform):
         return [
             Device.from_number(platform, device_num)
-            for device_num in range(platform._backend_platform.num_devices)]
+            for device_num in range(platform._platform_adapter.num_devices)]
 
     @classmethod
     def all_by_masks(
@@ -69,20 +69,21 @@ class Device:
 
     @classmethod
     def from_number(cls, platform, device_num):
-        backend_device = platform._backend_platform.get_devices()[device_num]
-        return cls(platform, backend_device)
+        device_adapter = platform._platform_adapter.get_devices()[device_num]
+        return cls(platform, device_adapter)
 
     @classmethod
     def from_backend_device(cls, backend_device):
+        # FIXME: is it supposed to be a backend device, or a device adapter?
         platform = Platform.from_backend_platform(backend_device.platform)
         return cls(platform, backend_device)
 
-    def __init__(self, platform: Platform, backend_device):
+    def __init__(self, platform: Platform, device_adapter):
         self.platform = platform
-        self._backend_device = backend_device
-        self.name = self._backend_device.name
+        self._device_adapter = device_adapter
+        self.name = self._device_adapter.name
 
-        self.shortcut = f"{platform.shortcut},{backend_device.device_num}"
+        self.shortcut = f"{platform.shortcut},{device_adapter.device_num}"
         self.short_name = f"device({self.shortcut})"
 
         self._params = None
@@ -90,7 +91,7 @@ class Device:
     @property
     def params(self):
         if self._params is None:
-            self._params = self._backend_device.params
+            self._params = self._device_adapter.params
         return self._params
 
 

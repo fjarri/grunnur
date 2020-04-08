@@ -53,17 +53,17 @@ class SingleDeviceProgram:
         src = render_with_modules(
             template_src, render_args=render_args, render_globals=render_globals)
 
-        backend_context = context._backend_context
+        context_adapter = context._context_adapter
 
         if no_prelude:
             prelude = ""
         else:
-            prelude = backend_context.render_prelude(fast_math=fast_math)
+            prelude = context_adapter.render_prelude(fast_math=fast_math)
 
         try:
-            self._backend_sd_program = backend_context.compile_single_device(
+            self._sd_program_adapter = context_adapter.compile_single_device(
                 device_num, prelude, src, fast_math=fast_math, **kwds)
-        except backend_context.compile_error_class:
+        except context_adapter.compile_error_class:
             print(f"Failed to compile on device {device_num} ({context.devices[device_num]})")
 
             lines = src.split("\n")
@@ -78,7 +78,7 @@ class SingleDeviceProgram:
         Returns a :py:class:`SingleDeviceKernel` object for a function (CUDA)/kernel (OpenCL)
         with the name ``kernel_name``.
         """
-        return getattr(self._backend_sd_program, kernel_name)
+        return getattr(self._sd_program_adapter, kernel_name)
 
     def set_constant_array(
             self, name: str, arr: Union[Array, numpy.ndarray], queue: Optional[Queue]=None):
@@ -101,20 +101,20 @@ class SingleDeviceProgram:
                     f"The provided queue must include the device this program uses ({self._device_num})")
 
         if isinstance(arr, Array):
-            constant_data = arr.data.backend_buffer
+            constant_data = arr.data._buffer_adapter
         elif isinstance(arr, Buffer):
-            constant_data = arr.backend_buffer
+            constant_data = arr._buffer_adapter
         elif isinstance(arr, numpy.ndarray):
             constant_data = arr
         else:
             raise TypeError(f"Uunsupported array type: {type(arr)}")
 
         if queue is not None:
-            backend_queue = queue.backend_queue
+            queue_adapter = queue._queue_adapter
         else:
-            backend_queue = None
+            queue_adapter = None
 
-        self._backend_sd_program.set_constant_buffer(name, constant_data, queue=backend_queue)
+        self._sd_program_adapter.set_constant_buffer(name, constant_data, queue=queue_adapter)
 
 
 class Program:
@@ -249,7 +249,7 @@ class Kernel:
         for i, device_num in enumerate(device_nums):
             kernel_args = [arg[i] if isinstance(arg, (list, tuple)) else arg for arg in args]
             ret_val = self._sd_kernels[device_num](
-                queue.backend_queue, global_size, local_size, *kernel_args, **kwds)
+                queue._queue_adapter, global_size, local_size, *kernel_args, **kwds)
             ret_vals.append(ret_val)
 
         return ret_vals
@@ -259,8 +259,8 @@ class SingleDeviceKernel:
     """
     A kernel compiled for a single device.
     """
-    def __init__(self, backend_sd_kernel):
-        self._backend_sd_kernel = backend_sd_kernel
+    def __init__(self, sd_kernel_adapter):
+        self._sd_kernel_adapter = sd_kernel_adapter
 
     @property
     def max_total_local_size(self) -> int:
@@ -268,7 +268,7 @@ class SingleDeviceKernel:
         The maximum possible number of threads in a block (CUDA)/work items in a work group (OpenCL)
         for this kernel.
         """
-        return self._backend_sd_kernel.max_total_local_size
+        return self._sd_kernel_adapter.max_total_local_size
 
     def __call__(
             self,
@@ -294,4 +294,4 @@ class SingleDeviceKernel:
 
         assert self._device_num in queue.device_nums
 
-        return self._backend_sd_kernel(global_size, local_size, *args, **kwds)
+        return self._sd_kernel_adapter(global_size, local_size, *args, **kwds)

@@ -13,32 +13,34 @@ class Context:
         devices = wrap_in_tuple(devices)
         platform = devices[0].platform
 
-        backend_devices = [device._backend_device for device in devices]
-        backend_context = platform._backend_platform.make_context(backend_devices)
+        device_adapters = [device._device_adapter for device in devices]
+        context_adapter = platform._platform_adapter.make_context(device_adapters)
 
-        return cls(backend_context)
+        return cls(context_adapter)
 
     @classmethod
     def from_backend_devices(cls, backend_devices):
         #devices = normalize_base_objects(devices)
         for api in API.all():
-            if api._backend_api.isa_backend_device(backend_devices[0]):
-                backend_context = api._backend_api.make_context_from_devices(backend_devices)
-                return cls(backend_context)
-        raise TypeError(f"{type(devices[0])} objects were not recognized as devices by any API")
+            if api._api_adapter.isa_backend_device(backend_devices[0]):
+                context_adapter = api._api_adapter.make_context_from_devices(backend_devices)
+                return cls(context_adapter)
+        raise TypeError(
+            f"{type(backend_devices[0])} objects were not recognized as devices by any API")
 
     @classmethod
     def from_backend_contexts(cls, backend_contexts):
         #contexts = normalize_base_objects(contexts)
         for api in API.all():
-            if api._backend_api.isa_backend_context(backend_contexts[0]):
-                backend_context = api._backend_api.make_context_from_contexts(backend_contexts)
-                return cls(backend_context)
-        raise TypeError(f"{type(contexts[0])} objects were not recognized as contexts by any API")
+            if api._api_adapter.isa_backend_context(backend_contexts[0]):
+                context_adapter = api._api_adapter.make_context_from_contexts(backend_contexts)
+                return cls(context_adapter)
+        raise TypeError(
+            f"{type(backend_contexts[0])} objects were not recognized as contexts by any API")
 
-    def __init__(self, backend_context):
-        self._backend_context = backend_context
-        self.devices = [Device.from_backend_device(device) for device in backend_context.devices]
+    def __init__(self, context_adapter):
+        self._context_adapter = context_adapter
+        self.devices = [Device.from_backend_device(device) for device in context_adapter.devices]
         self.platform = self.devices[0].platform
         self.api = self.platform.api
 

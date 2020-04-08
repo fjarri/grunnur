@@ -22,7 +22,7 @@ def extract_dependencies(dependencies) -> Set[int]:
     if isinstance(dependencies, VirtualBuffer):
         return {dependencies._id}
     if isinstance(dependencies, Buffer):
-        return extract_dependencies(dependencies.backend_buffer)
+        return extract_dependencies(dependencies._buffer_adapter)
     if isinstance(dependencies, Array):
         return extract_dependencies(dependencies.data)
     if isinstance(dependencies, Iterable):
@@ -90,7 +90,7 @@ class VirtualBuffer:
         return self._size
 
     def _set_real_buffer(self, buf: Buffer):
-        self._real_buffer = buf.backend_buffer
+        self._real_buffer = buf._buffer_adapter
 
 
 class VirtualManager:

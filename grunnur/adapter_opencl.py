@@ -13,7 +13,7 @@ except ImportError:
 from .utils import all_same, all_different, wrap_in_tuple, normalize_base_objects
 from .template import Template
 from . import dtypes
-from .backend_base import DeviceType, APIID
+from .adapter_base import DeviceType, APIID
 
 
 _API_ID = APIID('opencl')
@@ -76,8 +76,8 @@ class OclPlatform:
 
         raise Exception(f"{pyopencl_platform} was not found among OpenCL platforms")
 
-    def __init__(self, backend_api, pyopencl_platform, platform_num):
-        self.api = backend_api
+    def __init__(self, api, pyopencl_platform, platform_num):
+        self.api = api
         self.pyopencl_platform = pyopencl_platform
         self._platform_num = platform_num
 
