@@ -53,7 +53,7 @@ class Platform:
     @classmethod
     def from_backend_platform(cls, backend_platform):
         # FIXME: is it supposed to be a backend platform, or a platform adapter?
-        api = API(backend_platform.api)
+        api = API(backend_platform.api_adapter)
         return cls(api, backend_platform)
 
     @classmethod
@@ -67,7 +67,7 @@ class Platform:
 
     @classmethod
     def from_number(cls, api, platform_num):
-        platform_adapter = api._api_adapter.get_platforms()[platform_num]
+        platform_adapter = api._api_adapter.get_platform_adapters()[platform_num]
         return cls(api, platform_adapter)
 
     def __init__(self, api, platform_adapter):

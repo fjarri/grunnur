@@ -23,7 +23,7 @@ class Context:
         #devices = normalize_base_objects(devices)
         for api in API.all():
             if api._api_adapter.isa_backend_device(backend_devices[0]):
-                context_adapter = api._api_adapter.make_context_from_devices(backend_devices)
+                context_adapter = api._api_adapter.make_context_from_backend_devices(backend_devices)
                 return cls(context_adapter)
         raise TypeError(
             f"{type(backend_devices[0])} objects were not recognized as devices by any API")
@@ -33,14 +33,16 @@ class Context:
         #contexts = normalize_base_objects(contexts)
         for api in API.all():
             if api._api_adapter.isa_backend_context(backend_contexts[0]):
-                context_adapter = api._api_adapter.make_context_from_contexts(backend_contexts)
+                context_adapter = api._api_adapter.make_context_from_backend_contexts(backend_contexts)
                 return cls(context_adapter)
         raise TypeError(
             f"{type(backend_contexts[0])} objects were not recognized as contexts by any API")
 
     def __init__(self, context_adapter):
         self._context_adapter = context_adapter
-        self.devices = [Device.from_backend_device(device) for device in context_adapter.devices]
+        self.devices = [
+            Device.from_device_adapter(device_adapter)
+            for device_adapter in context_adapter.device_adapters]
         self.platform = self.devices[0].platform
         self.api = self.platform.api
 

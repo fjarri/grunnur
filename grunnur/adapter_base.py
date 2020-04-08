@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Tuple, Type, Mapping, Iterable
@@ -41,12 +43,122 @@ class APIID:
         return hash((type(self), self.shortcut))
 
 
-class APIFactory(ABC):
+class APIAdapterFactory(ABC):
     """
     A helper class that allows handling cases when an API's backend is unavailable
     or temporarily replaced by a mock object.
     """
-    pass
+    @property
+    @abstractmethod
+    def api_id(self):
+        pass
+
+    @property
+    @abstractmethod
+    def available(self):
+        pass
+
+    @abstractmethod
+    def make_api_adapter(self):
+        pass
+
+
+class APIAdapter(ABC):
+
+    @property
+    @abstractmethod
+    def id(self):
+        pass
+
+    @property
+    @abstractmethod
+    def num_platforms(self):
+        pass
+
+    # TODO: have instead get_platform(platform_num)?
+    @abstractmethod
+    def get_platform_adapters(self):
+        pass
+
+    @abstractmethod
+    def isa_backend_device(self, obj):
+        pass
+
+    @abstractmethod
+    def isa_backend_context(self, obj):
+        pass
+
+    @abstractmethod
+    def make_context_from_backend_devices(self, backend_devices):
+        pass
+
+    @abstractmethod
+    def make_context_from_backend_contexts(self, backend_contexts):
+        pass
+
+
+class PlatformAdapter(ABC):
+
+    @property
+    @abstractmethod
+    def api_adapter(self):
+        pass
+
+    @property
+    @abstractmethod
+    def platform_num(self):
+        pass
+
+    @property
+    @abstractmethod
+    def name(self):
+        pass
+
+    @property
+    @abstractmethod
+    def vendor(self):
+        pass
+
+    @property
+    @abstractmethod
+    def version(self):
+        pass
+
+    @property
+    @abstractmethod
+    def num_devices(self):
+        pass
+
+    @abstractmethod
+    def get_device_adapters(self):
+        pass
+
+    @abstractmethod
+    def make_context(self, device_adapters):
+        pass
+
+
+class DeviceAdapter(ABC):
+
+    @property
+    @abstractmethod
+    def platform_adapter(self):
+        pass
+
+    @property
+    @abstractmethod
+    def device_num(self):
+        pass
+
+    @property
+    @abstractmethod
+    def name(self):
+        pass
+
+    @property
+    @abstractmethod
+    def params(self):
+        pass
 
 
 class DeviceParameters(ABC):
@@ -126,6 +238,27 @@ class DeviceParameters(ABC):
 
 class ContextAdapter(ABC):
 
+    @classmethod
+    @abstractmethod
+    def from_device_adapters(cls, device_adapters: Iterable[DeviceAdapter]) -> ContextAdapter:
+        """
+        Creates a context based on one or several (distinct) :py:class:`OclDeviceAdapter` objects.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def device_adapters(self) -> Tuple[DeviceAdapter, ...]:
+        pass
+
+    @abstractmethod
+    def make_queue_adapter(self, device_nums):
+        pass
+
+    @abstractmethod
+    def allocate(self, size):
+        pass
+
     @property
     @abstractmethod
     def compile_error_class(self) -> Type[Exception]:
@@ -143,6 +276,11 @@ class ContextAdapter(ABC):
         :param fast_math: whether the compilation with fast math is requested.
         """
         # TODO: it doesn't really need the context object, move to API and make a class method?
+        pass
+
+    @property
+    @abstractmethod
+    def compile_error_class(self):
         pass
 
     @abstractmethod
@@ -169,19 +307,18 @@ class ContextAdapter(ABC):
         pass
 
 
-
-class Buffer(ABC):
+class BufferAdapter(ABC):
     """
     A memory buffer on the device.
     """
 
-    @property
-    @abstractmethod
-    def context(self):
-        """
-        The :py:class:`Context` object this buffer object was created in.
-        """
-        pass
+    #@property
+    #@abstractmethod
+    #def context_adapter(self):
+    #    """
+    #    The :py:class:`Context` object this buffer object was created in.
+    #    """
+    #    pass
 
     @property
     @abstractmethod
@@ -205,4 +342,42 @@ class Buffer(ABC):
         """
         Returns a buffer sub-region starting at ``origin`` and of length ``size`` (in bytes).
         """
+        pass
+
+    @abstractmethod
+    def set(self, queue_adapter, device_num, host_array, async_=False, dont_sync_other_devices=False):
+        pass
+
+    @abstractmethod
+    def get(self, queue_adapter, device_num, host_array, async_=False, dont_sync_other_devices=False):
+        pass
+
+    @abstractmethod
+    def migrate(self, queue_adapter, device_num):
+        pass
+
+
+class QueueAdapter(ABC):
+
+    @abstractmethod
+    def synchronize(self):
+        pass
+
+
+class ProgramAdapter(ABC):
+
+    @abstractmethod
+    def __getattr__(self, kernel_name):
+        pass
+
+
+class KernelAdapter(ABC):
+
+    @property
+    @abstractmethod
+    def max_total_local_size(self):
+        pass
+
+    @abstractmethod
+    def __call__(self, queue_adapter, global_size, local_size, *args, local_mem=0):
         pass

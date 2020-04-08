@@ -96,7 +96,7 @@ class SingleDeviceProgram:
             if queue.context is not self.context:
                 raise ValueError(
                     "The provided queue must belong to the same context as this program uses")
-            if self._device_num not in queue.device_nums:
+            if self._device_num not in queue.devices:
                 raise ValueError(
                     f"The provided queue must include the device this program uses ({self._device_num})")
 
@@ -234,7 +234,7 @@ class Kernel:
         args = process_arg(args)
 
         if device_nums is None:
-            device_nums = queue.device_nums
+            device_nums = list(queue.devices)
         else:
             device_nums = list(device_nums)
 
@@ -292,6 +292,6 @@ class SingleDeviceKernel:
 
         args = process_arg(args)
 
-        assert self._device_num in queue.device_nums
+        assert self._device_num in queue.devices
 
         return self._sd_kernel_adapter(global_size, local_size, *args, **kwds)

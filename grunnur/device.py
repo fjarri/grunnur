@@ -69,14 +69,13 @@ class Device:
 
     @classmethod
     def from_number(cls, platform, device_num):
-        device_adapter = platform._platform_adapter.get_devices()[device_num]
+        device_adapter = platform._platform_adapter.get_device_adapters()[device_num]
         return cls(platform, device_adapter)
 
     @classmethod
-    def from_backend_device(cls, backend_device):
-        # FIXME: is it supposed to be a backend device, or a device adapter?
-        platform = Platform.from_backend_platform(backend_device.platform)
-        return cls(platform, backend_device)
+    def from_device_adapter(cls, device_adapter):
+        platform = Platform.from_backend_platform(device_adapter.platform_adapter)
+        return cls(platform, device_adapter)
 
     def __init__(self, platform: Platform, device_adapter):
         self.platform = platform

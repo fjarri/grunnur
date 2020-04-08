@@ -87,9 +87,7 @@ class StaticKernel:
         """
         # TODO: speed this up. Probably shouldn't create sets on every kernel call.
         if device_nums is None:
-            device_nums = queue.device_nums
-        else:
-            device_nums = [queue.device_nums[device_num] for device_num in device_nums]
+            device_nums = list(queue.devices)
 
         if not set(device_nums).issubset(self._device_nums):
             missing_dev_nums = [

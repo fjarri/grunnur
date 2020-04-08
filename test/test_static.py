@@ -68,7 +68,7 @@ def test_compile_static_multi_device(multi_device_context):
     res = res_dev.get()
     correct_result = (res == ref).all()
 
-    device_names = [device.name for device in queue.devices]
+    device_names = [device.name for device in queue.devices.values()]
     expected_to_fail = (
         context.api.id == OPENCL_API_ID and
         'Apple' in context.platform.name and

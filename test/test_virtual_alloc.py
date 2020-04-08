@@ -29,13 +29,13 @@ class MockAPI:
 
 
 class MockPlatform:
-    api = MockAPI()
+    api_adapter = MockAPI()
     name = "mock"
     platform_num = 0
 
 
 class MockDevice():
-    platform = MockPlatform()
+    platform_adapter = MockPlatform()
     name = "mock"
     device_num = 0
 
@@ -54,7 +54,7 @@ class MockContext:
     def __init__(self):
         self._allocation_id = 0
         self.allocations = weakref.WeakValueDictionary()
-        self.devices = [MockDevice()]
+        self.device_adapters = [MockDevice()]
 
     def allocate(self, size):
         buf = MockBuffer(self, self._allocation_id, size)
@@ -62,7 +62,7 @@ class MockContext:
         self._allocation_id += 1
         return buf
 
-    def make_multi_queue(self, device_nums):
+    def make_queue_adapter(self, device_nums):
         return MockQueue(self)
 
 
@@ -70,7 +70,9 @@ class MockQueue:
 
     def __init__(self, context):
         self.context = context
-        self.devices = context.devices
+        self.device_adapters = {
+            device_num: context.device_adapters[device_num]
+            for device_num in range(len(context.device_adapters))}
 
     def synchronize(self):
         pass
