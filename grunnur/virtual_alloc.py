@@ -9,6 +9,7 @@ import weakref
 from weakref import ReferenceType
 
 from .sorted_list import SortedList
+from .adapter_base import BufferAdapter
 from .buffer import Buffer
 from .array import Array
 from .queue import Queue
@@ -19,7 +20,7 @@ def extract_dependencies(dependencies) -> Set[int]:
     """
     Recursively extracts allocation identifiers from an iterable or an ``Array`` object.
     """
-    if isinstance(dependencies, VirtualBuffer):
+    if isinstance(dependencies, VirtualBufferAdapter):
         return {dependencies._id}
     if isinstance(dependencies, Buffer):
         return extract_dependencies(dependencies._buffer_adapter)
@@ -48,11 +49,11 @@ class VirtualAllocator:
         self.manager = manager
         self.dependencies = dependencies
 
-    def __call__(self, size: int) -> VirtualBuffer:
+    def __call__(self, size: int) -> VirtualBufferAdapter:
         return self.manager._allocate_virtual(size, self.dependencies)
 
 
-class VirtualBuffer:
+class VirtualBufferAdapter(BufferAdapter):
     """
     A virtual buffer object.
     """
@@ -66,10 +67,6 @@ class VirtualBuffer:
     @property
     def kernel_arg(self):
         return self._real_buffer.kernel_arg
-
-    @property
-    def context(self) -> Context:
-        return self._manager.queue.context
 
     def get_sub_region(self, origin, size):
         # FIXME: how to handle it?
@@ -88,6 +85,9 @@ class VirtualBuffer:
     @property
     def size(self) -> int:
         return self._size
+
+    def migrate(self, *args, **kwds):
+        self._real_buffer.migrate(*args, **kwds)
 
     def _set_real_buffer(self, buf: Buffer):
         self._real_buffer = buf._buffer_adapter
@@ -109,7 +109,7 @@ class VirtualManager:
     def __init__(self, queue: Queue, pack_on_alloc: bool=False, pack_on_free: bool=False):
         self.queue = queue
         self._id_counter = 0
-        self._virtual_buffers: Dict[int, ReferenceType[VirtualBuffer]] = {}
+        self._virtual_buffers: Dict[int, ReferenceType[VirtualBufferAdapter]] = {}
         self._pack_on_alloc = pack_on_alloc
         self._pack_on_free = pack_on_free
 
@@ -117,7 +117,7 @@ class VirtualManager:
         """
         Create a callable to use for :py:class:`~grunnur.base_classes.Array` creation.
         The returned object takes a buffer size (in bytes)
-        and returns a :py:class:`VirtualBuffer` object.
+        and returns a :py:class:`VirtualBufferAdapter` object.
 
         :param dependencies: can be a :py:class:`~grunnur.base_classes.Array` instance
             (the ones containing persistent allocations will be ignored),
@@ -128,7 +128,7 @@ class VirtualManager:
         dependencies = extract_dependencies(dependencies)
         return VirtualAllocator(self, dependencies)
 
-    def _allocate_virtual(self, size: int, dependencies: Set[int]) -> VirtualBuffer:
+    def _allocate_virtual(self, size: int, dependencies: Set[int]) -> VirtualBufferAdapter:
 
         new_id = self._id_counter
         self._id_counter += 1
@@ -140,7 +140,7 @@ class VirtualManager:
                 f"Some of the declared dependencies (with IDs {missing_deps}) do not exist")
 
         self._allocate_specific(new_id, size, dependencies, self._pack_on_alloc)
-        vbuf = VirtualBuffer(self, size, new_id)
+        vbuf = VirtualBufferAdapter(self, size, new_id)
         buf = Buffer(self.queue.context, vbuf)
         self._virtual_buffers[new_id] = weakref.ref(vbuf, lambda _: self._free(new_id))
 
@@ -182,7 +182,7 @@ class VirtualManager:
         return VirtualAllocationStatistics(
             self._real_buffers(),
             # cast() to override inference here - we know that vb() will not return `None`
-            [cast(VirtualBuffer, vb()) for vb in self._virtual_buffers.values()])
+            [cast(VirtualBufferAdapter, vb()) for vb in self._virtual_buffers.values()])
 
     @abstractmethod
     def _allocate_specific(self, new_id: int, size:int, dependencies: Set[int], pack: bool):
@@ -235,7 +235,7 @@ class VirtualAllocationStatistics:
     """
 
     def __init__(
-            self, real_buffers: Iterable[Buffer], virtual_buffers: Iterable[VirtualBuffer]):
+            self, real_buffers: Iterable[Buffer], virtual_buffers: Iterable[VirtualBufferAdapter]):
 
         real_sizes = [rb.size for rb in real_buffers]
         virtual_sizes = [vb.size for vb in virtual_buffers]
