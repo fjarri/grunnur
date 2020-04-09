@@ -128,17 +128,13 @@ def generate_tests(metafunc):
 
     for name, vals in fixtures:
         if name in metafunc.fixturenames:
-            if len(vals) == 0:
-                metafunc.parametrize(name, [])
-            else:
-                metafunc.parametrize(name, vals, ids=idgen)
+            metafunc.parametrize(name, vals, ids=['no_' + name] if len(vals) == 0 else idgen)
 
     if 'context' in metafunc.fixturenames:
-        if len(devices) == 0:
-            metafunc.parametrize('context', [])
-        else:
-            metafunc.parametrize(
-                'context', devices, ids=lambda device: device.shortcut, indirect=True)
+        metafunc.parametrize(
+            'context', devices,
+            ids=['no_device'] if len(devices) == 0 else lambda device: device.shortcut,
+            indirect=True)
 
     if 'multi_device_context' in metafunc.fixturenames:
         device_sets = get_multi_device_sets(metafunc.config)
