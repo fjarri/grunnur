@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .platform import Platform
-from .utils import name_matches_masks
+from .utils import string_matches_masks
 
 
 class Device:
@@ -52,7 +52,7 @@ class Device:
         devices = []
 
         for device in cls.all(platform):
-            if not name_matches_masks(
+            if not string_matches_masks(
                     device.name, include_masks=include_masks, exclude_masks=exclude_masks):
                 continue
 

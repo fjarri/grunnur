@@ -1,4 +1,4 @@
-from .utils import wrap_in_tuple, normalize_base_objects
+from .utils import wrap_in_tuple, normalize_object_sequence
 from .api import API
 from .device import Device
 
@@ -20,7 +20,7 @@ class Context:
 
     @classmethod
     def from_backend_devices(cls, backend_devices):
-        #devices = normalize_base_objects(devices)
+        #devices = normalize_object_sequence(devices)
         for api in API.all():
             if api._api_adapter.isa_backend_device(backend_devices[0]):
                 context_adapter = api._api_adapter.make_context_from_backend_devices(backend_devices)
@@ -30,7 +30,7 @@ class Context:
 
     @classmethod
     def from_backend_contexts(cls, backend_contexts):
-        #contexts = normalize_base_objects(contexts)
+        #contexts = normalize_object_sequence(contexts)
         for api in API.all():
             if api._api_adapter.isa_backend_context(backend_contexts[0]):
                 context_adapter = api._api_adapter.make_context_from_backend_contexts(backend_contexts)

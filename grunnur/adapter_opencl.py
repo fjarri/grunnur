@@ -10,7 +10,7 @@ try:
 except ImportError:
     pyopencl = None
 
-from .utils import all_same, all_different, wrap_in_tuple, normalize_base_objects
+from .utils import all_same, all_different, wrap_in_tuple, normalize_object_sequence
 from .template import Template
 from . import dtypes
 from .adapter_base import (
@@ -264,7 +264,7 @@ class OclContextAdapter(ContextAdapter):
         """
         Creates a context based on one or several (distinct) PyOpenCL ``Device`` objects.
         """
-        pyopencl_devices = normalize_base_objects(pyopencl_devices, pyopencl.Device)
+        pyopencl_devices = normalize_object_sequence(pyopencl_devices, pyopencl.Device)
         return cls(pyopencl.Context(pyopencl_devices), pyopencl_devices=pyopencl_devices)
 
     @classmethod
@@ -279,7 +279,7 @@ class OclContextAdapter(ContextAdapter):
         """
         Creates a context based on one or several (distinct) :py:class:`OclDeviceAdapter` objects.
         """
-        device_adapters = normalize_base_objects(device_adapters, OclDeviceAdapter)
+        device_adapters = normalize_object_sequence(device_adapters, OclDeviceAdapter)
         if not all_same(device_adapter.platform_adapter for device_adapter in device_adapters):
             raise ValueError("All devices must belong to the same platform")
         return cls.from_pyopencl_devices(

@@ -9,7 +9,7 @@ try:
 except ImportError:
     pycuda_drv = None # this variable is used for a PyCUDA mock during tests
 
-from .utils import all_same, all_different, wrap_in_tuple, prod, normalize_base_objects
+from .utils import all_same, all_different, wrap_in_tuple, prod, normalize_object_sequence
 from .template import Template
 from . import dtypes
 from .adapter_base import (
@@ -265,7 +265,7 @@ class CuContextAdapter(ContextAdapter):
         """
         Creates a context based on one or several (distinct) PyCuda ``Device`` objects.
         """
-        pycuda_devices = normalize_base_objects(pycuda_devices, pycuda_drv.Device)
+        pycuda_devices = normalize_object_sequence(pycuda_devices, pycuda_drv.Device)
         contexts = []
         for device in pycuda_devices:
             context = device.make_context()
@@ -279,7 +279,7 @@ class CuContextAdapter(ContextAdapter):
         Creates a context based on one or several (distinct) PyCuda ``Context`` objects.
         None of the PyCuda contexts should be pushed to the context stack.
         """
-        pycuda_contexts = normalize_base_objects(pycuda_contexts, pycuda_drv.Context)
+        pycuda_contexts = normalize_object_sequence(pycuda_contexts, pycuda_drv.Context)
         return cls(pycuda_contexts, owns_contexts=False)
 
     @classmethod
@@ -287,7 +287,7 @@ class CuContextAdapter(ContextAdapter):
         """
         Creates a context based on one or several (distinct) :py:class:`CuDeviceAdapter` objects.
         """
-        device_adapters = normalize_base_objects(device_adapters, CuDeviceAdapter)
+        device_adapters = normalize_object_sequence(device_adapters, CuDeviceAdapter)
         return cls.from_pycuda_devices(
             [device_adapter.pycuda_device for device_adapter in device_adapters])
 

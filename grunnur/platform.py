@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .api import API
-from .utils import name_matches_masks
+from .utils import string_matches_masks
 
 
 class Platform:
@@ -46,7 +46,7 @@ class Platform:
         """
         return [
             platform for platform in cls.all(api)
-            if name_matches_masks(
+            if string_matches_masks(
                 platform.name, include_masks=include_masks, exclude_masks=exclude_masks)
             ]
 

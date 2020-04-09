@@ -1,7 +1,8 @@
 import pytest
 
 from grunnur.utils import (
-    all_same, all_different, wrap_in_tuple, min_blocks, log2, bounding_power_of_2, prod)
+    all_same, all_different, wrap_in_tuple, min_blocks, log2, bounding_power_of_2, prod,
+    string_matches_masks, normalize_object_sequence)
 
 
 def test_all_same():
@@ -48,3 +49,29 @@ def test_bounding_power_of_2():
 def test_prod():
     assert prod([]) == 1
     assert prod([1, 2, 3]) == 6
+
+
+def test_string_matches_masks():
+    assert string_matches_masks("foo")
+    assert string_matches_masks("foo", include_masks=['fo', 'ba'])
+    assert not string_matches_masks("foo", include_masks=['ff', 'ba'])
+    assert not string_matches_masks("foo", exclude_masks=['fo', 'ba'])
+    assert string_matches_masks("foo", exclude_masks=['ff', 'ba'])
+
+
+def test_normalize_object_sequence():
+    assert normalize_object_sequence(1, int) == (1,)
+    assert normalize_object_sequence([1], int) == (1,)
+    assert normalize_object_sequence([1, 2], int) == (1, 2)
+
+    # Empty sequence
+    with pytest.raises(ValueError):
+        normalize_object_sequence([], str)
+
+    # Some of the objects are equal
+    with pytest.raises(ValueError):
+        normalize_object_sequence([1, 2, 1], int)
+
+    # Wrong type
+    with pytest.raises(ValueError):
+        normalize_object_sequence(['1', 2], str)

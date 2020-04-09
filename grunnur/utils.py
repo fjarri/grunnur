@@ -1,7 +1,7 @@
 import collections
 from functools import reduce
 import os.path
-from typing import Tuple, Iterable
+from typing import Tuple, Iterable, Optional, Tuple, TypeVar, Type
 import re
 
 
@@ -47,7 +47,7 @@ def log2(num: int) -> int:
     return num.bit_length() - 1
 
 
-def bounding_power_of_2(num):
+def bounding_power_of_2(num: int) -> int:
     """
     Returns the minimal number of the form ``2**m`` such that it is greater or equal to ``n``.
     """
@@ -57,12 +57,20 @@ def bounding_power_of_2(num):
         return 2 ** (log2(num - 1) + 1)
 
 
-def prod(seq):
+def prod(seq: Iterable):
     # Integer product. `numpy.prod` returns a float when given an empty sequence.
     return reduce(lambda x, y: x * y, seq, 1)
 
 
-def name_matches_masks(name, include_masks=None, exclude_masks=None):
+def string_matches_masks(
+        s: str,
+        include_masks: Optional[Iterable[str]]=None,
+        exclude_masks: Optional[Iterable[str]]=None) -> bool:
+    """
+    Returns ``True`` if:
+    1) ``s`` matches with at least one of regexps from ``include_masks`` (if there are any), and
+    2) ``s`` doesn't match any regexp from ``exclude_masks``.
+    """
 
     if include_masks is None:
         include_masks = []
@@ -71,31 +79,41 @@ def name_matches_masks(name, include_masks=None, exclude_masks=None):
 
     if len(include_masks) > 0:
         for include_mask in include_masks:
-            if re.search(include_mask, name):
+            if re.search(include_mask, s):
                 break
         else:
             return False
 
     if len(exclude_masks) > 0:
         for exclude_mask in exclude_masks:
-            if re.search(exclude_mask, name):
+            if re.search(exclude_mask, s):
                 return False
 
     return True
 
 
-def normalize_base_objects(objs, expected_cls):
+_T = TypeVar('T')
+
+
+def normalize_object_sequence(objs, expected_cls: Type[_T]) -> Tuple[_T, ...]:
+    """
+    For a sequence of objects, or a single object, checks that:
+    1) the sequence is non-empty;
+    2) all objects are different; and
+    3) every object is an instance of ``expected_cls``,
+    raising a ``ValueError`` otherwise.
+    Returns a tuple of objects (1-tuple, if there was a single object).
+    """
 
     objs = wrap_in_tuple(objs)
 
-    elems = list(objs) # in case it is a generic iterable
-    if len(elems) == 0:
+    if len(objs) == 0:
         raise ValueError("The iterable of base objects for the context cannot be empty")
 
-    if not all_different(elems):
+    if not all_different(objs):
         raise ValueError("All base objects must be different")
 
-    types = [type(elem) for elem in elems]
+    types = [type(obj) for obj in objs]
     if not all(issubclass(tp, expected_cls) for tp in types):
         raise ValueError(f"The iterable must contain only subclasses of {expected_cls}, got {types}")
 
