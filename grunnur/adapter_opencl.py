@@ -65,6 +65,9 @@ class OclAPIAdapter(APIAdapter):
     def isa_backend_context(self, obj):
         return isinstance(obj, pyopencl.Context)
 
+    def make_device_adapter(self, pyopencl_device):
+        return OclDeviceAdapter.from_pyopencl_device(pyopencl_device)
+
     def make_platform_adapter(self, pyopencl_platform):
         return OclPlatformAdapter.from_pyopencl_platform(pyopencl_platform)
 

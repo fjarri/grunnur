@@ -38,7 +38,7 @@ def platforms_and_devices_by_mask(
         suitable_devices = Device.all_by_masks(
             platform,
             include_masks=device_include_masks, exclude_masks=device_exclude_masks,
-            unique_devices_only=unique_devices_only,
+            unique_only=unique_devices_only,
             include_pure_parallel_devices=include_pure_parallel_devices)
 
         if ((quantity is None and len(suitable_devices) > 0) or

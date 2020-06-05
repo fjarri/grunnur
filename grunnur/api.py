@@ -99,3 +99,9 @@ class API:
 
     def make_platform_adapter(self, backend_platform):
         return self._api_adapter.make_platform_adapter(backend_platform)
+
+    def isa_backend_device(self, obj):
+        return self._api_adapter.isa_backend_device(obj)
+
+    def make_device_adapter(self, backend_platform):
+        return self._api_adapter.make_device_adapter(backend_platform)

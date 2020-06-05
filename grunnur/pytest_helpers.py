@@ -80,7 +80,7 @@ def get_device_sets(config, unique_devices_only_override=None):
             platform,
             include_masks=config.option.device_include_mask,
             exclude_masks=config.option.device_exclude_mask,
-            unique_devices_only=unique_devices_only)
+            unique_only=unique_devices_only)
         for platform in platforms]
 
 

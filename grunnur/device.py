@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .api import API
 from .platform import Platform
 from .utils import string_matches_masks
 
@@ -33,7 +34,7 @@ class Device:
             platform,
             include_masks: Optional[Iterable[str]]=None,
             exclude_masks: Optional[Iterable[str]]=None,
-            unique_devices_only: bool=False,
+            unique_only: bool=False,
             include_pure_parallel_devices: bool=False) \
             -> List[Device]:
         """
@@ -43,7 +44,7 @@ class Device:
             one of which must match with the device name.
         :param exclude_masks: a list of strings (treated as regexes),
             neither of which must match with the device name.
-        :param unique_devices_only: if ``True``, only return devices with unique names.
+        :param unique_only: if ``True``, only return devices with unique names.
         :param include_pure_parallel_devices: if ``True``, include devices with
             :py:meth:`~Device.max_total_local_size` equal to 1.
         """
@@ -56,7 +57,7 @@ class Device:
                     device.name, include_masks=include_masks, exclude_masks=exclude_masks):
                 continue
 
-            if unique_devices_only and device.name in seen_devices:
+            if unique_only and device.name in seen_devices:
                 continue
 
             if not include_pure_parallel_devices and device.params.max_total_local_size == 1:
@@ -66,6 +67,15 @@ class Device:
             devices.append(device)
 
         return devices
+
+    @classmethod
+    def from_backend_device(cls, obj):
+        for api in API.all():
+            if api.isa_backend_device(obj):
+                device_adapter = api.make_device_adapter(obj)
+                return cls(device_adapter)
+
+        raise TypeError(f"{obj} was not recognized as a device object by any available API")
 
     @classmethod
     def from_index(cls, platform, device_idx):
