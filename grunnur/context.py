@@ -4,7 +4,8 @@ from typing import Optional
 
 from .utils import wrap_in_tuple, normalize_object_sequence
 from .api import API
-from .device import Device, select_devices
+from .device import Device
+from .device_discovery import select_devices
 
 
 class Context:

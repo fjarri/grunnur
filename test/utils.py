@@ -3,7 +3,7 @@ import io
 import numpy
 
 from grunnur import API, CUDA_API_ID, OPENCL_API_ID
-from grunnur.device import select_devices
+from grunnur.device_discovery import select_devices
 import grunnur.dtypes as dtypes
 from grunnur.utils import wrap_in_tuple
 
