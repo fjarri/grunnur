@@ -12,7 +12,7 @@ class MockPyOpenCL:
     def __init__(self, platforms_devices):
 
         self._platforms = [
-            make_cls(MockPyOpenCLPlatform, platform_opts) for platform_opts, _ in platforms_devices]
+            make_cls(Platform, platform_opts) for platform_opts, _ in platforms_devices]
 
         # Plaftorms must know about their devices,
         # and devices must know about their parent platforms.
@@ -24,7 +24,7 @@ class MockPyOpenCL:
         for pnum, pd in enumerate(platforms_devices):
             platform = self._platforms[pnum]
             _, device_opts = pd
-            devices = [make_cls(MockPyOpenCLDevice, opts) for opts in device_opts]
+            devices = [make_cls(Device, opts) for opts in device_opts]
 
             self._devices.append(devices)
             for device in devices:
@@ -32,6 +32,10 @@ class MockPyOpenCL:
             platform._set_devices(devices)
 
         self.device_type = DeviceType
+
+        self.Device = Device
+        self.Platform = Platform
+        self.Context = Context
 
     def get_platforms(self):
         return self._platforms
@@ -46,7 +50,7 @@ def make_cls(cls, opts):
         return cls(opts)
 
 
-class MockPyOpenCLPlatform:
+class Platform:
 
     def __init__(self, name):
         self.name = name
@@ -60,7 +64,7 @@ class MockPyOpenCLPlatform:
         return [device() for device in self._devices]
 
 
-class MockPyOpenCLDevice:
+class Device:
 
     def __init__(self, name, max_work_group_size=1024):
         self.name = name
@@ -82,3 +86,9 @@ class MockPyOpenCLDevice:
     @property
     def platform(self):
         return self._platform()
+
+
+class Context:
+
+    def __init__(self, devices):
+        self.devices = devices

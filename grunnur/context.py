@@ -1,6 +1,10 @@
+from __future__ import annotations
+
+from typing import Optional
+
 from .utils import wrap_in_tuple, normalize_object_sequence
 from .api import API
-from .device import Device
+from .device import Device, select_devices
 
 
 class Context:
@@ -38,29 +42,22 @@ class Context:
         raise TypeError(
             f"{type(backend_contexts[0])} objects were not recognized as contexts by any API")
 
-    def __init__(self, context_adapter):
-        self._context_adapter = context_adapter
-        self.devices = [
-            Device.from_device_adapter(device_adapter)
-            for device_adapter in context_adapter.device_adapters]
-        self.platform = self.devices[0].platform
-        self.api = self.platform.api
-
-'''
-# FIXME: leftover from the refactoring
-    def create_some_context(
-            self, interactive: bool=False, quantity: Optional[int]=1, **device_filters) -> Context:
+    @classmethod
+    def from_criteria(
+            cls, api, interactive: bool=False, devices_num: Optional[int]=1, **device_filters) -> Context:
         """
         Finds devices matching the given criteria and creates a
         :py:class:`Context` object out of them.
 
         :param interactive: passed to :py:meth:`select_devices`.
-        :param quantity: passed to :py:meth:`select_devices`.
+        :param devices_num: passed to :py:meth:`select_devices` as ``quantity``.
         :param device_filters: passed to :py:meth:`select_devices`.
         """
-        devices = self.select_devices(interactive=interactive, quantity=quantity, **device_filters)
-        return self.create_context(devices)
+        devices = select_devices(api, interactive=interactive, quantity=devices_num, **device_filters)
+        return cls.from_devices(devices)
 
+    '''
+    TODO: do we need it?
     def create_context(self, context_base) -> Context:
         """
         Creates a :py:class:`Context` object based on ``context_base``, which can be
@@ -72,4 +69,12 @@ class Context:
         :param context_base: an object to base the context on.
         """
         return self._context_class.from_any_base(context_base)
-'''
+    '''
+
+    def __init__(self, context_adapter):
+        self._context_adapter = context_adapter
+        self.devices = [
+            Device.from_device_adapter(device_adapter)
+            for device_adapter in context_adapter.device_adapters]
+        self.platform = self.devices[0].platform
+        self.api = self.platform.api

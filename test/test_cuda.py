@@ -6,7 +6,7 @@ from .utils import mock_backend, mock_backend_obj
 
 def test_context_from_pycuda_devices(monkeypatch):
 
-    backend = MockPyCUDA(['Device1', 'Device2', 'Device3'])
+    backend = MockPyCUDA([('Platform1', ['Device1', 'Device2', 'Device3'])])
     mock_backend_obj(monkeypatch, CUDA_API_ID, backend)
 
     devices = [backend.Device(0), backend.Device(2)]
@@ -15,7 +15,7 @@ def test_context_from_pycuda_devices(monkeypatch):
 
 def test_context_from_pycuda_contexts(monkeypatch):
 
-    backend = MockPyCUDA(['Device1', 'Device2', 'Device3'])
+    backend = MockPyCUDA([('Platform1', ['Device1', 'Device2', 'Device3'])])
     mock_backend_obj(monkeypatch, CUDA_API_ID, backend)
 
     devices = [backend.Device(0), backend.Device(2)]
@@ -30,7 +30,7 @@ def test_context_from_pycuda_contexts(monkeypatch):
 
 def test_context_from_grunnur_devices(monkeypatch):
 
-    backend = MockPyCUDA(['Device1', 'Device2', 'Device3'])
+    backend = MockPyCUDA([('Platform1', ['Device1', 'Device2', 'Device3'])])
     mock_backend_obj(monkeypatch, CUDA_API_ID, backend)
     api = API.from_api_id(CUDA_API_ID)
 

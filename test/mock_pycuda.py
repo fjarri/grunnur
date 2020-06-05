@@ -4,7 +4,10 @@ import weakref
 
 class MockPyCUDA:
 
-    def __init__(self, device_names, version="0.0"):
+    def __init__(self, platforms_devices, version="0.0"):
+
+        assert len(platforms_devices) == 1 # for compatibility with MockPyOpenCL
+        _, device_names = platforms_devices[0]
 
         self.device_names = device_names
         self._version = version
@@ -52,8 +55,23 @@ def make_device_class(backend):
             self._name = Device._backend.device_names[device_num]
             self.max_threads_per_block = 1024
 
+            self.max_block_dim_x = 1024
+            self.max_block_dim_y = 1024
+            self.max_block_dim_z = 64
+
+            self.max_grid_dim_x = 2**32-1
+            self.max_grid_dim_y = 2**32-1
+            self.max_grid_dim_z = 65536
+
+            self.warp_size = 32
+            self.max_shared_memory_per_block = 48 * 1024
+            self.multiprocessor_count = 8
+
         def name(self):
             return self._name
+
+        def compute_capability(self):
+            return (5, 0)
 
         def make_context(self):
             context = self._backend.Context(self._device_num)

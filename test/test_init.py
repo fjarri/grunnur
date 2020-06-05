@@ -7,7 +7,7 @@ from .utils import mock_backend, disable_backend
 
 
 def test_import_cuda_api(monkeypatch):
-    mock_backend(monkeypatch, CUDA_API_ID, ['Device1', 'Device2'])
+    mock_backend(monkeypatch, CUDA_API_ID, [('Platform1', ['Device1', 'Device2'])])
     from grunnur import cuda_api
     assert cuda_api.id == CUDA_API_ID
 
@@ -19,7 +19,7 @@ def test_import_opencl_api(monkeypatch):
 
 
 def test_import_any_api(monkeypatch):
-    mock_backend(monkeypatch, CUDA_API_ID, ['Device1', 'Device2'])
+    mock_backend(monkeypatch, CUDA_API_ID, [('Platform1', ['Device1', 'Device2'])])
     mock_backend(monkeypatch, OPENCL_API_ID, [('Platform1', ['Device1', 'Device2'])])
     from grunnur import any_api
     assert any_api.id == OPENCL_API_ID or any_api.id == CUDA_API_ID
