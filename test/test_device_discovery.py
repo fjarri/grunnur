@@ -1,29 +1,6 @@
 import pytest
 
-from grunnur import API, OPENCL_API_ID
-from grunnur.device import select_devices
-
-from .utils import mock_backend, mock_input
-
-
-def check_select_devices(monkeypatch, capsys, platforms_devices, inputs=None, **kwds):
-
-    # CUDA API has a single fixed platform, so using the OpenCL one
-    mock_backend(monkeypatch, OPENCL_API_ID, platforms_devices)
-
-    if inputs is not None:
-        mock_input(monkeypatch, inputs)
-
-    api = API.from_api_id(OPENCL_API_ID)
-
-    try:
-        devices = select_devices(api, **kwds)
-    finally:
-        if inputs is not None:
-            # Otherwise the output will be shown in the console
-            captured = capsys.readouterr()
-
-    return devices
+from .utils import mock_backend, mock_input, check_select_devices
 
 
 def test_platform_take_single(monkeypatch, capsys):

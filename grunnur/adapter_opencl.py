@@ -59,8 +59,14 @@ class OclAPIAdapter(APIAdapter):
     def isa_backend_device(self, obj):
         return isinstance(obj, pyopencl.Device)
 
+    def isa_backend_platform(self, obj):
+        return isinstance(obj, pyopencl.Platform)
+
     def isa_backend_context(self, obj):
         return isinstance(obj, pyopencl.Context)
+
+    def make_platform_adapter(self, pyopencl_platform):
+        return OclPlatformAdapter.from_pyopencl_platform(pyopencl_platform)
 
     def make_context_from_backend_devices(self, backend_devices):
         raise NotImplementedError

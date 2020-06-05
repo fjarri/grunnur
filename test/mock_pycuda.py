@@ -5,6 +5,12 @@ import weakref
 class MockPyCUDA:
 
     def __init__(self, platforms_devices, version="0.0"):
+        self.pycuda_drv = Mock_pycuda_drv(platforms_devices, version)
+
+
+class Mock_pycuda_drv:
+
+    def __init__(self, platforms_devices, version):
 
         assert len(platforms_devices) == 1 # for compatibility with MockPyOpenCL
         _, device_names = platforms_devices[0]

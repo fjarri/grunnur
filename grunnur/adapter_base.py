@@ -99,6 +99,9 @@ class APIAdapter(ABC):
     def make_context_from_backend_contexts(self, backend_contexts):
         pass
 
+    def __eq__(self, other):
+        return type(self) == type(other) and self.id == other.id
+
 
 class PlatformAdapter(ABC):
 

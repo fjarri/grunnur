@@ -70,19 +70,14 @@ class Device:
     @classmethod
     def from_number(cls, platform, device_num):
         device_adapter = platform._platform_adapter.get_device_adapters()[device_num]
-        return cls(platform, device_adapter)
+        return cls(device_adapter)
 
-    @classmethod
-    def from_device_adapter(cls, device_adapter):
-        platform = Platform.from_backend_platform(device_adapter.platform_adapter)
-        return cls(platform, device_adapter)
-
-    def __init__(self, platform: Platform, device_adapter):
-        self.platform = platform
+    def __init__(self, device_adapter):
+        self.platform = Platform(device_adapter.platform_adapter)
         self._device_adapter = device_adapter
         self.name = self._device_adapter.name
 
-        self.shortcut = f"{platform.shortcut},{device_adapter.device_num}"
+        self.shortcut = f"{self.platform.shortcut},{device_adapter.device_num}"
         self.short_name = f"device({self.shortcut})"
 
         self._params = None

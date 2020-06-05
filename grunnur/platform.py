@@ -51,29 +51,23 @@ class Platform:
             ]
 
     @classmethod
-    def from_backend_platform(cls, backend_platform):
-        # FIXME: is it supposed to be a backend platform, or a platform adapter?
-        api = API(backend_platform.api_adapter)
-        return cls(api, backend_platform)
-
-    @classmethod
-    def from_backend_object(cls, obj):
+    def from_backend_platform(cls, obj):
         for api in API.all():
-            if api.is_backend_platform(obj):
-                platform_adapter = api.make_platform(obj)
-                return cls(api, platform_adapter)
+            if api.isa_backend_platform(obj):
+                platform_adapter = api.make_platform_adapter(obj)
+                return cls(platform_adapter)
 
         raise ValueError(f"{obj} was not recognized as a platform object by any available API")
 
     @classmethod
     def from_number(cls, api, platform_num):
         platform_adapter = api._api_adapter.get_platform_adapters()[platform_num]
-        return cls(api, platform_adapter)
+        return cls(platform_adapter)
 
-    def __init__(self, api, platform_adapter):
-        self.api = api
+    def __init__(self, platform_adapter):
+        self.api = API(platform_adapter.api_adapter)
         self._platform_adapter = platform_adapter
         self.name = self._platform_adapter.name
 
-        self.shortcut = f"{api.shortcut},{platform_adapter.platform_num}"
+        self.shortcut = f"{self.api.shortcut},{platform_adapter.platform_num}"
         self.short_name = f"platform({self.shortcut})"

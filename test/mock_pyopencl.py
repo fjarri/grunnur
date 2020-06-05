@@ -10,6 +10,12 @@ class DeviceType(Enum):
 class MockPyOpenCL:
 
     def __init__(self, platforms_devices):
+        self.pyopencl = Mock_pyopencl(platforms_devices)
+
+
+class Mock_pyopencl:
+
+    def __init__(self, platforms_devices):
 
         self._platforms = [
             make_cls(Platform, platform_opts) for platform_opts, _ in platforms_devices]

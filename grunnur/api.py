@@ -86,7 +86,16 @@ class API:
         return cls(api_adapter)
 
     def __init__(self, api_adapter):
-        self.id = api_adapter.id
         self._api_adapter = api_adapter
+        self.id = api_adapter.id
         self.shortcut = self.id.shortcut
         self.short_name = f"api({self.shortcut})"
+
+    def __eq__(self, other):
+        return self._api_adapter == other._api_adapter
+
+    def isa_backend_platform(self, obj):
+        return self._api_adapter.isa_backend_platform(obj)
+
+    def make_platform_adapter(self, backend_platform):
+        return self._api_adapter.make_platform_adapter(backend_platform)

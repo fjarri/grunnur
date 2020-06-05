@@ -59,7 +59,6 @@ class Context:
     def __init__(self, context_adapter):
         self._context_adapter = context_adapter
         self.devices = [
-            Device.from_device_adapter(device_adapter)
-            for device_adapter in context_adapter.device_adapters]
+            Device(device_adapter) for device_adapter in context_adapter.device_adapters]
         self.platform = self.devices[0].platform
         self.api = self.platform.api

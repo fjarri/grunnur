@@ -1,24 +1,24 @@
 from grunnur import API, CUDA_API_ID, Context, Platform, Device
 
 from .mock_pycuda import MockPyCUDA
-from .utils import mock_backend, mock_backend_obj
+from .utils import mock_backend
 
 
 def test_context_from_pycuda_devices(monkeypatch):
 
-    backend = MockPyCUDA([('Platform1', ['Device1', 'Device2', 'Device3'])])
-    mock_backend_obj(monkeypatch, CUDA_API_ID, backend)
+    backend = mock_backend(
+        monkeypatch, CUDA_API_ID, [('Platform1', ['Device1', 'Device2', 'Device3'])])
 
-    devices = [backend.Device(0), backend.Device(2)]
+    devices = [backend.pycuda_drv.Device(0), backend.pycuda_drv.Device(2)]
     context = Context.from_backend_devices(devices)
 
 
 def test_context_from_pycuda_contexts(monkeypatch):
 
-    backend = MockPyCUDA([('Platform1', ['Device1', 'Device2', 'Device3'])])
-    mock_backend_obj(monkeypatch, CUDA_API_ID, backend)
+    backend = mock_backend(
+        monkeypatch, CUDA_API_ID, [('Platform1', ['Device1', 'Device2', 'Device3'])])
 
-    devices = [backend.Device(0), backend.Device(2)]
+    devices = [backend.pycuda_drv.Device(0), backend.pycuda_drv.Device(2)]
     contexts = []
     for device in devices:
         context = device.make_context()
@@ -30,8 +30,9 @@ def test_context_from_pycuda_contexts(monkeypatch):
 
 def test_context_from_grunnur_devices(monkeypatch):
 
-    backend = MockPyCUDA([('Platform1', ['Device1', 'Device2', 'Device3'])])
-    mock_backend_obj(monkeypatch, CUDA_API_ID, backend)
+    backend = mock_backend(
+        monkeypatch, CUDA_API_ID, [('Platform1', ['Device1', 'Device2', 'Device3'])])
+
     api = API.from_api_id(CUDA_API_ID)
 
     platform = Platform.all(api)[0]

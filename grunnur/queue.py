@@ -22,7 +22,7 @@ class Queue:
         self.context = context
         self._queue_adapter = queue_adapter
         self.devices = {
-            device_num: Device.from_device_adapter(queue_adapter.device_adapters[device_num])
+            device_num: Device(queue_adapter.device_adapters[device_num])
             for device_num in device_nums}
 
     def synchronize(self):

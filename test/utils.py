@@ -2,7 +2,8 @@ import io
 
 import numpy
 
-from grunnur.api import CUDA_API_ID, OPENCL_API_ID
+from grunnur import API, CUDA_API_ID, OPENCL_API_ID
+from grunnur.device import select_devices
 import grunnur.dtypes as dtypes
 from grunnur.utils import wrap_in_tuple
 
@@ -17,29 +18,31 @@ def mock_input(monkeypatch, inputs):
 
 def mock_backend_obj(monkeypatch, api_id, backend):
     if api_id == CUDA_API_ID:
-        monkeypatch.setattr('grunnur.adapter_cuda.pycuda_drv', backend)
+        monkeypatch.setattr('grunnur.adapter_cuda.pycuda_drv', backend.pycuda_drv)
     elif api_id == OPENCL_API_ID:
-        monkeypatch.setattr('grunnur.adapter_opencl.pyopencl', backend)
+        monkeypatch.setattr('grunnur.adapter_opencl.pyopencl', backend.pyopencl)
     else:
         raise ValueError(f"Unknown API ID: {api_id}")
 
 
 def mock_backend(monkeypatch, api_id, *args):
     if api_id == CUDA_API_ID:
-        monkeypatch.setattr('grunnur.adapter_cuda.pycuda_drv', MockPyCUDA(*args))
+        backend = MockPyCUDA(*args)
     elif api_id == OPENCL_API_ID:
-        monkeypatch.setattr('grunnur.adapter_opencl.pyopencl', MockPyOpenCL(*args))
+        backend = MockPyOpenCL(*args)
     else:
         raise ValueError(f"Unknown API ID: {api_id}")
+    mock_backend_obj(monkeypatch, api_id, backend)
+    return backend
+
+
+class BackendDisabled:
+    pycuda_drv = None
+    pyopencl = None
 
 
 def disable_backend(monkeypatch, api_id):
-    if api_id == CUDA_API_ID:
-        monkeypatch.setattr('grunnur.adapter_cuda.pycuda_drv', None)
-    elif api_id == OPENCL_API_ID:
-        monkeypatch.setattr('grunnur.adapter_opencl.pyopencl', None)
-    else:
-        raise ValueError(f"Unknown API ID: {api_id}")
+    mock_backend_obj(monkeypatch, api_id, BackendDisabled())
 
 
 def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=None):
@@ -74,3 +77,23 @@ def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=No
         result = as_strided(result, result.shape, strides)
 
     return result
+
+
+def check_select_devices(monkeypatch, capsys, platforms_devices, inputs=None, **kwds):
+
+    # CUDA API has a single fixed platform, so using the OpenCL one
+    mock_backend(monkeypatch, OPENCL_API_ID, platforms_devices)
+
+    if inputs is not None:
+        mock_input(monkeypatch, inputs)
+
+    api = API.from_api_id(OPENCL_API_ID)
+
+    try:
+        devices = select_devices(api, **kwds)
+    finally:
+        if inputs is not None:
+            # Otherwise the output will be shown in the console
+            captured = capsys.readouterr()
+
+    return devices
