@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .utils import wrap_in_tuple, normalize_object_sequence
+from .utils import wrap_in_tuple, normalize_object_sequence, all_same
 from .api import API
 from .device import Device
 from .device_discovery import select_devices
@@ -16,7 +16,12 @@ class Context:
     @classmethod
     def from_devices(cls, devices):
         devices = wrap_in_tuple(devices)
-        platform = devices[0].platform
+        devices = normalize_object_sequence(devices, Device)
+
+        platforms = [device.platform for device in devices]
+        if not all_same(platforms):
+            raise ValueError("All devices must belong to the same platform")
+        platform = platforms[0]
 
         device_adapters = [device._device_adapter for device in devices]
         context_adapter = platform._platform_adapter.make_context(device_adapters)
@@ -25,17 +30,13 @@ class Context:
 
     @classmethod
     def from_backend_devices(cls, backend_devices):
-        #devices = normalize_object_sequence(devices)
-        for api in API.all():
-            if api._api_adapter.isa_backend_device(backend_devices[0]):
-                context_adapter = api._api_adapter.make_context_from_backend_devices(backend_devices)
-                return cls(context_adapter)
-        raise TypeError(
-            f"{type(backend_devices[0])} objects were not recognized as devices by any API")
+        backend_devices = wrap_in_tuple(backend_devices)
+        devices = [Device.from_backend_device(backend_device) for backend_device in backend_devices]
+        return cls.from_devices(devices)
 
     @classmethod
     def from_backend_contexts(cls, backend_contexts):
-        #contexts = normalize_object_sequence(contexts)
+        backend_contexts = wrap_in_tuple(backend_contexts)
         for api in API.all():
             if api._api_adapter.isa_backend_context(backend_contexts[0]):
                 context_adapter = api._api_adapter.make_context_from_backend_contexts(backend_contexts)

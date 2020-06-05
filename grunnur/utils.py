@@ -115,6 +115,6 @@ def normalize_object_sequence(objs, expected_cls: Type[_T]) -> Tuple[_T, ...]:
 
     types = [type(obj) for obj in objs]
     if not all(issubclass(tp, expected_cls) for tp in types):
-        raise ValueError(f"The iterable must contain only subclasses of {expected_cls}, got {types}")
+        raise TypeError(f"The iterable must contain only subclasses of {expected_cls}, got {types}")
 
     return objs

@@ -73,5 +73,5 @@ def test_normalize_object_sequence():
         normalize_object_sequence([1, 2, 1], int)
 
     # Wrong type
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         normalize_object_sequence(['1', 2], str)

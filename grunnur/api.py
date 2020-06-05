@@ -94,6 +94,10 @@ class API:
     def __eq__(self, other):
         return self._api_adapter == other._api_adapter
 
+    def __getitem__(self, idx):
+        from .platform import Platform # avoiding circular imports
+        return Platform.all(self)[idx]
+
     def isa_backend_platform(self, obj):
         return self._api_adapter.isa_backend_platform(obj)
 
@@ -105,3 +109,6 @@ class API:
 
     def make_device_adapter(self, backend_platform):
         return self._api_adapter.make_device_adapter(backend_platform)
+
+    def isa_backend_context(self, obj):
+        return self._api_adapter.isa_backend_context(obj)

@@ -71,3 +71,13 @@ class Platform:
 
         self.shortcut = f"{self.api.shortcut},{platform_adapter.platform_idx}"
         self.short_name = f"platform({self.shortcut})"
+
+    def __eq__(self, other):
+        return self._platform_adapter == other._platform_adapter
+
+    def __hash__(self):
+        return hash((type(self), self._platform_adapter))
+
+    def __getitem__(self, idx):
+        from .device import Device # avoiding circular imports
+        return Device.all(self)[idx]

@@ -67,8 +67,17 @@ class CuAPIAdapter(APIAdapter):
     def isa_backend_device(self, obj):
         return isinstance(obj, pycuda_drv.Device)
 
+    def isa_backend_platform(self, obj):
+        return False # CUDA backend doesn't have platforms
+
     def isa_backend_context(self, obj):
         return isinstance(obj, pycuda_drv.Context)
+
+    def make_device_adapter(self, pycuda_device):
+        return CuDeviceAdapter.from_pycuda_device(pycuda_device)
+
+    def make_platform_adapter(self, pycuda_platform):
+        raise Exception("CUDA does not have the concept of a platform")
 
     def make_context_from_backend_devices(self, backend_devices):
         return CuContextAdapter.from_pycuda_devices(backend_devices)
@@ -81,6 +90,12 @@ class CuPlatformAdapter(PlatformAdapter):
 
     def __init__(self, api_adapter):
         self._api_adapter = api_adapter
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self._api_adapter == other._api_adapter
+
+    def __hash__(self):
+        return hash((type(self), self._api_adapter))
 
     @property
     def api_adapter(self):
@@ -134,6 +149,12 @@ class CuDeviceAdapter(DeviceAdapter):
         self._device_idx = device_idx
         self.pycuda_device = pycuda_device
         self._params = None
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.pycuda_device == other.pycuda_device
+
+    def __hash__(self):
+        return hash((type(self), self.pycuda_device))
 
     @property
     def platform_adapter(self):

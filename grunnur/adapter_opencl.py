@@ -72,10 +72,12 @@ class OclAPIAdapter(APIAdapter):
         return OclPlatformAdapter.from_pyopencl_platform(pyopencl_platform)
 
     def make_context_from_backend_devices(self, backend_devices):
-        raise NotImplementedError
+        return OclContextAdapter.from_pyopencl_devices(backend_devices)
 
     def make_context_from_backend_contexts(self, backend_contexts):
-        raise NotImplementedError
+        if len(backend_contexts) > 1:
+            raise ValueError("Cannot make one OpenCL context out of several contexts")
+        return OclContextAdapter(backend_contexts[0])
 
 
 class OclPlatformAdapter(PlatformAdapter):
@@ -97,6 +99,12 @@ class OclPlatformAdapter(PlatformAdapter):
         self._api_adapter = api_adapter
         self.pyopencl_platform = pyopencl_platform
         self._platform_idx = platform_idx
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.pyopencl_platform == other.pyopencl_platform
+
+    def __hash__(self):
+        return hash((type(self), self.pyopencl_platform))
 
     @property
     def api_adapter(self):
@@ -150,6 +158,12 @@ class OclDeviceAdapter(DeviceAdapter):
         self._device_idx = device_idx
         self.pyopencl_device = pyopencl_device
         self._params = None
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.pyopencl_device == other.pyopencl_device
+
+    def __hash__(self):
+        return hash((type(self), self.pyopencl_device))
 
     @property
     def platform_adapter(self):
