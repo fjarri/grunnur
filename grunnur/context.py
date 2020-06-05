@@ -56,21 +56,6 @@ class Context:
         devices = select_devices(api, interactive=interactive, quantity=devices_num, **device_filters)
         return cls.from_devices(devices)
 
-    '''
-    TODO: do we need it?
-    def create_context(self, context_base) -> Context:
-        """
-        Creates a :py:class:`Context` object based on ``context_base``, which can be
-        a :py:class:`Device`, a list of :py:class:`Device` objects
-        (from this API and belonging to the same platform), or some additional API-specific types.
-        See classmethods of :py:class:`~grunnur.cuda.CuContext` and
-        :py:class:`~grunnur.opencl.OclContext` for details on the latter.
-
-        :param context_base: an object to base the context on.
-        """
-        return self._context_class.from_any_base(context_base)
-    '''
-
     def __init__(self, context_adapter):
         self._context_adapter = context_adapter
         self.devices = [
