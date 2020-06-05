@@ -56,9 +56,9 @@ def make_device_class(backend):
 
         _backend = backend
 
-        def __init__(self, device_num):
-            self._device_num = device_num
-            self._name = Device._backend.device_names[device_num]
+        def __init__(self, device_idx):
+            self._device_idx = device_idx
+            self._name = Device._backend.device_names[device_idx]
             self.max_threads_per_block = 1024
 
             self.max_block_dim_x = 1024
@@ -80,15 +80,15 @@ def make_device_class(backend):
             return (5, 0)
 
         def make_context(self):
-            context = self._backend.Context(self._device_num)
+            context = self._backend.Context(self._device_idx)
             self._backend._push_context(context)
             return context
 
         def __eq__(self, other):
-            return self._device_num == other._device_num
+            return self._device_idx == other._device_idx
 
         def __hash__(self):
-            return hash((type(self), self._device_num))
+            return hash((type(self), self._device_idx))
 
         @staticmethod
         def count():
@@ -104,8 +104,8 @@ def make_context_class(backend):
 
         _backend = backend
 
-        def __init__(self, device_num):
-            self._device_num = device_num
+        def __init__(self, device_idx):
+            self._device_idx = device_idx
 
         @staticmethod
         def pop():
@@ -113,7 +113,7 @@ def make_context_class(backend):
 
         @staticmethod
         def get_device():
-            return Context._backend.Device(Context._backend._current_context()._device_num)
+            return Context._backend.Device(Context._backend._current_context()._device_idx)
 
         def push(self):
             self._backend._push_context(self)

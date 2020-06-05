@@ -53,8 +53,8 @@ class OclAPIAdapter(APIAdapter):
 
     def get_platform_adapters(self):
         return [
-            OclPlatformAdapter(self, platform, platform_num)
-            for platform_num, platform in enumerate(pyopencl.get_platforms())]
+            OclPlatformAdapter(self, platform, platform_idx)
+            for platform_idx, platform in enumerate(pyopencl.get_platforms())]
 
     def isa_backend_device(self, obj):
         return isinstance(obj, pyopencl.Device)
@@ -84,24 +84,24 @@ class OclPlatformAdapter(PlatformAdapter):
         """
         api_adapter = OclAPIAdapter()
         platform_adapters = api_adapter.get_platform_adapters()
-        for platform_num, platform_adapter in enumerate(platform_adapters):
+        for platform_idx, platform_adapter in enumerate(platform_adapters):
             if pyopencl_platform == platform_adapter.pyopencl_platform:
-                return cls(api_adapter, pyopencl_platform, platform_num)
+                return cls(api_adapter, pyopencl_platform, platform_idx)
 
         raise Exception(f"{pyopencl_platform} was not found among OpenCL platforms")
 
-    def __init__(self, api_adapter, pyopencl_platform, platform_num):
+    def __init__(self, api_adapter, pyopencl_platform, platform_idx):
         self._api_adapter = api_adapter
         self.pyopencl_platform = pyopencl_platform
-        self._platform_num = platform_num
+        self._platform_idx = platform_idx
 
     @property
     def api_adapter(self):
         return self._api_adapter
 
     @property
-    def platform_num(self):
-        return self._platform_num
+    def platform_idx(self):
+        return self._platform_idx
 
     @property
     def name(self):
@@ -116,13 +116,13 @@ class OclPlatformAdapter(PlatformAdapter):
         return self.pyopencl_platform.version
 
     @property
-    def num_devices(self):
+    def device_count(self):
         return len(self.pyopencl_platform.get_devices())
 
     def get_device_adapters(self):
         return [
-            OclDeviceAdapter(self, device, device_num)
-            for device_num, device in enumerate(self.pyopencl_platform.get_devices())]
+            OclDeviceAdapter(self, device, device_idx)
+            for device_idx, device in enumerate(self.pyopencl_platform.get_devices())]
 
     def make_context(self, device_adapters):
         return OclContextAdapter.from_device_adapters(device_adapters)
@@ -136,15 +136,15 @@ class OclDeviceAdapter(DeviceAdapter):
         Creates this object from a PyOpenCL ``Device`` object.
         """
         platform_adapter = OclPlatformAdapter.from_pyopencl_platform(pyopencl_device.platform)
-        for device_num, device_adapter in enumerate(platform_adapter.get_device_adapters()):
+        for device_idx, device_adapter in enumerate(platform_adapter.get_device_adapters()):
             if pyopencl_device == device_adapter.pyopencl_device:
-                return cls(platform_adapter, pyopencl_device, device_num)
+                return cls(platform_adapter, pyopencl_device, device_idx)
 
         raise Exception(f"{pyopencl_device} was not found among OpenCL devices")
 
-    def __init__(self, platform_adapter, pyopencl_device, device_num):
+    def __init__(self, platform_adapter, pyopencl_device, device_idx):
         self._platform_adapter = platform_adapter
-        self._device_num = device_num
+        self._device_idx = device_idx
         self.pyopencl_device = pyopencl_device
         self._params = None
 
@@ -153,8 +153,8 @@ class OclDeviceAdapter(DeviceAdapter):
         return self._platform_adapter
 
     @property
-    def device_num(self):
-        return self._device_num
+    def device_idx(self):
+        return self._device_idx
 
     @property
     def name(self):
@@ -329,7 +329,7 @@ class OclContextAdapter(ContextAdapter):
             dtypes=dtypes)
 
     def compile_single_device(
-            self, device_num, prelude, src,
+            self, device_idx, prelude, src,
             keep=False, fast_math=False, compiler_options=[], constant_arrays={}):
 
         # Sanity check: should have been caught in compile()
@@ -351,16 +351,16 @@ class OclContextAdapter(ContextAdapter):
 
         pyopencl_program = pyopencl.Program(self._pyopencl_context, prelude + src)
         pyopencl_program.build(
-            devices=[self._pyopencl_devices[device_num]], options=options, cache_dir=temp_dir)
-        return OclProgram(self, device_num, pyopencl_program)
+            devices=[self._pyopencl_devices[device_idx]], options=options, cache_dir=temp_dir)
+        return OclProgram(self, device_idx, pyopencl_program)
 
-    def make_queue_adapter(self, device_nums):
+    def make_queue_adapter(self, device_idxs):
         device_adapters = {
-            device_num: self._device_adapters[device_num] for device_num in device_nums}
+            device_idx: self._device_adapters[device_idx] for device_idx in device_idxs}
         pyopencl_queues = {
-            device_num: pyopencl.CommandQueue(
-                self._pyopencl_context, device=self._device_adapters[device_num].pyopencl_device)
-            for device_num in device_nums}
+            device_idx: pyopencl.CommandQueue(
+                self._pyopencl_context, device=self._device_adapters[device_idx].pyopencl_device)
+            for device_idx in device_idxs}
         return OclQueueAdapter(self, device_adapters, pyopencl_queues)
 
     def allocate(self, size):
@@ -387,30 +387,30 @@ class OclBufferAdapter(BufferAdapter):
     def offset(self) -> int:
         return self.pyopencl_buffer.offset
 
-    def set(self, queue_adapter, device_num, host_array, async_=False, dont_sync_other_devices=False):
+    def set(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
         if dont_sync_other_devices:
             wait_for = []
         else:
-            wait_for = queue_adapter._other_device_events(device_num)
+            wait_for = queue_adapter._other_device_events(device_idx)
         pyopencl.enqueue_copy(
-            queue_adapter._pyopencl_queues[device_num], self.pyopencl_buffer, host_array,
+            queue_adapter._pyopencl_queues[device_idx], self.pyopencl_buffer, host_array,
             wait_for=wait_for, is_blocking=not async_)
 
-    def get(self, queue_adapter, device_num, host_array, async_=False, dont_sync_other_devices=False):
+    def get(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
         if dont_sync_other_devices:
             wait_for = []
         else:
-            wait_for = queue_adapter._other_device_events(device_num)
+            wait_for = queue_adapter._other_device_events(device_idx)
         pyopencl.enqueue_copy(
-            queue_adapter._pyopencl_queues[device_num], host_array, self.pyopencl_buffer,
+            queue_adapter._pyopencl_queues[device_idx], host_array, self.pyopencl_buffer,
             wait_for=wait_for, is_blocking=not async_)
 
     def get_sub_region(self, origin, size):
         return OclBufferAdapter(self.context_adapter, self.pyopencl_buffer.get_sub_region(origin, size))
 
-    def migrate(self, queue_adapter, device_num):
+    def migrate(self, queue_adapter, device_idx):
         pyopencl.enqueue_migrate_mem_objects(
-            queue_adapter._pyopencl_queues[device_num], [self.pyopencl_buffer])
+            queue_adapter._pyopencl_queues[device_idx], [self.pyopencl_buffer])
 
 
 class OclQueueAdapter(QueueAdapter):
@@ -420,47 +420,47 @@ class OclQueueAdapter(QueueAdapter):
         self.device_adapters = device_adapters
         self._pyopencl_queues = pyopencl_queues
 
-    def _other_device_events(self, skip_device_num):
+    def _other_device_events(self, skip_device_idx):
         return [
-            pyopencl.enqueue_marker(self._pyopencl_queues[device_num])
-            for device_num in self._pyopencl_queues
-            if device_num != skip_device_num]
+            pyopencl.enqueue_marker(self._pyopencl_queues[device_idx])
+            for device_idx in self._pyopencl_queues
+            if device_idx != skip_device_idx]
 
-    def synchronize(self, device_num=None):
-        if device_num is None:
-            device_nums = self._pyopencl_queues.keys()
+    def synchronize(self, device_idx=None):
+        if device_idx is None:
+            device_idxs = self._pyopencl_queues.keys()
         else:
-            device_nums = [device_num]
+            device_idxs = [device_idx]
 
-        for device_num in device_nums:
-            self._pyopencl_queues[device_num].finish()
+        for device_idx in device_idxs:
+            self._pyopencl_queues[device_idx].finish()
 
 
 class OclProgram(ProgramAdapter):
 
-    def __init__(self, context_adapter, device_num, pyopencl_program):
+    def __init__(self, context_adapter, device_idx, pyopencl_program):
         self.context_adapter = context_adapter
-        self._device_num = device_num
+        self._device_idx = device_idx
         self._pyopencl_program = pyopencl_program
 
     def __getattr__(self, kernel_name):
         pyopencl_kernel = getattr(self._pyopencl_program, kernel_name)
-        return OclKernel(self, self._device_num, pyopencl_kernel)
+        return OclKernel(self, self._device_idx, pyopencl_kernel)
 
 
 class OclKernel(KernelAdapter):
 
-    def __init__(self, program_adapter, device_num, pyopencl_kernel):
+    def __init__(self, program_adapter, device_idx, pyopencl_kernel):
         self.program_adapter = program_adapter
-        self._device_num = device_num
+        self._device_idx = device_idx
         self._pyopencl_kernel = pyopencl_kernel
 
     @property
     def max_total_local_size(self):
         return self._pyopencl_kernel.get_work_group_info(
             pyopencl.kernel_work_group_info.WORK_GROUP_SIZE,
-            self.program_adapter.context_adapter.device_adapters[self._device_num].pyopencl_device)
+            self.program_adapter.context_adapter.device_adapters[self._device_idx].pyopencl_device)
 
     def __call__(self, queue_adapter, global_size, local_size, *args):
         return self._pyopencl_kernel(
-            queue_adapter._pyopencl_queues[self._device_num], global_size, local_size, *args)
+            queue_adapter._pyopencl_queues[self._device_idx], global_size, local_size, *args)

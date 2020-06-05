@@ -128,7 +128,7 @@ def test_ids(context, vstest):
 
     get_ids = program.get_ids
 
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
     local_ids = Array.empty(queue, ref.global_size, numpy.int32)
     group_ids = Array.empty(queue, ref.global_size, numpy.int32)
     global_ids = Array.empty(queue, ref.global_size, numpy.int32)
@@ -181,7 +181,7 @@ def test_sizes(context, vstest):
 
     get_sizes = program.get_sizes
 
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
     sizes = Array.empty(queue, vdims * 3 + 1, numpy.int32)
     get_sizes(queue, vs.real_global_size, vs.real_local_size, sizes)
 

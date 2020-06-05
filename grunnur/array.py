@@ -48,7 +48,7 @@ class Array:
     def __init__(
             self, queue: Queue, array_metadata: ArrayMetadata,
             data: Optional[Buffer]=None, allocator: Callable[[int], Buffer]=None,
-            device_num=None):
+            device_idx=None):
 
         if allocator is None:
             allocator = lambda size: Buffer.allocate(queue.context, size)
@@ -56,8 +56,8 @@ class Array:
         self._queue = queue
         self._metadata = array_metadata
 
-        self.device_num = device_num
-        self._queue_device_num = device_num if device_num is not None else 0
+        self.device_idx = device_idx
+        self._queue_device_idx = device_idx if device_idx is not None else 0
 
         self.shape = self._metadata.shape
         self.dtype = self._metadata.dtype
@@ -70,16 +70,16 @@ class Array:
 
         self.data = data
 
-        if device_num is not None:
-            self.data.migrate(queue, device_num)
+        if device_idx is not None:
+            self.data.migrate(queue, device_idx)
 
-    def single_device_view(self, device_num: int):
+    def single_device_view(self, device_idx: int):
         """
-        Returns a subscriptable object that produces sub-arrays based on the device ``device_num``.
+        Returns a subscriptable object that produces sub-arrays based on the device ``device_idx``.
         """
-        return SingleDeviceFactory(self, device_num)
+        return SingleDeviceFactory(self, device_idx)
 
-    def _view(self, slices, subregion=False, device_num=None):
+    def _view(self, slices, subregion=False, device_idx=None):
         new_metadata = self._metadata[slices]
 
         if subregion:
@@ -88,14 +88,14 @@ class Array:
         else:
             data = self.data
 
-        return Array(self._queue, new_metadata, device_num=device_num, data=data)
+        return Array(self._queue, new_metadata, device_idx=device_idx, data=data)
 
     def set(self, array: numpy.ndarray, async_: bool=False):
         """
         Sets the data in this array from a CPU array.
         If ``async_`` is ``True``, this call blocks.
         """
-        self.data.set(self._queue, self._queue_device_num, array)
+        self.data.set(self._queue, self._queue_device_idx, array)
 
     def get(self, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
         """
@@ -107,7 +107,7 @@ class Array:
         # TODO: check if the array is contiguous
         if dest is None:
             dest = numpy.empty(self.shape, self.dtype)
-        self.data.get(self._queue, self._queue_device_num, dest, async_=async_)
+        self.data.get(self._queue, self._queue_device_idx, dest, async_=async_)
         return dest
 
 
@@ -116,13 +116,13 @@ class SingleDeviceFactory:
     A subscriptable object that produces sub-arrays based on a single device.
     """
 
-    def __init__(self, array, device_num):
+    def __init__(self, array, device_idx):
         self._array = array
-        self._device_num = device_num
+        self._device_idx = device_idx
 
     def __getitem__(self, slices) -> Array:
         """
         Return a view of the parent array bound to the device this factory was created for
         (see :py:meth:`Array.single_device_view`).
         """
-        return self._array._view(slices, subregion=True, device_num=self._device_num)
+        return self._array._view(slices, subregion=True, device_idx=self._device_idx)

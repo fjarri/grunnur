@@ -32,7 +32,7 @@ def check_struct_fill(context, dtype):
             dtype=dtype))
 
     test = program.test
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
 
     a_dev = Array.empty(queue, 128, dtype)
     itemsizes_dev = Array.empty(queue, 128, numpy.int32)

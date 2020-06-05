@@ -28,7 +28,7 @@ class SingleDeviceProgram:
     def __init__(
             self,
             context: Context,
-            device_num: int,
+            device_idx: int,
             template_src: str,
             no_prelude: bool=False,
             fast_math: bool=False,
@@ -39,7 +39,7 @@ class SingleDeviceProgram:
         Renders and compiles the given template on a single device.
 
         :param context:
-        :param device_num: the number of the device to compile on.
+        :param device_idx: the number of the device to compile on.
         :param template_src: see :py:meth:`compile`.
         :param no_prelude: see :py:meth:`compile`.
         :param fast_math: see :py:meth:`compile`.
@@ -48,7 +48,7 @@ class SingleDeviceProgram:
         :param kwds: additional parameters for compilation, see :py:func:`compile`.
         """
         self.context = context
-        self._device_num = device_num
+        self._device_idx = device_idx
 
         src = render_with_modules(
             template_src, render_args=render_args, render_globals=render_globals)
@@ -62,9 +62,9 @@ class SingleDeviceProgram:
 
         try:
             self._sd_program_adapter = context_adapter.compile_single_device(
-                device_num, prelude, src, fast_math=fast_math, **kwds)
+                device_idx, prelude, src, fast_math=fast_math, **kwds)
         except context_adapter.compile_error_class:
-            print(f"Failed to compile on device {device_num} ({context.devices[device_num]})")
+            print(f"Failed to compile on device {device_idx} ({context.devices[device_idx]})")
 
             lines = src.split("\n")
             max_num_len = int(log10(len(lines))) + 1
@@ -96,9 +96,9 @@ class SingleDeviceProgram:
             if queue.context is not self.context:
                 raise ValueError(
                     "The provided queue must belong to the same context as this program uses")
-            if self._device_num not in queue.devices:
+            if self._device_idx not in queue.devices:
                 raise ValueError(
-                    f"The provided queue must include the device this program uses ({self._device_num})")
+                    f"The provided queue must include the device this program uses ({self._device_idx})")
 
         if isinstance(arr, Array):
             constant_data = arr.data._buffer_adapter
@@ -123,7 +123,7 @@ class Program:
             self,
             context: Context,
             template_src: str,
-            device_nums: Optional[Iterable[int]]=None,
+            device_idxs: Optional[Iterable[int]]=None,
             no_prelude: bool=False,
             fast_math: bool=False,
             render_args: Union[List, Tuple]=[],
@@ -136,7 +136,7 @@ class Program:
 
         :param context:
         :param template_src: a string with the source code, or a Mako template source to render.
-        :param device_nums: a list of device numbers to compile on.
+        :param device_idxs: a list of device numbers to compile on.
         :param no_prelude: do not add prelude to the rendered source.
         :param fast_math: compile using fast (but less accurate) math functions.
         :param render_args: a list of positional args to pass to the template.
@@ -146,16 +146,16 @@ class Program:
         :param constant_arrays: (**CUDA only**) a dictionary ``name: (size, dtype)``
             of global constant arrays to be declared in the program.
         """
-        if device_nums is None:
-            device_nums = range(len(context.devices))
+        if device_idxs is None:
+            device_idxs = range(len(context.devices))
         else:
-            device_nums = sorted(device_nums)
+            device_idxs = sorted(device_idxs)
 
         sd_programs = {}
-        for device_num in device_nums:
+        for device_idx in device_idxs:
             sd_program = SingleDeviceProgram(
                 context,
-                device_num, template_src,
+                device_idx, template_src,
                 no_prelude=no_prelude,
                 fast_math=fast_math,
                 render_args=render_args,
@@ -163,7 +163,7 @@ class Program:
                 compiler_options=compiler_options,
                 keep=keep,
                 constant_arrays=constant_arrays)
-            sd_programs[device_num] = sd_program
+            sd_programs[device_idx] = sd_program
 
         self._sd_programs = sd_programs
         self.context = context
@@ -174,8 +174,8 @@ class Program:
         with the name ``kernel_name``.
         """
         sd_kernels = {
-            device_num: getattr(sd_program, kernel_name)
-            for device_num, sd_program in self._sd_programs.items()}
+            device_idx: getattr(sd_program, kernel_name)
+            for device_idx, sd_program in self._sd_programs.items()}
         return Kernel(self, sd_kernels)
 
     def set_constant_array(
@@ -196,7 +196,7 @@ class Kernel:
 
     def __init__(self, program: Program, sd_kernels: Dict[int, SingleDeviceKernel]):
         self._program = program
-        self._device_nums = set(sd_kernels)
+        self._device_idxs = set(sd_kernels)
         self._sd_kernels = sd_kernels
 
     def __call__(
@@ -205,7 +205,7 @@ class Kernel:
             global_size: Union[int, Iterable[int]],
             local_size: Union[int, Iterable[int], None],
             *args,
-            device_nums: Optional[Iterable[int]]=None,
+            device_idxs: Optional[Iterable[int]]=None,
             **kwds):
         """
         Enqueues the kernel on the chosen devices.
@@ -219,7 +219,7 @@ class Kernel:
             If ``None``, it will be chosen automatically.
         :param args: kernel arguments. Can be: :py:class:`Array` objects,
             :py:class:`Buffer` objects, ``numpy`` scalars.
-        :param device_nums: the devices to enqueue the kernel on
+        :param device_idxs: the devices to enqueue the kernel on
             (*in the context, not in the queue*). Must be a subset of the devices of the ``queue``.
             If ``None``, all the ``queue``'s devices are used.
             Note that the used devices must be among the ones the parent :py:class:`Program`
@@ -233,22 +233,22 @@ class Kernel:
 
         args = process_arg(args)
 
-        if device_nums is None:
-            device_nums = list(queue.devices)
+        if device_idxs is None:
+            device_idxs = list(queue.devices)
         else:
-            device_nums = list(device_nums)
+            device_idxs = list(device_idxs)
 
         # TODO: speed this up. Probably shouldn't create sets on every kernel call.
-        if not set(device_nums).issubset(self._device_nums):
+        if not set(device_idxs).issubset(self._device_idxs):
             missing_dev_nums = [
-                str(device_num) for device_num in device_nums if device_num not in self._device_nums]
+                str(device_idx) for device_idx in device_idxs if device_idx not in self._device_idxs]
             raise ValueError(
                 f"This kernel's program was not compiled for devices {', '.join(missing_dev_nums)}")
 
         ret_vals = []
-        for i, device_num in enumerate(device_nums):
+        for i, device_idx in enumerate(device_idxs):
             kernel_args = [arg[i] if isinstance(arg, (list, tuple)) else arg for arg in args]
-            ret_val = self._sd_kernels[device_num](
+            ret_val = self._sd_kernels[device_idx](
                 queue._queue_adapter, global_size, local_size, *kernel_args, **kwds)
             ret_vals.append(ret_val)
 
@@ -292,6 +292,6 @@ class SingleDeviceKernel:
 
         args = process_arg(args)
 
-        assert self._device_num in queue.devices
+        assert self._device_idx in queue.devices
 
         return self._sd_kernel_adapter(global_size, local_size, *args, **kwds)

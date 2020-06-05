@@ -38,11 +38,11 @@ def test_from_backend_platform(monkeypatch):
     assert platform.name == 'Platform1'
 
 
-def test_from_number(monkeypatch):
+def test_from_index(monkeypatch):
     mock_backend(monkeypatch, OPENCL_API_ID, [
         ('Platform1', ['Device1']),
         ('Platform2', ['Device2'])])
     api = API.from_api_id(OPENCL_API_ID)
 
-    platform = Platform.from_number(api, 1)
+    platform = Platform.from_index(api, 1)
     assert platform.name == 'Platform2'

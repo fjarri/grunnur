@@ -31,13 +31,13 @@ class MockAPIAdapter:
 class MockPlatformAdapter:
     api_adapter = MockAPIAdapter()
     name = "mock"
-    platform_num = 0
+    platform_idx = 0
 
 
 class MockDeviceAdapter():
     platform_adapter = MockPlatformAdapter()
     name = "mock"
-    device_num = 0
+    device_idx = 0
 
 
 class MockBufferAdapter:
@@ -47,16 +47,16 @@ class MockBufferAdapter:
         self.size = size
         self.context = context
         self.kernel_arg = numpy.empty(size, numpy.uint8)
-        self.device_num = None
+        self.device_idx = None
 
-    def set(self, queue_adapter, device_num, host_array, async_=False, dont_sync_other_devices=False):
+    def set(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
         self.kernel_arg[:] = host_array[:self.size]
 
-    def get(self, queue_adapter, device_num, host_array, async_=False, dont_sync_other_devices=False):
+    def get(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
         host_array[:self.size] = self.kernel_arg
 
-    def migrate(self, queue_adapter, device_num):
-        self.device_num = device_num
+    def migrate(self, queue_adapter, device_idx):
+        self.device_idx = device_idx
 
 
 class MockContextAdapter:
@@ -72,7 +72,7 @@ class MockContextAdapter:
         self._allocation_id += 1
         return buf
 
-    def make_queue_adapter(self, device_nums):
+    def make_queue_adapter(self, device_idxs):
         return MockQueueAdapter(self)
 
 
@@ -81,8 +81,8 @@ class MockQueueAdapter:
     def __init__(self, context_adapter):
         self.context_adapter = context_adapter
         self.device_adapters = {
-            device_num: context_adapter.device_adapters[device_num]
-            for device_num in range(len(context_adapter.device_adapters))}
+            device_idx: context_adapter.device_adapters[device_idx]
+            for device_idx in range(len(context_adapter.device_adapters))}
 
     def synchronize(self):
         pass
@@ -146,7 +146,7 @@ def allocate_test_set(virtual_alloc, allocate_callable):
 def test_contract(valloc_cls, pack):
 
     context = Context(MockContextAdapter())
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
     virtual_alloc = valloc_cls(queue)
 
     buffers_metadata, buffers = allocate_test_set(
@@ -197,7 +197,7 @@ def test_contract_on_device(context, valloc_cls, pack):
         render_globals=dict(ctype=dtypes.ctype(dtype)))
     fill = program.fill
 
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
     virtual_alloc = valloc_cls(queue)
 
     buffers_metadata, arrays = allocate_test_set(
@@ -237,7 +237,7 @@ def check_statistics(buffers_metadata, stats):
 def test_statistics(valloc_cls):
 
     context = Context(MockContextAdapter())
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
     virtual_alloc = valloc_cls(queue)
 
     buffers_metadata, buffers = allocate_test_set(
@@ -261,7 +261,7 @@ def test_statistics(valloc_cls):
 @valloc_cls_fixture
 def test_non_existent_dependencies(valloc_cls):
     context = Context(MockContextAdapter())
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
     virtual_alloc = valloc_cls(queue)
     with pytest.raises(ValueError, match="12345"):
         virtual_alloc._allocate_virtual(100, {12345})
@@ -269,7 +269,7 @@ def test_non_existent_dependencies(valloc_cls):
 
 def test_virtual_buffer():
     context = Context(MockContextAdapter())
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
     virtual_alloc = TrivialManager(queue)
 
     allocator = virtual_alloc.allocator()
@@ -288,15 +288,15 @@ def test_virtual_buffer():
     vbuf.get(queue, 0, res)
     assert (arr == res).all()
 
-    assert vbuf._buffer_adapter._real_buffer.device_num is None
+    assert vbuf._buffer_adapter._real_buffer.device_idx is None
     vbuf.migrate(queue, 0)
-    assert vbuf._buffer_adapter._real_buffer.device_num == 0
+    assert vbuf._buffer_adapter._real_buffer.device_idx == 0
 
 
 @valloc_cls_fixture
 def test_continuous_pack(valloc_cls):
     context = Context(MockContextAdapter())
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
     virtual_alloc_ref = valloc_cls(queue, pack_on_alloc=False, pack_on_free=False)
     virtual_alloc = valloc_cls(queue, pack_on_alloc=True, pack_on_free=True)
 

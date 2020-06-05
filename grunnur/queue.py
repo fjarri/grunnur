@@ -7,23 +7,23 @@ class Queue:
     """
 
     @classmethod
-    def from_device_nums(cls, context, device_nums=None):
-        # TODO: need a better method name for the case of device_nums=None
+    def from_device_idxs(cls, context, device_idxs=None):
+        # TODO: need a better method name for the case of device_idxs=None
 
-        if device_nums is None:
-            device_nums = tuple(range(len(context.devices)))
+        if device_idxs is None:
+            device_idxs = tuple(range(len(context.devices)))
         else:
-            device_nums = tuple(sorted(device_nums))
+            device_idxs = tuple(sorted(device_idxs))
 
-        queue_adapter = context._context_adapter.make_queue_adapter(device_nums)
-        return cls(context, queue_adapter, device_nums)
+        queue_adapter = context._context_adapter.make_queue_adapter(device_idxs)
+        return cls(context, queue_adapter, device_idxs)
 
-    def __init__(self, context, queue_adapter, device_nums):
+    def __init__(self, context, queue_adapter, device_idxs):
         self.context = context
         self._queue_adapter = queue_adapter
         self.devices = {
-            device_num: Device(queue_adapter.device_adapters[device_num])
-            for device_num in device_nums}
+            device_idx: Device(queue_adapter.device_adapters[device_idx])
+            for device_idx in device_idxs}
 
     def synchronize(self):
         """

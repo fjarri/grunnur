@@ -60,7 +60,7 @@ class CuAPIAdapter(APIAdapter):
     def num_platforms(self):
         return 1
 
-    # TODO: have instead get_platform(platform_num)?
+    # TODO: have instead get_platform(platform_idx)?
     def get_platform_adapters(self):
         return [CuPlatformAdapter(self)]
 
@@ -87,7 +87,7 @@ class CuPlatformAdapter(PlatformAdapter):
         return self._api_adapter
 
     @property
-    def platform_num(self):
+    def platform_idx(self):
         return 0
 
     @property
@@ -103,13 +103,13 @@ class CuPlatformAdapter(PlatformAdapter):
         return ".".join(str(x) for x in pycuda_drv.get_version())
 
     @property
-    def num_devices(self):
+    def device_count(self):
         return pycuda_drv.Device.count()
 
     def get_device_adapters(self):
         return [
-            CuDeviceAdapter(self, pycuda_drv.Device(device_num), device_num)
-            for device_num in range(self.num_devices)]
+            CuDeviceAdapter(self, pycuda_drv.Device(device_idx), device_idx)
+            for device_idx in range(self.device_count)]
 
     def make_context(self, device_adapters):
         return CuContextAdapter.from_device_adapters(device_adapters)
@@ -123,15 +123,15 @@ class CuDeviceAdapter(DeviceAdapter):
         Creates this object from a PyCuda ``Device`` object.
         """
         platform_adapter = CuPlatformAdapter(CuAPIAdapter())
-        for device_num, device_adapter in enumerate(platform_adapter.get_device_adapters()):
+        for device_idx, device_adapter in enumerate(platform_adapter.get_device_adapters()):
             if pycuda_device == device_adapter.pycuda_device:
-                return cls(platform_adapter, pycuda_device, device_num)
+                return cls(platform_adapter, pycuda_device, device_idx)
 
         raise Exception(f"{pycuda_device} was not found among CUDA devices")
 
-    def __init__(self, platform_adapter, pycuda_device, device_num):
+    def __init__(self, platform_adapter, pycuda_device, device_idx):
         self._platform_adapter = platform_adapter
-        self._device_num = device_num
+        self._device_idx = device_idx
         self.pycuda_device = pycuda_device
         self._params = None
 
@@ -140,8 +140,8 @@ class CuDeviceAdapter(DeviceAdapter):
         return self._platform_adapter
 
     @property
-    def device_num(self):
-        return self._device_num
+    def device_idx(self):
+        return self._device_idx
 
     @property
     def name(self):
@@ -230,11 +230,11 @@ class _ContextStack:
                 pycuda_drv.Context.pop()
         # TODO: raise an exception on deactivate() of an already inactive stack?
 
-    def activate(self, device_num):
-        if self._active_context != device_num:
+    def activate(self, device_idx):
+        if self._active_context != device_idx:
             self.deactivate()
-            self._pycuda_contexts[device_num].push()
-            self._active_context = device_num
+            self._pycuda_contexts[device_idx].push()
+            self._active_context = device_idx
 
     def __del__(self):
         self.deactivate()
@@ -302,7 +302,7 @@ class CuContextAdapter(ContextAdapter):
 
         self._device_adapters = tuple(
             CuDeviceAdapter.from_pycuda_device(device) for device in self._pycuda_devices)
-        self._device_nums = list(range(len(self._device_adapters)))
+        self._device_idxs = list(range(len(self._device_adapters)))
 
         # TODO: do we activate here if owns_context=False? What are the general behavior
         # rules for owns_context=False?
@@ -312,13 +312,13 @@ class CuContextAdapter(ContextAdapter):
     def device_adapters(self) -> Tuple[CuDeviceAdapter, ...]:
         return self._device_adapters
 
-    def activate_device(self, device_num: int):
+    def activate_device(self, device_idx: int):
         """
-        Activates the device ``device_num``.
+        Activates the device ``device_idx``.
         Pops a previous context from the stack, if there was one pushed before,
         and pushes the corresponding context to the stack.
         """
-        self._context_stack.activate(device_num)
+        self._context_stack.activate(device_idx)
 
     def deactivate(self):
         """
@@ -337,7 +337,7 @@ class CuContextAdapter(ContextAdapter):
         return pycuda_drv.CompileError
 
     def compile_single_device(
-            self, device_num, prelude, src, keep=False, fast_math=False, compiler_options=[],
+            self, device_idx, prelude, src, keep=False, fast_math=False, compiler_options=[],
             constant_arrays=None):
 
         if constant_arrays is not None:
@@ -350,25 +350,25 @@ class CuContextAdapter(ContextAdapter):
 
         options = compiler_options + (['-use_fast_math'] if fast_math else [])
         full_src = prelude + constant_arrays_src + src
-        self.activate_device(device_num)
+        self.activate_device(device_idx)
         module = pycuda.compiler.SourceModule(
             full_src, no_extern_c=True, options=options, keep=keep)
-        return CuProgram(self, device_num, module)
+        return CuProgram(self, device_idx, module)
 
     def allocate(self, size):
         managed = len(self._device_adapters) > 1
         self.activate_device(0)
         return CuBufferAdapter(self, size=size, managed=managed)
 
-    def make_queue_adapter(self, device_nums):
+    def make_queue_adapter(self, device_idxs):
         device_adapters = {
-            device_num: self._device_adapters[device_num] for device_num in device_nums}
+            device_idx: self._device_adapters[device_idx] for device_idx in device_idxs}
 
         streams = {}
-        for device_num in self._device_nums:
-            self.activate_device(device_num)
+        for device_idx in self._device_idxs:
+            self.activate_device(device_idx)
             stream = pycuda_drv.Stream()
-            streams[device_num] = stream
+            streams[device_idx] = stream
 
         return CuQueueAdapter(self, device_adapters, streams)
 
@@ -417,34 +417,34 @@ class CuBufferAdapter(BufferAdapter):
             self._context_adapter, size,
             offset=self._offset + origin, ptr=new_ptr, base_buffer=base_buffer)
 
-    def set(self, queue_adapter, device_num, host_array, async_=False, dont_sync_other_devices=False):
+    def set(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
         # TODO: is there a way to keep the whole thing async, but still wait until
         # all current tasks on other devices finish, like with events in OpenCL?
 
         if not dont_sync_other_devices:
-            queue_adapter._synchronize_other_streams(device_num)
+            queue_adapter._synchronize_other_streams(device_idx)
 
-        self._context_adapter.activate_device(device_num)
+        self._context_adapter.activate_device(device_idx)
 
         if async_:
             pycuda_drv.memcpy_htod_async(
-                self._ptr, host_array, stream=queue_adapter._pycuda_streams[device_num])
+                self._ptr, host_array, stream=queue_adapter._pycuda_streams[device_idx])
         else:
             pycuda_drv.memcpy_htod(self._ptr, host_array)
 
-    def get(self, queue_adapter, device_num, host_array, async_=False, dont_sync_other_devices=False):
+    def get(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
         if not dont_sync_other_devices:
-            queue_adapter._synchronize_other_streams(device_num)
+            queue_adapter._synchronize_other_streams(device_idx)
 
-        self._context_adapter.activate_device(device_num)
+        self._context_adapter.activate_device(device_idx)
 
         if async_:
             pycuda_drv.memcpy_dtoh_async(
-                host_array, self._ptr, stream=queue_adapter._pycuda_streams[device_num])
+                host_array, self._ptr, stream=queue_adapter._pycuda_streams[device_idx])
         else:
             pycuda_drv.memcpy_dtoh(host_array, self._ptr)
 
-    def migrate(self, queue_adapter, device_num):
+    def migrate(self, queue_adapter, device_idx):
         pass
 
     def __del__(self):
@@ -482,38 +482,38 @@ class CuQueueAdapter(QueueAdapter):
         self._pycuda_streams = pycuda_streams
 
     def synchronize(self):
-        for device_num, pycuda_streams in self._pycuda_streams.items():
-            self.context_adapter.activate_device(device_num)
-            self._pycuda_streams[device_num].synchronize()
+        for device_idx, pycuda_streams in self._pycuda_streams.items():
+            self.context_adapter.activate_device(device_idx)
+            self._pycuda_streams[device_idx].synchronize()
 
-    def _synchronize_other_streams(self, skip_device_num):
-        for device_num, pycuda_streams in self._pycuda_streams.items():
-            if device_num != skip_device_num:
-                self.context_adapter.activate_device(device_num)
-                self._pycuda_streams[device_num].synchronize()
+    def _synchronize_other_streams(self, skip_device_idx):
+        for device_idx, pycuda_streams in self._pycuda_streams.items():
+            if device_idx != skip_device_idx:
+                self.context_adapter.activate_device(device_idx)
+                self._pycuda_streams[device_idx].synchronize()
 
 
 class CuProgram(ProgramAdapter):
 
-    def __init__(self, context_adapter, device_num, pycuda_program):
+    def __init__(self, context_adapter, device_idx, pycuda_program):
         self.context_adapter = context_adapter
-        self._device_num = device_num
+        self._device_idx = device_idx
         self._pycuda_program = pycuda_program
 
     def __getattr__(self, kernel_name):
         pycuda_kernel = self._pycuda_program.get_function(kernel_name)
-        return CuKernel(self, self._device_num, pycuda_kernel)
+        return CuKernel(self, self._device_idx, pycuda_kernel)
 
     def set_constant_buffer(
             self, name: str, arr: Union[CuBufferAdapter, numpy.ndarray], queue: Optional[CuQueue]=None):
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
-        self.context_adapter.activate_device(self._device_num)
+        self.context_adapter.activate_device(self._device_idx)
         symbol, size = self._pycuda_program.get_global(name)
 
         if queue is not None:
-            pycuda_stream = queue._pycuda_streams[self._device_num]
+            pycuda_stream = queue._pycuda_streams[self._device_idx]
 
         if isinstance(arr, CuBufferAdapter):
             if size != arr.size:
@@ -608,9 +608,9 @@ def get_launch_size(
 
 class CuKernel(KernelAdapter):
 
-    def __init__(self, program_adapter, device_num, pycuda_function):
+    def __init__(self, program_adapter, device_idx, pycuda_function):
         self.program_adapter = program_adapter
-        self._device_num = device_num
+        self._device_idx = device_idx
         self._pycuda_function = pycuda_function
 
     @property
@@ -620,14 +620,14 @@ class CuKernel(KernelAdapter):
 
     def __call__(self, queue_adapter, global_size, local_size, *args, local_mem=0):
 
-        device_adapter = queue_adapter.device_adapters[self._device_num]
+        device_adapter = queue_adapter.device_adapters[self._device_idx]
 
         grid, block = get_launch_size(
             device_adapter.params.max_local_sizes,
             device_adapter.params.max_total_local_size,
             global_size, local_size)
 
-        self.program_adapter.context_adapter.activate_device(self._device_num)
+        self.program_adapter.context_adapter.activate_device(self._device_idx)
         self._pycuda_function(
-            *args, grid=grid, block=block, stream=queue_adapter._pycuda_streams[self._device_num],
+            *args, grid=grid, block=block, stream=queue_adapter._pycuda_streams[self._device_idx],
             shared=local_mem)

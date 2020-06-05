@@ -24,8 +24,8 @@ class Device:
     @classmethod
     def all(cls, platform):
         return [
-            Device.from_number(platform, device_num)
-            for device_num in range(platform._platform_adapter.num_devices)]
+            Device.from_index(platform, device_idx)
+            for device_idx in range(platform._platform_adapter.device_count)]
 
     @classmethod
     def all_by_masks(
@@ -68,8 +68,8 @@ class Device:
         return devices
 
     @classmethod
-    def from_number(cls, platform, device_num):
-        device_adapter = platform._platform_adapter.get_device_adapters()[device_num]
+    def from_index(cls, platform, device_idx):
+        device_adapter = platform._platform_adapter.get_device_adapters()[device_idx]
         return cls(device_adapter)
 
     def __init__(self, device_adapter):
@@ -77,7 +77,7 @@ class Device:
         self._device_adapter = device_adapter
         self.name = self._device_adapter.name
 
-        self.shortcut = f"{self.platform.shortcut},{device_adapter.device_num}"
+        self.shortcut = f"{self.platform.shortcut},{device_adapter.device_idx}"
         self.short_name = f"device({self.shortcut})"
 
         self._params = None

@@ -23,7 +23,7 @@ def test_compile_static(context):
     b = numpy.arange(15).astype(numpy.int32)
     ref = numpy.outer(a, b)
 
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
@@ -46,7 +46,7 @@ def test_compile_static_multi_device(multi_device_context):
     b = numpy.arange(15).astype(numpy.int32)
     ref = numpy.outer(a, b)
 
-    queue = Queue.from_device_nums(context, device_nums=[0, 1])
+    queue = Queue.from_device_idxs(context, device_idxs=[0, 1])
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
@@ -62,7 +62,7 @@ def test_compile_static_multi_device(multi_device_context):
     res_dev_1 = res_dev.single_device_view(0)[:11,:]
     res_dev_2 = res_dev.single_device_view(1)[11:,:]
 
-    multiply = StaticKernel(context, src, 'multiply', (11, 15), device_nums=[0, 1])
+    multiply = StaticKernel(context, src, 'multiply', (11, 15), device_idxs=[0, 1])
     multiply(queue, [res_dev_1, res_dev_2], [a_dev_1, a_dev_2], [b_dev_1, b_dev_2])
 
     res = res_dev.get()

@@ -23,18 +23,18 @@ class Buffer:
     def size(self):
         return self._buffer_adapter.size
 
-    def set(self, queue, device_num, host_array, async_=False, dont_sync_other_devices=False):
+    def set(self, queue, device_idx, host_array, async_=False, dont_sync_other_devices=False):
         self._buffer_adapter.set(
-            queue._queue_adapter, device_num, host_array,
+            queue._queue_adapter, device_idx, host_array,
             async_=async_, dont_sync_other_devices=dont_sync_other_devices)
 
-    def get(self, queue, device_num, host_array, async_=False, dont_sync_other_devices=False):
+    def get(self, queue, device_idx, host_array, async_=False, dont_sync_other_devices=False):
         self._buffer_adapter.get(
-            queue._queue_adapter, device_num, host_array,
+            queue._queue_adapter, device_idx, host_array,
             async_=async_, dont_sync_other_devices=dont_sync_other_devices)
 
     def get_sub_region(self, origin, size):
         return Buffer(self.context, self._buffer_adapter.get_sub_region(origin, size))
 
-    def migrate(self, queue, device_num):
-        self._buffer_adapter.migrate(queue._queue_adapter, device_num)
+    def migrate(self, queue, device_idx):
+        self._buffer_adapter.migrate(queue._queue_adapter, device_idx)

@@ -44,7 +44,7 @@ def test_compile(context, no_prelude):
     b = numpy.arange(16).astype(numpy.int32) + 1
     ref = a * b
 
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
@@ -67,7 +67,7 @@ def test_compile_multi_device(multi_device_context):
     b = numpy.arange(16).astype(numpy.int32) + 1
     ref = a * b
 
-    queue = Queue.from_device_nums(context, device_nums=[0, 1])
+    queue = Queue.from_device_idxs(context, device_idxs=[0, 1])
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
@@ -128,7 +128,7 @@ def test_constant_memory(context):
     cm1 = numpy.arange(16).astype(numpy.int32)
     cm2 = numpy.arange(16).astype(numpy.int32) * 2
 
-    queue = Queue.from_device_nums(context)
+    queue = Queue.from_device_idxs(context)
 
     cm1_dev = Array.from_host(queue, cm1)
     cm2_dev = Array.from_host(queue, cm2)

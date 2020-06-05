@@ -27,8 +27,8 @@ class Platform:
         Returns a list of platforms available for this API.
         """
         return [
-            Platform.from_number(api, platform_num)
-            for platform_num in range(api._api_adapter.num_platforms)]
+            Platform.from_index(api, platform_idx)
+            for platform_idx in range(api._api_adapter.num_platforms)]
 
     @classmethod
     def all_by_masks(
@@ -60,8 +60,8 @@ class Platform:
         raise ValueError(f"{obj} was not recognized as a platform object by any available API")
 
     @classmethod
-    def from_number(cls, api, platform_num):
-        platform_adapter = api._api_adapter.get_platform_adapters()[platform_num]
+    def from_index(cls, api, platform_idx):
+        platform_adapter = api._api_adapter.get_platform_adapters()[platform_idx]
         return cls(platform_adapter)
 
     def __init__(self, platform_adapter):
@@ -69,5 +69,5 @@ class Platform:
         self._platform_adapter = platform_adapter
         self.name = self._platform_adapter.name
 
-        self.shortcut = f"{self.api.shortcut},{platform_adapter.platform_num}"
+        self.shortcut = f"{self.api.shortcut},{platform_adapter.platform_idx}"
         self.short_name = f"platform({self.shortcut})"

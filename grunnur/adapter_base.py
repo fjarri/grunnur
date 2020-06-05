@@ -78,7 +78,7 @@ class APIAdapter(ABC):
     def num_platforms(self):
         pass
 
-    # TODO: have instead get_platform(platform_num)?
+    # TODO: have instead get_platform(platform_idx)?
     @abstractmethod
     def get_platform_adapters(self):
         pass
@@ -112,7 +112,7 @@ class PlatformAdapter(ABC):
 
     @property
     @abstractmethod
-    def platform_num(self):
+    def platform_idx(self):
         pass
 
     @property
@@ -132,7 +132,7 @@ class PlatformAdapter(ABC):
 
     @property
     @abstractmethod
-    def num_devices(self):
+    def device_count(self):
         pass
 
     @abstractmethod
@@ -153,7 +153,7 @@ class DeviceAdapter(ABC):
 
     @property
     @abstractmethod
-    def device_num(self):
+    def device_idx(self):
         pass
 
     @property
@@ -258,7 +258,7 @@ class ContextAdapter(ABC):
         pass
 
     @abstractmethod
-    def make_queue_adapter(self, device_nums):
+    def make_queue_adapter(self, device_idxs):
         pass
 
     @abstractmethod
@@ -292,7 +292,7 @@ class ContextAdapter(ABC):
     @abstractmethod
     def compile_single_device(
             self,
-            device_num: int,
+            device_idx: int,
             prelude: str,
             src: str,
             keep: bool=False,
@@ -302,7 +302,7 @@ class ContextAdapter(ABC):
         """
         Compiles the given source with the given prelude on a single device.
 
-        :param device_num: the number of the device to compile on.
+        :param device_idx: the number of the device to compile on.
         :param prelude: the source of the prelude.
         :param src: the source of the kernels to be compiled.
         :param keep: see :py:meth:`compile`.
@@ -351,15 +351,15 @@ class BufferAdapter(ABC):
         pass
 
     @abstractmethod
-    def set(self, queue_adapter, device_num, host_array, async_=False, dont_sync_other_devices=False):
+    def set(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
         pass
 
     @abstractmethod
-    def get(self, queue_adapter, device_num, host_array, async_=False, dont_sync_other_devices=False):
+    def get(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
         pass
 
     @abstractmethod
-    def migrate(self, queue_adapter, device_num):
+    def migrate(self, queue_adapter, device_idx):
         pass
 
 
