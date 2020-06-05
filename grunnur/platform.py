@@ -57,7 +57,7 @@ class Platform:
                 platform_adapter = api.make_platform_adapter(obj)
                 return cls(platform_adapter)
 
-        raise ValueError(f"{obj} was not recognized as a platform object by any available API")
+        raise TypeError(f"{obj} was not recognized as a platform object by any available API")
 
     @classmethod
     def from_index(cls, api, platform_idx):

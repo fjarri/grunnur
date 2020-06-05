@@ -33,6 +33,10 @@ def test_from_backend_platform(monkeypatch):
     api = API.from_api_id(OPENCL_API_ID)
 
     backend_platform = backend.pyopencl.get_platforms()[0]
+
+    with pytest.raises(TypeError, match="was not recognized as a platform object"):
+        Platform.from_backend_platform(1)
+
     platform = Platform.from_backend_platform(backend_platform)
     assert platform.api == api
     assert platform.name == 'Platform1'
