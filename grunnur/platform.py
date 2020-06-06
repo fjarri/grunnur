@@ -53,8 +53,8 @@ class Platform:
     @classmethod
     def from_backend_platform(cls, obj):
         for api in API.all():
-            if api.isa_backend_platform(obj):
-                platform_adapter = api.make_platform_adapter(obj)
+            if api._api_adapter.isa_backend_platform(obj):
+                platform_adapter = api._api_adapter.make_platform_adapter(obj)
                 return cls(platform_adapter)
 
         raise TypeError(f"{obj} was not recognized as a platform object by any available API")

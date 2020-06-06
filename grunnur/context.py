@@ -24,7 +24,8 @@ class Context:
         platform = platforms[0]
 
         device_adapters = [device._device_adapter for device in devices]
-        context_adapter = platform._platform_adapter.make_context(device_adapters)
+        api_adapter = platform.api._api_adapter
+        context_adapter = api_adapter.make_context_adapter_from_device_adapters(device_adapters)
 
         return cls(context_adapter)
 
@@ -38,8 +39,9 @@ class Context:
     def from_backend_contexts(cls, backend_contexts):
         backend_contexts = wrap_in_tuple(backend_contexts)
         for api in API.all():
-            if api.isa_backend_context(backend_contexts[0]):
-                context_adapter = api.make_context_adapter(backend_contexts)
+            if api._api_adapter.isa_backend_context(backend_contexts[0]):
+                context_adapter = api._api_adapter.make_context_adapter_from_backend_contexts(
+                    backend_contexts)
                 return cls(context_adapter)
         raise TypeError(
             f"{type(backend_contexts[0])} objects were not recognized as contexts by any API")

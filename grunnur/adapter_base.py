@@ -92,7 +92,11 @@ class APIAdapter(ABC):
         pass
 
     @abstractmethod
-    def make_context_adapter(self, backend_contexts):
+    def make_context_adapter_from_device_adapters(self, device_adapters):
+        pass
+
+    @abstractmethod
+    def make_context_adapter_from_backend_contexts(self, backend_contexts):
         pass
 
     def __eq__(self, other):
@@ -136,10 +140,6 @@ class PlatformAdapter(ABC):
 
     @abstractmethod
     def get_device_adapters(self):
-        pass
-
-    @abstractmethod
-    def make_context(self, device_adapters):
         pass
 
 

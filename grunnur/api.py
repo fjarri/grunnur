@@ -97,21 +97,3 @@ class API:
     def __getitem__(self, idx):
         from .platform import Platform # avoiding circular imports
         return Platform.all(self)[idx]
-
-    def isa_backend_platform(self, obj):
-        return self._api_adapter.isa_backend_platform(obj)
-
-    def make_platform_adapter(self, backend_platform):
-        return self._api_adapter.make_platform_adapter(backend_platform)
-
-    def isa_backend_device(self, obj):
-        return self._api_adapter.isa_backend_device(obj)
-
-    def make_device_adapter(self, backend_platform):
-        return self._api_adapter.make_device_adapter(backend_platform)
-
-    def isa_backend_context(self, obj):
-        return self._api_adapter.isa_backend_context(obj)
-
-    def make_context_adapter(self, backend_contexts):
-        return self._api_adapter.make_context_adapter(backend_contexts)

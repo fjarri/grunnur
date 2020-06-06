@@ -71,8 +71,8 @@ class Device:
     @classmethod
     def from_backend_device(cls, obj):
         for api in API.all():
-            if api.isa_backend_device(obj):
-                device_adapter = api.make_device_adapter(obj)
+            if api._api_adapter.isa_backend_device(obj):
+                device_adapter = api._api_adapter.make_device_adapter(obj)
                 return cls(device_adapter)
 
         raise TypeError(f"{obj} was not recognized as a device object by any available API")
