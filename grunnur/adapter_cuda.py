@@ -242,11 +242,7 @@ class _ContextStack:
     def deactivate(self):
         if self._active_context is not None:
             self._active_context = None
-
-            # This can happen in tests when the PyCuda module is mocked.
-            if pycuda_drv is not None:
-                pycuda_drv.Context.pop()
-        # TODO: raise an exception on deactivate() of an already inactive stack?
+            pycuda_drv.Context.pop()
 
     def activate(self, device_idx):
         if self._active_context != device_idx:
@@ -337,12 +333,6 @@ class CuContextAdapter(ContextAdapter):
         and pushes the corresponding context to the stack.
         """
         self._context_stack.activate(device_idx)
-
-    def deactivate(self):
-        """
-        Pops a context from the stack, if there was one pushed before.
-        """
-        self._context_stack.deactivate()
 
     def render_prelude(self, fast_math=False, constant_arrays=None):
         return _PRELUDE.render(
