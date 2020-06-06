@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import API, Context
+from grunnur import API, Context, CUDA_API_ID
 from grunnur.api import all_api_ids
 from grunnur.pytest_helpers import *
 
@@ -15,6 +15,13 @@ def mock_context(request, monkeypatch):
     context = Context.from_criteria(api)
     yield context
 
+    # The yielded object is preserved somewhere inside PyTest, so there is a race condition
+    # between `context` destructor and `monkeypatch` rollback, which leads to
+    # actual PyCUDA context being popped instead of the mock.
+    # So we are releasing the context stack manually in the PyCUDA case.
+
+    if api_id == CUDA_API_ID:
+        context._context_adapter._context_stack = None
 
 def generate_mock_tests(metafunc):
     if 'mock_context' in metafunc.fixturenames:
