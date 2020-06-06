@@ -112,3 +112,6 @@ class API:
 
     def isa_backend_context(self, obj):
         return self._api_adapter.isa_backend_context(obj)
+
+    def make_context_adapter(self, backend_contexts):
+        return self._api_adapter.make_context_adapter(backend_contexts)
