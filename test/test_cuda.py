@@ -25,7 +25,7 @@ def test_context_from_pycuda_contexts(monkeypatch):
         context.pop()
         contexts.append(context)
 
-    context = Context.from_backend_contexts(contexts)
+    context = Context.from_backend_contexts(contexts, take_ownership=True)
 
 
 def test_context_from_grunnur_devices(monkeypatch):

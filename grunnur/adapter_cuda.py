@@ -79,8 +79,8 @@ class CuAPIAdapter(APIAdapter):
     def make_platform_adapter(self, pycuda_platform):
         raise Exception("CUDA does not have the concept of a platform")
 
-    def make_context_adapter_from_backend_contexts(self, backend_contexts):
-        return CuContextAdapter.from_pycuda_contexts(backend_contexts)
+    def make_context_adapter_from_backend_contexts(self, backend_contexts, take_ownership):
+        return CuContextAdapter.from_pycuda_contexts(backend_contexts, take_ownership)
 
     def make_context_adapter_from_device_adapters(self, device_adapters):
         return CuContextAdapter.from_device_adapters(device_adapters)
@@ -234,18 +234,18 @@ class _ContextStack:
     A helper class that keeps the CUDA context stack state.
     """
 
-    def __init__(self, pycuda_contexts, owns_contexts=False):
+    def __init__(self, pycuda_contexts, take_ownership):
         self._pycuda_contexts = pycuda_contexts
         self._active_context = None
-        self._owns_contexts = owns_contexts
+        self._owns_contexts = take_ownership
 
     def deactivate(self):
-        if self._active_context is not None:
+        if self._active_context is not None and self._owns_contexts:
             self._active_context = None
             pycuda_drv.Context.pop()
 
     def activate(self, device_idx):
-        if self._active_context != device_idx:
+        if self._active_context != device_idx and self._owns_contexts:
             self.deactivate()
             self._pycuda_contexts[device_idx].push()
             self._active_context = device_idx
@@ -285,16 +285,21 @@ class CuContextAdapter(ContextAdapter):
             context = device.make_context()
             pycuda_drv.Context.pop()
             contexts.append(context)
-        return cls(contexts, owns_contexts=True)
+        return cls(contexts, take_ownership=True)
 
     @classmethod
-    def from_pycuda_contexts(cls, pycuda_contexts: Iterable[pycuda_drv.Context]) -> CuContextAdapter:
+    def from_pycuda_contexts(
+            cls, pycuda_contexts: Iterable[pycuda_drv.Context],
+            take_ownership: bool) -> CuContextAdapter:
         """
         Creates a context based on one or several (distinct) PyCuda ``Context`` objects.
         None of the PyCuda contexts should be pushed to the context stack.
         """
+        if len(pycuda_contexts) > 1 and not take_ownership:
+            raise ValueError(
+                "When dealing with multiple CUDA contexts, Grunnur must be the one managing them")
         pycuda_contexts = normalize_object_sequence(pycuda_contexts, pycuda_drv.Context)
-        return cls(pycuda_contexts, owns_contexts=False)
+        return cls(pycuda_contexts, take_ownership)
 
     @classmethod
     def from_device_adapters(cls, device_adapters: Iterable[CuDeviceAdapter]) -> CuContextAdapter:
@@ -305,9 +310,9 @@ class CuContextAdapter(ContextAdapter):
         return cls.from_pycuda_devices(
             [device_adapter.pycuda_device for device_adapter in device_adapters])
 
-    def __init__(self, pycuda_contexts: Iterable[pycuda_drv.Context], owns_contexts=False):
+    def __init__(self, pycuda_contexts: Iterable[pycuda_drv.Context], take_ownership):
 
-        self._context_stack = _ContextStack(pycuda_contexts, owns_contexts=owns_contexts)
+        self._context_stack = _ContextStack(pycuda_contexts, take_ownership)
 
         self._pycuda_devices = []
         for context_num, context in enumerate(pycuda_contexts):
@@ -318,8 +323,6 @@ class CuContextAdapter(ContextAdapter):
             CuDeviceAdapter.from_pycuda_device(device) for device in self._pycuda_devices)
         self._device_idxs = list(range(len(self._device_adapters)))
 
-        # TODO: do we activate here if owns_context=False? What are the general behavior
-        # rules for owns_context=False?
         self.activate_device(0)
 
     @property

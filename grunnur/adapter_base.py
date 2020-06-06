@@ -96,7 +96,7 @@ class APIAdapter(ABC):
         pass
 
     @abstractmethod
-    def make_context_adapter_from_backend_contexts(self, backend_contexts):
+    def make_context_adapter_from_backend_contexts(self, backend_contexts, take_ownership):
         pass
 
     def __eq__(self, other):

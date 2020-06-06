@@ -36,12 +36,12 @@ class Context:
         return cls.from_devices(devices)
 
     @classmethod
-    def from_backend_contexts(cls, backend_contexts):
+    def from_backend_contexts(cls, backend_contexts, take_ownership=False):
         backend_contexts = wrap_in_tuple(backend_contexts)
         for api in API.all():
             if api._api_adapter.isa_backend_context(backend_contexts[0]):
                 context_adapter = api._api_adapter.make_context_adapter_from_backend_contexts(
-                    backend_contexts)
+                    backend_contexts, take_ownership=take_ownership)
                 return cls(context_adapter)
         raise TypeError(
             f"{type(backend_contexts[0])} objects were not recognized as contexts by any API")
