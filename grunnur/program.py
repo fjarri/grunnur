@@ -20,6 +20,13 @@ def process_arg(arg):
         return arg
 
 
+class CompilationError(Exception):
+
+    def __init__(self, backend_exception):
+        super().__init__(str(backend_exception))
+        self.backend_exception = backend_exception
+
+
 class SingleDeviceProgram:
     """
     A program compiled for a single device.
@@ -63,7 +70,7 @@ class SingleDeviceProgram:
         try:
             self._sd_program_adapter = context_adapter.compile_single_device(
                 device_idx, prelude, src, fast_math=fast_math, **kwds)
-        except context_adapter.compile_error_class:
+        except context_adapter.compile_error_class as e:
             print(f"Failed to compile on device {device_idx} ({context.devices[device_idx]})")
 
             lines = src.split("\n")
@@ -71,7 +78,7 @@ class SingleDeviceProgram:
             for i, l in enumerate(lines):
                 print(str(i+1).rjust(max_num_len) + ": " + l)
 
-            raise
+            raise CompilationError(e)
 
     def __getattr__(self, kernel_name: str) -> SingleDeviceKernel:
         """
