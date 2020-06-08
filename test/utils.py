@@ -50,7 +50,7 @@ def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=No
 def check_select_devices(mock_stdin, mock_backend_factory, capsys, platforms_devices, inputs=None, **kwds):
 
     # CUDA API has a single fixed platform, so using the OpenCL one
-    backend = mock_backend_factory.mock_opencl()
+    backend = mock_backend_factory.mock_pyopencl()
 
     for platform_name, device_params in platforms_devices:
         platform = backend.add_platform(platform_name)
