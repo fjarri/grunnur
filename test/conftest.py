@@ -25,7 +25,7 @@ class MockBackendFactory:
         self.monkeypatch.setattr('grunnur.adapter_cuda.pycuda_driver', pycuda_driver)
         self.monkeypatch.setattr('grunnur.adapter_cuda.pycuda_compiler', pycuda_compiler)
 
-    def mock_cuda(self, disable=False):
+    def mock_pycuda(self, disable=False):
         backend = MockPyCUDA() if not disable else None
         self._set_backend_cuda(backend)
         return backend
@@ -34,16 +34,16 @@ class MockBackendFactory:
         pyopencl = backend.pyopencl if backend else None
         self.monkeypatch.setattr('grunnur.adapter_opencl.pyopencl', pyopencl)
 
-    def mock_opencl(self, disable=False):
+    def mock_pyopencl(self, disable=False):
         backend = MockPyOpenCL() if not disable else None
         self._set_backend_opencl(backend)
         return backend
 
     def mock(self, api_id, disable=False):
         if api_id == CUDA_API_ID:
-            return self.mock_cuda(disable=disable)
+            return self.mock_pycuda(disable=disable)
         elif api_id == OPENCL_API_ID:
-            return self.mock_opencl(disable=disable)
+            return self.mock_pyopencl(disable=disable)
         else:
             raise ValueError(f"Unknown API ID: {api_id}")
 
@@ -56,26 +56,29 @@ def mock_backend_factory(request, monkeypatch):
 @pytest.fixture(
     scope='function',
     params=all_api_ids(),
-    ids=lambda api_id: f"mock-{api_id.shortcut}-backend")
+    ids=lambda api_id: f"mock_backend_{api_id.shortcut}")
 def mock_backend(request, mock_backend_factory):
     yield mock_backend_factory.mock(request.param)
 
 
 @pytest.fixture(scope='function')
 def mock_backend_pyopencl(request, mock_backend_factory):
-    yield mock_backend_factory.mock_opencl()
+    yield mock_backend_factory.mock_pyopencl()
 
 
 @pytest.fixture(scope='function')
 def mock_backend_pycuda(request, mock_backend_factory):
-    yield mock_backend_factory.mock_cuda()
+    yield mock_backend_factory.mock_pycuda()
 
 
-@pytest.fixture(scope='function')
-def mock_context(request, mock_backend):
-    mock_backend.add_devices(['Device1'])
-
-    api_id = mock_backend.api_id
+@pytest.fixture(
+    scope='function',
+    params=all_api_ids(),
+    ids=lambda api_id: f"mock_context_{api_id.shortcut}")
+def mock_context(request, mock_backend_factory):
+    api_id = request.param
+    backend = mock_backend_factory.mock(api_id)
+    backend.add_devices(['Device1'])
     api = API.from_api_id(api_id)
     context = Context.from_criteria(api)
     yield context

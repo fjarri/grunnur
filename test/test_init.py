@@ -17,8 +17,8 @@ def test_import_opencl_api(mock_backend_pyopencl):
 
 
 def test_import_any_api(mock_backend_factory):
-    mock_backend_factory.mock_cuda().add_devices(['Device1', 'Device2'])
-    mock_backend_factory.mock_opencl().add_devices(['Device1', 'Device2'])
+    mock_backend_factory.mock_pycuda().add_devices(['Device1', 'Device2'])
+    mock_backend_factory.mock_pyopencl().add_devices(['Device1', 'Device2'])
     from grunnur import any_api
     assert any_api.id == OPENCL_API_ID or any_api.id == CUDA_API_ID
 
