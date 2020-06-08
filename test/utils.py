@@ -7,42 +7,10 @@ from grunnur.device_discovery import select_devices
 import grunnur.dtypes as dtypes
 from grunnur.utils import wrap_in_tuple
 
-from .mock_pycuda import MockPyCUDA
-from .mock_pyopencl import MockPyOpenCL
-
 
 def mock_input(monkeypatch, inputs):
     inputs_str = "".join(input_ + "\n" for input_ in inputs)
     monkeypatch.setattr('sys.stdin', io.StringIO(inputs_str))
-
-
-def mock_backend_obj(monkeypatch, api_id, backend):
-    if api_id == CUDA_API_ID:
-        monkeypatch.setattr('grunnur.adapter_cuda.pycuda_drv', backend.pycuda_drv)
-    elif api_id == OPENCL_API_ID:
-        monkeypatch.setattr('grunnur.adapter_opencl.pyopencl', backend.pyopencl)
-    else:
-        raise ValueError(f"Unknown API ID: {api_id}")
-
-
-def mock_backend(monkeypatch, api_id, *args):
-    if api_id == CUDA_API_ID:
-        backend = MockPyCUDA(*args)
-    elif api_id == OPENCL_API_ID:
-        backend = MockPyOpenCL(*args)
-    else:
-        raise ValueError(f"Unknown API ID: {api_id}")
-    mock_backend_obj(monkeypatch, api_id, backend)
-    return backend
-
-
-class BackendDisabled:
-    pycuda_drv = None
-    pyopencl = None
-
-
-def disable_backend(monkeypatch, api_id):
-    mock_backend_obj(monkeypatch, api_id, BackendDisabled())
 
 
 def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=None):
@@ -79,21 +47,30 @@ def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=No
     return result
 
 
-def check_select_devices(monkeypatch, capsys, platforms_devices, inputs=None, **kwds):
+def check_select_devices(mock_stdin, mock_backend_factory, capsys, platforms_devices, inputs=None, **kwds):
 
     # CUDA API has a single fixed platform, so using the OpenCL one
-    mock_backend(monkeypatch, OPENCL_API_ID, platforms_devices)
+    backend = mock_backend_factory.mock_opencl()
+
+    for platform_name, device_params in platforms_devices:
+        platform = backend.add_platform(platform_name)
+        for params in device_params:
+            if isinstance(params, str):
+                platform.add_device(params)
+            else:
+                platform.add_device(**params)
 
     if inputs is not None:
-        mock_input(monkeypatch, inputs)
+        for line in inputs:
+            mock_stdin.line(line)
 
-    api = API.from_api_id(OPENCL_API_ID)
+    api = API.from_api_id(backend.api_id)
 
     try:
         devices = select_devices(api, **kwds)
+        assert mock_stdin.empty()
     finally:
-        if inputs is not None:
-            # Otherwise the output will be shown in the console
-            captured = capsys.readouterr()
+        # Otherwise the output will be shown in the console
+        captured = capsys.readouterr()
 
     return devices

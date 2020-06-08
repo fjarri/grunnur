@@ -5,9 +5,12 @@ from typing import Iterable, Union, Optional, Tuple, List, Sequence, cast
 import numpy
 
 try:
-    import pycuda.driver as pycuda_drv
+    import pycuda.driver as pycuda_driver
+    import pycuda.compiler as pycuda_compiler
 except ImportError:
-    pycuda_drv = None # this variable is used for a PyCUDA mock during tests
+    # these variables are used for a PyCUDA mock during tests
+    pycuda_driver = None
+    pycuda_compiler = None
 
 from .utils import all_same, all_different, wrap_in_tuple, prod, normalize_object_sequence
 from .template import Template
@@ -21,9 +24,8 @@ from .adapter_base import (
 # if CUDA was initialized correctly, but it is better to distinguish import errors
 # (PyCUDA not installed, which is quite common) and initialization errors
 # (some problem with the package).
-if pycuda_drv is not None:
-    pycuda_drv.init()
-    import pycuda.compiler
+if pycuda_driver is not None:
+    pycuda_driver.init()
 
 
 _API_ID = APIID('cuda')
@@ -40,7 +42,7 @@ class CuAPIAdapterFactory(APIAdapterFactory):
 
     @property
     def available(self):
-        return pycuda_drv is not None
+        return pycuda_driver is not None
 
     def make_api_adapter(self):
         if not self.available:
@@ -65,13 +67,13 @@ class CuAPIAdapter(APIAdapter):
         return [CuPlatformAdapter(self)]
 
     def isa_backend_device(self, obj):
-        return isinstance(obj, pycuda_drv.Device)
+        return isinstance(obj, pycuda_driver.Device)
 
     def isa_backend_platform(self, obj):
         return False # CUDA backend doesn't have platforms
 
     def isa_backend_context(self, obj):
-        return isinstance(obj, pycuda_drv.Context)
+        return isinstance(obj, pycuda_driver.Context)
 
     def make_device_adapter(self, pycuda_device):
         return CuDeviceAdapter.from_pycuda_device(pycuda_device)
@@ -115,22 +117,22 @@ class CuPlatformAdapter(PlatformAdapter):
 
     @property
     def version(self):
-        return ".".join(str(x) for x in pycuda_drv.get_version())
+        return ".".join(str(x) for x in pycuda_driver.get_version())
 
     @property
     def device_count(self):
-        return pycuda_drv.Device.count()
+        return pycuda_driver.Device.count()
 
     def get_device_adapters(self):
         return [
-            CuDeviceAdapter(self, pycuda_drv.Device(device_idx), device_idx)
+            CuDeviceAdapter(self, pycuda_driver.Device(device_idx), device_idx)
             for device_idx in range(self.device_count)]
 
 
 class CuDeviceAdapter(DeviceAdapter):
 
     @classmethod
-    def from_pycuda_device(cls, pycuda_device: pycuda_drv.Device) -> CuDeviceAdapter:
+    def from_pycuda_device(cls, pycuda_device: pycuda_driver.Device) -> CuDeviceAdapter:
         """
         Creates this object from a PyCuda ``Device`` object.
         """
@@ -242,7 +244,7 @@ class _ContextStack:
     def deactivate(self):
         if self._active_context is not None and self._owns_contexts:
             self._active_context = None
-            pycuda_drv.Context.pop()
+            pycuda_driver.Context.pop()
 
     def activate(self, device_idx):
         if self._active_context != device_idx and self._owns_contexts:
@@ -265,9 +267,9 @@ class CuContextAdapter(ContextAdapter):
         Create a context based on any object supported by other ``from_*`` methods.
         """
         objs = wrap_in_tuple(objs)
-        if isinstance(objs[0], pycuda_drv.Device):
+        if isinstance(objs[0], pycuda_driver.Device):
             return cls.from_pycuda_devices(objs)
-        elif isinstance(objs[0], pycuda_drv.Context):
+        elif isinstance(objs[0], pycuda_driver.Context):
             return cls.from_pycuda_contexts(objs)
         elif isinstance(objs[0], CuDeviceAdapter):
             return cls.from_device_adapters(objs)
@@ -275,21 +277,21 @@ class CuContextAdapter(ContextAdapter):
             raise TypeError(f"Do not know how to create a context out of {type(objs[0])}")
 
     @classmethod
-    def from_pycuda_devices(cls, pycuda_devices: Iterable[pycuda_drv.Device]) -> CuContextAdapter:
+    def from_pycuda_devices(cls, pycuda_devices: Iterable[pycuda_driver.Device]) -> CuContextAdapter:
         """
         Creates a context based on one or several (distinct) PyCuda ``Device`` objects.
         """
-        pycuda_devices = normalize_object_sequence(pycuda_devices, pycuda_drv.Device)
+        pycuda_devices = normalize_object_sequence(pycuda_devices, pycuda_driver.Device)
         contexts = []
         for device in pycuda_devices:
             context = device.make_context()
-            pycuda_drv.Context.pop()
+            pycuda_driver.Context.pop()
             contexts.append(context)
         return cls(contexts, take_ownership=True)
 
     @classmethod
     def from_pycuda_contexts(
-            cls, pycuda_contexts: Iterable[pycuda_drv.Context],
+            cls, pycuda_contexts: Iterable[pycuda_driver.Context],
             take_ownership: bool) -> CuContextAdapter:
         """
         Creates a context based on one or several (distinct) PyCuda ``Context`` objects.
@@ -298,7 +300,7 @@ class CuContextAdapter(ContextAdapter):
         if len(pycuda_contexts) > 1 and not take_ownership:
             raise ValueError(
                 "When dealing with multiple CUDA contexts, Grunnur must be the one managing them")
-        pycuda_contexts = normalize_object_sequence(pycuda_contexts, pycuda_drv.Context)
+        pycuda_contexts = normalize_object_sequence(pycuda_contexts, pycuda_driver.Context)
         return cls(pycuda_contexts, take_ownership)
 
     @classmethod
@@ -310,7 +312,7 @@ class CuContextAdapter(ContextAdapter):
         return cls.from_pycuda_devices(
             [device_adapter.pycuda_device for device_adapter in device_adapters])
 
-    def __init__(self, pycuda_contexts: Iterable[pycuda_drv.Context], take_ownership):
+    def __init__(self, pycuda_contexts: Iterable[pycuda_driver.Context], take_ownership):
 
         self._context_stack = _ContextStack(pycuda_contexts, take_ownership)
 
@@ -345,7 +347,7 @@ class CuContextAdapter(ContextAdapter):
 
     @property
     def compile_error_class(self):
-        return pycuda_drv.CompileError
+        return pycuda_driver.CompileError
 
     def compile_single_device(
             self, device_idx, prelude, src, keep=False, fast_math=False, compiler_options=[],
@@ -362,7 +364,7 @@ class CuContextAdapter(ContextAdapter):
         options = compiler_options + (['-use_fast_math'] if fast_math else [])
         full_src = prelude + constant_arrays_src + src
         self.activate_device(device_idx)
-        module = pycuda.compiler.SourceModule(
+        module = pycuda_compiler.SourceModule(
             full_src, no_extern_c=True, options=options, keep=keep)
         return CuProgram(self, device_idx, module)
 
@@ -378,7 +380,7 @@ class CuContextAdapter(ContextAdapter):
         streams = {}
         for device_idx in self._device_idxs:
             self.activate_device(device_idx)
-            stream = pycuda_drv.Stream()
+            stream = pycuda_driver.Stream()
             streams[device_idx] = stream
 
         return CuQueueAdapter(self, device_adapters, streams)
@@ -391,11 +393,11 @@ class CuBufferAdapter(BufferAdapter):
         if ptr is None:
             assert offset == 0
             if managed:
-                arr = pycuda_drv.managed_empty(
-                    shape=size, dtype=numpy.uint8, mem_flags=pycuda_drv.mem_attach_flags.GLOBAL)
+                arr = pycuda_driver.managed_empty(
+                    shape=size, dtype=numpy.uint8, mem_flags=pycuda_driver.mem_attach_flags.GLOBAL)
                 ptr = arr.base
             else:
-                ptr = pycuda_drv.mem_alloc(size)
+                ptr = pycuda_driver.mem_alloc(size)
 
         self._size = size
         self._offset = offset
@@ -438,10 +440,10 @@ class CuBufferAdapter(BufferAdapter):
         self._context_adapter.activate_device(device_idx)
 
         if async_:
-            pycuda_drv.memcpy_htod_async(
+            pycuda_driver.memcpy_htod_async(
                 self._ptr, host_array, stream=queue_adapter._pycuda_streams[device_idx])
         else:
-            pycuda_drv.memcpy_htod(self._ptr, host_array)
+            pycuda_driver.memcpy_htod(self._ptr, host_array)
 
     def get(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
         if not dont_sync_other_devices:
@@ -450,10 +452,10 @@ class CuBufferAdapter(BufferAdapter):
         self._context_adapter.activate_device(device_idx)
 
         if async_:
-            pycuda_drv.memcpy_dtoh_async(
+            pycuda_driver.memcpy_dtoh_async(
                 host_array, self._ptr, stream=queue_adapter._pycuda_streams[device_idx])
         else:
-            pycuda_drv.memcpy_dtoh(host_array, self._ptr)
+            pycuda_driver.memcpy_dtoh(host_array, self._ptr)
 
     def migrate(self, queue_adapter, device_idx):
         pass
@@ -533,14 +535,14 @@ class CuProgram(ProgramAdapter):
                     f"expected {size} bytes, got {arr.size}")
 
             if queue is None:
-                pycuda_drv.memcpy_dtod(symbol, arr.kernel_arg, arr.size)
+                pycuda_driver.memcpy_dtod(symbol, arr.kernel_arg, arr.size)
             else:
-                pycuda_drv.memcpy_dtod_async(symbol, arr.kernel_arg, arr.size, stream=pycuda_stream)
+                pycuda_driver.memcpy_dtod_async(symbol, arr.kernel_arg, arr.size, stream=pycuda_stream)
         elif isinstance(arr, numpy.ndarray):
             if queue is None:
-                pycuda_drv.memcpy_htod(symbol, arr)
+                pycuda_driver.memcpy_htod(symbol, arr)
             else:
-                pycuda_drv.memcpy_htod_async(symbol, arr, stream=pycuda_stream)
+                pycuda_driver.memcpy_htod_async(symbol, arr, stream=pycuda_stream)
         else:
             raise TypeError(f"Uunsupported array type: {type(arr)}")
 
@@ -627,7 +629,7 @@ class CuKernel(KernelAdapter):
     @property
     def max_total_local_size(self):
         return self._pycuda_function.get_attribute(
-            pycuda_drv.function_attribute.MAX_THREADS_PER_BLOCK)
+            pycuda_driver.function_attribute.MAX_THREADS_PER_BLOCK)
 
     def __call__(self, queue_adapter, global_size, local_size, *args, local_mem=0):
 

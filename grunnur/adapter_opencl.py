@@ -36,7 +36,7 @@ class OclAPIAdapterFactory(APIAdapterFactory):
     def make_api_adapter(self):
         if not self.available:
             raise ImportError(
-                "OpenCL API is not operational. Check if PyCUDA is installed correctly.")
+                "OpenCL API is not operational. Check if PyOpenCL is installed correctly.")
 
         return OclAPIAdapter()
 
