@@ -28,7 +28,7 @@ class Platform:
         """
         return [
             Platform.from_index(api, platform_idx)
-            for platform_idx in range(api._api_adapter.num_platforms)]
+            for platform_idx in range(api._api_adapter.platform_count)]
 
     @classmethod
     def all_by_masks(

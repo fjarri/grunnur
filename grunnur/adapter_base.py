@@ -75,7 +75,7 @@ class APIAdapter(ABC):
 
     @property
     @abstractmethod
-    def num_platforms(self):
+    def platform_count(self):
         pass
 
     # TODO: have instead get_platform(platform_idx)?

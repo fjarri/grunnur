@@ -48,7 +48,7 @@ class OclAPIAdapter(APIAdapter):
         return _API_ID
 
     @property
-    def num_platforms(self):
+    def platform_count(self):
         return len(pyopencl.get_platforms())
 
     def get_platform_adapters(self):
