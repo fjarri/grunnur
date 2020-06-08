@@ -2,7 +2,7 @@ import numpy
 
 import pytest
 
-from grunnur import CUDA_API_ID, OPENCL_API_ID, Program, Queue, Array
+from grunnur import CUDA_API_ID, OPENCL_API_ID, Program, Queue, Array, CompilationError
 from grunnur.template import Template
 
 
