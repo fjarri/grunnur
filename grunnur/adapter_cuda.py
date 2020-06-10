@@ -17,7 +17,8 @@ from .template import Template
 from . import dtypes
 from .adapter_base import (
     APIID, DeviceType, APIAdapterFactory, APIAdapter, PlatformAdapter, DeviceAdapter,
-    DeviceParameters, ContextAdapter, BufferAdapter, QueueAdapter, ProgramAdapter, KernelAdapter)
+    DeviceParameters, ContextAdapter, BufferAdapter, QueueAdapter, ProgramAdapter, KernelAdapter,
+    AdapterCompilationError)
 
 
 # Another way would be to place it in the try block and only set `_avaialable`
@@ -345,10 +346,6 @@ class CuContextAdapter(ContextAdapter):
             dtypes=dtypes,
             constant_arrays=constant_arrays)
 
-    @property
-    def compile_error_class(self):
-        return pycuda_driver.CompileError
-
     def compile_single_device(
             self, device_idx, prelude, src, keep=False, fast_math=False, compiler_options=[],
             constant_arrays=None):
@@ -364,8 +361,13 @@ class CuContextAdapter(ContextAdapter):
         options = compiler_options + (['-use_fast_math'] if fast_math else [])
         full_src = prelude + constant_arrays_src + src
         self.activate_device(device_idx)
-        module = pycuda_compiler.SourceModule(
-            full_src, no_extern_c=True, options=options, keep=keep)
+
+        try:
+            module = pycuda_compiler.SourceModule(
+                full_src, no_extern_c=True, options=options, keep=keep)
+        except pycuda_driver.CompileError as e:
+            raise AdapterCompilationError(e, full_src)
+
         return CuProgram(self, device_idx, module)
 
     def allocate(self, size):

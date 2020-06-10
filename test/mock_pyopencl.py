@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from enum import Enum
 import weakref
 
@@ -16,10 +17,12 @@ class MockPyOpenCL:
         self.api_id = OPENCL_API_ID
         self.platforms = []
 
+        self.compilation_succeeds = True
+
     def add_platform(self, platform_name=None):
         if platform_name is None:
             platform_name = 'Platform' + str(len(self.platforms))
-        platform = Platform(platform_name)
+        platform = Platform(self, platform_name)
         self.platforms.append(platform)
         return platform
 
@@ -35,6 +38,12 @@ class MockPyOpenCL:
         assert len(self.platforms) == 0
         return self.add_platform_with_devices(None, device_names)
 
+    @contextmanager
+    def make_compilation_fail(self):
+        self.compilation_succeeds = False
+        yield
+        self.compilation_succeeds = True
+
 
 class PyopenclRuntimeError(Exception):
     pass
@@ -44,7 +53,7 @@ class Mock_pyopencl:
 
     def __init__(self, backend):
 
-        self._backend = weakref.ref(backend)
+        self._backend_ref = weakref.ref(backend)
 
         self.device_type = DeviceType
 
@@ -56,12 +65,13 @@ class Mock_pyopencl:
         self.RuntimeError = PyopenclRuntimeError
 
     def get_platforms(self):
-        return self._backend().platforms
+        return self._backend_ref().platforms
 
 
 class Platform:
 
-    def __init__(self, name):
+    def __init__(self, backend, name):
+        self._backend_ref = weakref.ref(backend)
         self.name = name
         self._devices = []
 
@@ -77,7 +87,8 @@ class Device:
 
     def __init__(self, platform, name, max_work_group_size=1024):
         self.name = name
-        self._platform = weakref.ref(platform)
+        self._backend_ref = platform._backend_ref
+        self._platform_ref = weakref.ref(platform)
 
         self.max_work_group_size = max_work_group_size
         self.max_work_item_sizes = [max_work_group_size] * 3
@@ -90,18 +101,20 @@ class Device:
 
     @property
     def platform(self):
-        return self._platform()
+        return self._platform_ref()
 
 
 class Context:
 
     def __init__(self, devices):
+        self._backend_ref = devices[0]._backend_ref
         self.devices = devices
 
 
 class Program:
 
     def __init__(self, context, src):
+        self._backend_ref = context._backend_ref
         self.context = context
         self.src = src
 
@@ -109,3 +122,6 @@ class Program:
         assert all(isinstance(option, str) for option in options)
         assert cache_dir is None or isinstance(cache_dir, str)
         assert devices is None or all(device in self.context.devices for device in devices)
+
+        if not self._backend_ref().compilation_succeeds:
+            raise PyopenclRuntimeError()

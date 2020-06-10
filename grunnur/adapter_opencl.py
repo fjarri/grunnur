@@ -15,7 +15,8 @@ from .template import Template
 from . import dtypes
 from .adapter_base import (
     DeviceType, APIID, APIAdapterFactory, APIAdapter, PlatformAdapter, DeviceAdapter,
-    DeviceParameters, ContextAdapter, BufferAdapter, QueueAdapter, ProgramAdapter, KernelAdapter)
+    DeviceParameters, ContextAdapter, BufferAdapter, QueueAdapter, ProgramAdapter, KernelAdapter,
+    AdapterCompilationError)
 
 
 _API_ID = APIID('opencl')
@@ -333,10 +334,6 @@ class OclContextAdapter(ContextAdapter):
     def device_adapters(self) -> Tuple[OclDeviceAdapter, ...]:
         return self._device_adapters
 
-    @property
-    def compile_error_class(self):
-        return pyopencl.RuntimeError
-
     def render_prelude(self, fast_math=False):
         return _PRELUDE.render(
             fast_math=fast_math,
@@ -362,10 +359,16 @@ class OclContextAdapter(ContextAdapter):
             temp_dir = None
 
         options = compiler_options + (["-cl-mad-enable", "-cl-fast-relaxed-math"] if fast_math else [])
+        full_src = prelude + src
 
-        pyopencl_program = pyopencl.Program(self._pyopencl_context, prelude + src)
-        pyopencl_program.build(
-            devices=[self._pyopencl_devices[device_idx]], options=options, cache_dir=temp_dir)
+        pyopencl_program = pyopencl.Program(self._pyopencl_context, full_src)
+
+        try:
+            pyopencl_program.build(
+                devices=[self._pyopencl_devices[device_idx]], options=options, cache_dir=temp_dir)
+        except pyopencl.RuntimeError as e:
+            raise AdapterCompilationError(e, full_src)
+
         return OclProgram(self, device_idx, pyopencl_program)
 
     def make_queue_adapter(self, device_idxs):

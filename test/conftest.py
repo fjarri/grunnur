@@ -71,13 +71,10 @@ def mock_backend_pycuda(request, mock_backend_factory):
     yield mock_backend_factory.mock_pycuda()
 
 
-@pytest.fixture(
-    scope='function',
-    params=all_api_ids(),
-    ids=lambda api_id: f"mock_context_{api_id.shortcut}")
-def mock_context(request, mock_backend_factory):
-    api_id = request.param
-    backend = mock_backend_factory.mock(api_id)
+@pytest.fixture(scope='function')
+def mock_context(request, mock_backend):
+    backend = mock_backend
+    api_id = backend.api_id
     backend.add_devices(['Device1'])
     api = API.from_api_id(api_id)
     context = Context.from_criteria(api)

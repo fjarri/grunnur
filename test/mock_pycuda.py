@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from functools import lru_cache
 import weakref
 
@@ -14,6 +15,8 @@ class MockPyCUDA:
         self._context_stack = []
 
         self.api_id = CUDA_API_ID
+
+        self.compilation_succeeds = True
 
     def add_devices(self, device_names):
         assert len(self.device_names) == 0
@@ -32,6 +35,12 @@ class MockPyCUDA:
     def current_context(self):
         return self._context_stack[-1]
 
+    @contextmanager
+    def make_compilation_fail(self):
+        self.compilation_succeeds = False
+        yield
+        self.compilation_succeeds = True
+
 
 class PycudaCompileError(Exception):
     pass
@@ -46,18 +55,20 @@ class Mock_pycuda_compiler():
 @lru_cache()
 def make_source_module_class(backend):
 
-    # Prevent the original object from being retained in the closure
-    backend = weakref.ref(backend)
+    backend_ref = weakref.ref(backend)
 
     class SourceModule:
 
-        _backend = backend
+        _backend_ref = backend_ref
 
         def __init__(self, src, no_extern_c=False, options=None, keep=False):
             assert isinstance(src, str)
             assert isinstance(no_extern_c, bool)
             assert options is None or all(isinstance(option, str) for option in options)
             assert isinstance(keep, bool)
+
+            if not self._backend_ref().compilation_succeeds:
+                raise PycudaCompileError()
 
     return SourceModule
 
@@ -66,7 +77,7 @@ class Mock_pycuda_driver:
 
     def __init__(self, backend, cuda_version):
 
-        self._backend = weakref.ref(backend)
+        self._backend_ref = weakref.ref(backend)
         self._version = cuda_version
 
         self.Device = make_device_class(backend)
@@ -89,16 +100,15 @@ class Mock_pycuda_driver:
 @lru_cache()
 def make_device_class(backend):
 
-    # Prevent the original object from being retained in the closure
-    backend = weakref.ref(backend)
+    backend_ref = weakref.ref(backend)
 
     class Device:
 
-        _backend = backend
+        _backend_ref = backend_ref
 
         def __init__(self, device_idx):
             self._device_idx = device_idx
-            self._name = Device._backend().device_names[device_idx]
+            self._name = Device._backend_ref().device_names[device_idx]
             self.max_threads_per_block = 1024
 
             self.max_block_dim_x = 1024
@@ -120,8 +130,8 @@ def make_device_class(backend):
             return (5, 0)
 
         def make_context(self):
-            context = self._backend().pycuda_driver.Context(self._device_idx)
-            self._backend().push_context(context)
+            context = self._backend_ref().pycuda_driver.Context(self._device_idx)
+            self._backend_ref().push_context(context)
             return context
 
         def __eq__(self, other):
@@ -132,7 +142,7 @@ def make_device_class(backend):
 
         @staticmethod
         def count():
-            return len(Device._backend().device_names)
+            return len(Device._backend_ref().device_names)
 
     return Device
 
@@ -140,27 +150,26 @@ def make_device_class(backend):
 @lru_cache()
 def make_context_class(backend):
 
-    # Prevent the original object from being retained in the closure
-    backend = weakref.ref(backend)
+    backend_ref = weakref.ref(backend)
 
     class Context:
 
-        _backend = backend
+        _backend_ref = backend_ref
 
         def __init__(self, device_idx):
             self._device_idx = device_idx
 
         @staticmethod
         def pop():
-            Context._backend().pop_context()
+            Context._backend_ref().pop_context()
 
         @staticmethod
         def get_device():
-            backend = Context._backend()
+            backend = Context._backend_ref()
             return backend.pycuda_driver.Device(backend.current_context()._device_idx)
 
         def push(self):
-            self._backend().push_context(self)
+            self._backend_ref().push_context(self)
 
     return Context
 

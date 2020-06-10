@@ -4,6 +4,7 @@ from math import log10
 
 import numpy
 
+from .adapter_base import AdapterCompilationError
 from .modules import render_with_modules
 from .utils import wrap_in_tuple
 from .array import Array
@@ -20,7 +21,7 @@ def process_arg(arg):
         return arg
 
 
-class CompilationError(Exception):
+class CompilationError(RuntimeError):
 
     def __init__(self, backend_exception):
         super().__init__(str(backend_exception))
@@ -70,15 +71,15 @@ class SingleDeviceProgram:
         try:
             self._sd_program_adapter = context_adapter.compile_single_device(
                 device_idx, prelude, src, fast_math=fast_math, **kwds)
-        except context_adapter.compile_error_class as e:
+        except AdapterCompilationError as e:
             print(f"Failed to compile on device {device_idx} ({context.devices[device_idx]})")
 
-            lines = src.split("\n")
+            lines = e.source.split("\n")
             max_num_len = int(log10(len(lines))) + 1
             for i, l in enumerate(lines):
                 print(str(i+1).rjust(max_num_len) + ": " + l)
 
-            raise CompilationError(e)
+            raise CompilationError(e.backend_exception)
 
     def __getattr__(self, kernel_name: str) -> SingleDeviceKernel:
         """

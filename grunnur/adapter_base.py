@@ -264,14 +264,6 @@ class ContextAdapter(ABC):
     def allocate(self, size):
         pass
 
-    @property
-    @abstractmethod
-    def compile_error_class(self) -> Type[Exception]:
-        """
-        The exception class thrown by backend's compilation function.
-        """
-        pass
-
     @abstractmethod
     def render_prelude(self, fast_math: bool=False) -> str:
         """
@@ -281,11 +273,6 @@ class ContextAdapter(ABC):
         :param fast_math: whether the compilation with fast math is requested.
         """
         # TODO: it doesn't really need the context object, move to API and make a class method?
-        pass
-
-    @property
-    @abstractmethod
-    def compile_error_class(self):
         pass
 
     @abstractmethod
@@ -367,6 +354,14 @@ class QueueAdapter(ABC):
     @abstractmethod
     def synchronize(self):
         pass
+
+
+class AdapterCompilationError(RuntimeError):
+
+    def __init__(self, backend_exception, source):
+        super().__init__(str(backend_exception))
+        self.backend_exception = backend_exception
+        self.source = source
 
 
 class ProgramAdapter(ABC):
