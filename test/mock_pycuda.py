@@ -1,8 +1,9 @@
-from contextlib import contextmanager
 from functools import lru_cache
 import weakref
 
 from grunnur import CUDA_API_ID
+
+from .mock_base import MockSourceStr
 
 
 class MockPyCUDA:
@@ -15,8 +16,6 @@ class MockPyCUDA:
         self._context_stack = []
 
         self.api_id = CUDA_API_ID
-
-        self.compilation_succeeds = True
 
     def add_devices(self, device_names):
         assert len(self.device_names) == 0
@@ -34,12 +33,6 @@ class MockPyCUDA:
 
     def current_context(self):
         return self._context_stack[-1]
-
-    @contextmanager
-    def make_compilation_fail(self):
-        self.compilation_succeeds = False
-        yield
-        self.compilation_succeeds = True
 
 
 class PycudaCompileError(Exception):
@@ -62,13 +55,18 @@ def make_source_module_class(backend):
         _backend_ref = backend_ref
 
         def __init__(self, src, no_extern_c=False, options=None, keep=False):
-            assert isinstance(src, str)
+            assert isinstance(src, MockSourceStr)
             assert isinstance(no_extern_c, bool)
             assert options is None or all(isinstance(option, str) for option in options)
             assert isinstance(keep, bool)
 
-            if not self._backend_ref().compilation_succeeds:
+            if src.should_fail:
                 raise PycudaCompileError()
+
+            self._kernels = {kernel.name: kernel for kernel in src.kernels}
+
+        def get_function(self, name):
+            return self._kernels[name]
 
     return SourceModule
 

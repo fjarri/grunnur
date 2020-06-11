@@ -1,8 +1,9 @@
-from contextlib import contextmanager
 from enum import Enum
 import weakref
 
 from grunnur import OPENCL_API_ID
+
+from .mock_base import MockSourceStr
 
 
 class DeviceType(Enum):
@@ -16,8 +17,6 @@ class MockPyOpenCL:
         self.pyopencl = Mock_pyopencl(self)
         self.api_id = OPENCL_API_ID
         self.platforms = []
-
-        self.compilation_succeeds = True
 
     def add_platform(self, platform_name=None):
         if platform_name is None:
@@ -37,12 +36,6 @@ class MockPyOpenCL:
         # so it can only be used once.
         assert len(self.platforms) == 0
         return self.add_platform_with_devices(None, device_names)
-
-    @contextmanager
-    def make_compilation_fail(self):
-        self.compilation_succeeds = False
-        yield
-        self.compilation_succeeds = True
 
 
 class PyopenclRuntimeError(Exception):
@@ -117,11 +110,19 @@ class Program:
         self._backend_ref = context._backend_ref
         self.context = context
         self.src = src
+        self._kernels = {}
 
     def build(self, options=[], devices=None, cache_dir=None):
+        assert isinstance(self.src, MockSourceStr)
         assert all(isinstance(option, str) for option in options)
         assert cache_dir is None or isinstance(cache_dir, str)
         assert devices is None or all(device in self.context.devices for device in devices)
 
-        if not self._backend_ref().compilation_succeeds:
+        if self.src.should_fail:
             raise PyopenclRuntimeError()
+
+        for kernel in self.src.kernels:
+            self._kernels[kernel.name] = kernel
+
+    def __getattr__(self, name):
+        return self._kernels[name]
