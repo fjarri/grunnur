@@ -221,8 +221,6 @@ def render_with_modules(
         if len(render_args) > 0:
             raise ValueError("A textual source cannot have `render_args` set.")
         snippet = Snippet.from_string(src, name="_main_", render_globals=render_globals)
-    elif callable(src):
-        snippet = Snippet.from_callable(src, name="_main_", render_globals=render_globals)
     elif isinstance(src, DefTemplate):
         snippet = Snippet(src, render_globals=render_globals)
     elif isinstance(src, Snippet):
@@ -231,6 +229,8 @@ def render_with_modules(
             raise ValueError(
                 "If a Snippet object is given, its own render_globals are used, "
                 "and the ones given to render_with_modules() must be empty.")
+    elif callable(src):
+        snippet = Snippet.from_callable(src, name="_main_", render_globals=render_globals)
     else:
         raise TypeError(f"Cannot render an object of type {type(src)}")
 
