@@ -1,6 +1,8 @@
 from functools import lru_cache
 import weakref
 
+import numpy
+
 from grunnur import CUDA_API_ID
 
 from .mock_base import MockSourceStr
@@ -63,7 +65,10 @@ def make_source_module_class(backend):
             if src.should_fail:
                 raise PycudaCompileError()
 
-            self._kernels = {kernel.name: kernel for kernel in src.kernels}
+            function_cls = self._backend_ref().pycuda_driver.Function
+
+            self._context = self._backend_ref().current_context()
+            self._kernels = {kernel.name: function_cls(self, kernel) for kernel in src.kernels}
 
         def get_function(self, name):
             return self._kernels[name]
@@ -81,6 +86,8 @@ class Mock_pycuda_driver:
         self.Device = make_device_class(backend)
         self.Stream = make_stream_class(backend)
         self.Context = make_context_class(backend)
+        self.DeviceAllocation = make_device_allocation_class(backend)
+        self.Function = make_function_class(backend)
 
         self.CompileError = PycudaCompileError
 
@@ -89,6 +96,15 @@ class Mock_pycuda_driver:
 
     def init(self):
         pass
+
+    def mem_alloc(self, size):
+        return self.DeviceAllocation(size)
+
+    def memcpy_htod(self, dest, src):
+        assert isinstance(src, numpy.ndarray)
+        assert isinstance(dest, self.DeviceAllocation)
+        assert dest._context == self._backend_ref().current_context()
+        assert dest.size >= src.size
 
 
 # We need a device class that is an actual class
@@ -175,11 +191,77 @@ def make_context_class(backend):
 @lru_cache()
 def make_stream_class(backend):
 
+    backend_ref = weakref.ref(backend)
+
     class Stream:
 
-        _backend = backend
+        _backend_ref = backend_ref
 
         def __init__(self):
-            self._context = self._backend.pycuda_driver._current_context()
+            self._context = self._backend_ref().current_context()
 
     return Stream
+
+
+@lru_cache()
+def make_device_allocation_class(backend):
+
+    backend_ref = weakref.ref(backend)
+
+    class DeviceAllocation:
+
+        _backend_ref = backend_ref
+
+        def __init__(self, size):
+            self._context = self._backend_ref().current_context()
+            self.size = size
+
+        def free(self):
+            assert self._context == self._backend_ref().current_context()
+
+    return DeviceAllocation
+
+
+@lru_cache()
+def make_function_class(backend):
+
+    backend_ref = weakref.ref(backend)
+
+    class Function:
+
+        _backend_ref = backend_ref
+
+        def __init__(self, source_module, kernel):
+            self._kernel = kernel
+            self._source_module = source_module
+
+        def __call__(self, *args, grid=None, block=None, stream=None, shared=None):
+            backend = self._backend_ref()
+
+            current_context = backend.current_context()
+
+            assert self._source_module._context == current_context
+
+            if stream is not None:
+                assert isinstance(stream, backend.pycuda_driver.Stream)
+                assert stream._context == current_context
+
+            for arg in args:
+                if isinstance(arg, backend.pycuda_driver.DeviceAllocation):
+                    assert arg._context == current_context
+                elif isinstance(numpy.number):
+                    pass
+                else:
+                    raise TypeError(f"Incorrect argument type: {type(arg)}")
+
+            assert isinstance(grid, tuple)
+            assert len(grid) == 3
+            assert all(isinstance(x, int) for x in grid)
+
+            assert isinstance(block, tuple)
+            assert len(block) == 3
+            assert all(isinstance(x, int) for x in block)
+
+            # TODO: check that every element is smaller than the corresponding maximum for the device
+
+    return Function

@@ -81,6 +81,8 @@ class SingleDeviceProgram:
 
             raise CompilationError(e.backend_exception)
 
+        self.source = self._sd_program_adapter.source
+
     def __getattr__(self, kernel_name: str) -> SingleDeviceKernel:
         """
         Returns a :py:class:`SingleDeviceKernel` object for a function (CUDA)/kernel (OpenCL)
@@ -160,6 +162,7 @@ class Program:
             device_idxs = sorted(device_idxs)
 
         sd_programs = {}
+        sources = {}
         for device_idx in device_idxs:
             sd_program = SingleDeviceProgram(
                 context,
@@ -172,8 +175,10 @@ class Program:
                 keep=keep,
                 constant_arrays=constant_arrays)
             sd_programs[device_idx] = sd_program
+            sources[device_idx] = sd_program.source
 
         self._sd_programs = sd_programs
+        self.sources = sources
         self.context = context
 
     def __getattr__(self, kernel_name: str) -> Kernel:

@@ -1,6 +1,8 @@
 from enum import Enum
 import weakref
 
+import numpy
+
 from grunnur import OPENCL_API_ID
 
 from .mock_base import MockSourceStr
@@ -9,6 +11,10 @@ from .mock_base import MockSourceStr
 class DeviceType(Enum):
     CPU = 1
     GPU = 2
+
+
+class MemFlags(Enum):
+    READ_WRITE = 1
 
 
 class MockPyOpenCL:
@@ -54,11 +60,27 @@ class Mock_pyopencl:
         self.Platform = Platform
         self.Context = Context
         self.Program = Program
+        self.CommandQueue = CommandQueue
+        self.Buffer = Buffer
 
         self.RuntimeError = PyopenclRuntimeError
 
+        self.mem_flags = MemFlags
+
     def get_platforms(self):
         return self._backend_ref().platforms
+
+    def enqueue_copy(self, queue, dest, src, wait_for=None, is_blocking=False):
+        if isinstance(dest, Buffer):
+            assert queue.context == dest.context
+        else:
+            assert isinstance(dest, numpy.ndarray)
+        if isinstance(src, Buffer):
+            assert queue.context == src.context
+        else:
+            assert isinstance(src, numpy.ndarray)
+
+        assert dest.size >= src.size
 
 
 class Platform:
@@ -104,6 +126,19 @@ class Context:
         self.devices = devices
 
 
+class CommandQueue:
+
+    def __init__(self, context, device=None):
+        self._backend_ref = context._backend_ref
+        self.context = context
+
+        if device is None:
+            self.device = context.devices[0]
+        else:
+            assert device in context.devices
+            self.device = device
+
+
 class Program:
 
     def __init__(self, context, src):
@@ -121,8 +156,37 @@ class Program:
         if self.src.should_fail:
             raise PyopenclRuntimeError()
 
-        for kernel in self.src.kernels:
-            self._kernels[kernel.name] = kernel
+        self._kernels = {kernel.name: Kernel(self, kernel) for kernel in self.src.kernels}
 
     def __getattr__(self, name):
         return self._kernels[name]
+
+
+class Kernel:
+
+    def __init__(self, program, kernel):
+        self.program = program
+        self.kernel = kernel
+
+    def __call__(self, queue, global_size, local_size, *args, wait_for=None):
+        assert isinstance(global_size, tuple)
+        assert 1 <= len(global_size) <= 3
+        if local_size is not None:
+            assert isinstance(local_size, tuple)
+            assert len(local_size) == len(global_size)
+
+        for arg in args:
+            if isinstance(arg, Buffer):
+                assert arg.context == queue.context
+            elif isinstance(numpy.number):
+                pass
+            else:
+                raise TypeError(f"Incorrect argument type: {type(arg)}")
+
+
+class Buffer:
+
+    def __init__(self, context, flags, size):
+        self.context = context
+        self.flags = flags
+        self.size = size

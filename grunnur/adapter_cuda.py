@@ -368,7 +368,7 @@ class CuContextAdapter(ContextAdapter):
         except pycuda_driver.CompileError as e:
             raise AdapterCompilationError(e, full_src)
 
-        return CuProgram(self, device_idx, module)
+        return CuProgram(self, device_idx, module, full_src)
 
     def allocate(self, size):
         managed = len(self._device_adapters) > 1
@@ -510,10 +510,11 @@ class CuQueueAdapter(QueueAdapter):
 
 class CuProgram(ProgramAdapter):
 
-    def __init__(self, context_adapter, device_idx, pycuda_program):
+    def __init__(self, context_adapter, device_idx, pycuda_program, source):
         self.context_adapter = context_adapter
         self._device_idx = device_idx
         self._pycuda_program = pycuda_program
+        self.source = source
 
     def __getattr__(self, kernel_name):
         pycuda_kernel = self._pycuda_program.get_function(kernel_name)

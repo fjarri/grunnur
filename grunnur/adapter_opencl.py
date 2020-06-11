@@ -369,7 +369,7 @@ class OclContextAdapter(ContextAdapter):
         except pyopencl.RuntimeError as e:
             raise AdapterCompilationError(e, full_src)
 
-        return OclProgram(self, device_idx, pyopencl_program)
+        return OclProgram(self, device_idx, pyopencl_program, full_src)
 
     def make_queue_adapter(self, device_idxs):
         device_adapters = {
@@ -455,10 +455,11 @@ class OclQueueAdapter(QueueAdapter):
 
 class OclProgram(ProgramAdapter):
 
-    def __init__(self, context_adapter, device_idx, pyopencl_program):
+    def __init__(self, context_adapter, device_idx, pyopencl_program, source):
         self.context_adapter = context_adapter
         self._device_idx = device_idx
         self._pyopencl_program = pyopencl_program
+        self.source = source
 
     def __getattr__(self, kernel_name):
         pyopencl_kernel = getattr(self._pyopencl_program, kernel_name)

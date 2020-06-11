@@ -40,6 +40,7 @@ class MockSourceStr:
 
         self.kernels = mock.kernels
         self.should_fail = self.mock.should_fail
+        self.prelude = mock.prelude
 
     def __radd__(self, other):
         assert isinstance(other, str)
@@ -49,4 +50,4 @@ class MockSourceStr:
             should_fail=self.mock.should_fail))
 
     def split(self, delim):
-        return self.mock.prelude.split(delim) + ["<<< mock source >>>"]
+        return self.prelude.split(delim) + ["<<< mock source >>>"]
