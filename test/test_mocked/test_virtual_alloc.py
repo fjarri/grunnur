@@ -10,12 +10,6 @@ import grunnur.dtypes as dtypes
 from grunnur.virtual_alloc import extract_dependencies, TrivialManager, ZeroOffsetManager
 
 
-valloc_cls_fixture = pytest.mark.parametrize(
-    'valloc_cls',
-    [TrivialManager, ZeroOffsetManager],
-    ids=['trivial', 'zero_offset'])
-
-
 def mock_fill(buf, val):
     buf.kernel_arg[:buf.size] = val
 
@@ -141,7 +135,6 @@ def allocate_test_set(virtual_alloc, allocate_callable):
     return buffers_metadata, buffers
 
 
-@valloc_cls_fixture
 @pytest.mark.parametrize('pack', [False, True], ids=['no_pack', 'pack'])
 def test_contract(valloc_cls, pack):
 
@@ -179,50 +172,6 @@ def test_contract(valloc_cls, pack):
     assert len(context._context_adapter.allocations) == 0
 
 
-@valloc_cls_fixture
-@pytest.mark.parametrize('pack', [False, True], ids=['no_pack', 'pack'])
-def test_contract_on_device(context, valloc_cls, pack):
-
-    dtype = numpy.int32
-
-    program = Program(
-        context,
-        """
-        KERNEL void fill(GLOBAL_MEM ${ctype} *dest, ${ctype} val)
-        {
-            const SIZE_T i = get_global_id(0);
-            dest[i] = val;
-        }
-        """,
-        render_globals=dict(ctype=dtypes.ctype(dtype)))
-    fill = program.fill
-
-    queue = Queue.from_device_idxs(context)
-    virtual_alloc = valloc_cls(queue)
-
-    buffers_metadata, arrays = allocate_test_set(
-        virtual_alloc,
-        # Bump size to make sure buffer alignment doesn't hide any out-of-bounds access
-        lambda allocator, size: Array.empty(queue, size * 100, dtype, allocator=allocator))
-    dependencies = {id_: deps for id_, _, deps in buffers_metadata}
-
-    if pack:
-        virtual_alloc.pack()
-
-    # Clear all arrays
-    for name in sorted(arrays.keys()):
-        fill(queue, arrays[name].shape, None, arrays[name], dtype(0))
-
-    for i, name in enumerate(sorted(arrays.keys())):
-        val = dtype(i + 1)
-        fill(queue, arrays[name].shape, None, arrays[name], val)
-        # According to the virtual allocator contract, the allocated buffer
-        # will not intersect with the buffers from the specified dependencies.
-        # So we're filling the buffer and checking that the dependencies did not change.
-        for dep in dependencies[name]:
-            assert (arrays[dep].get() != val).all()
-
-
 def check_statistics(buffers_metadata, stats):
     virtual_sizes = [size for _, size, _ in buffers_metadata]
     assert stats.virtual_size_total == sum(virtual_sizes)
@@ -233,7 +182,6 @@ def check_statistics(buffers_metadata, stats):
     assert stats.real_num <= len(virtual_sizes)
 
 
-@valloc_cls_fixture
 def test_statistics(valloc_cls):
 
     context = Context(MockContextAdapter())
@@ -258,7 +206,6 @@ def test_statistics(valloc_cls):
     assert str(stats.virtual_num) in s
 
 
-@valloc_cls_fixture
 def test_non_existent_dependencies(valloc_cls):
     context = Context(MockContextAdapter())
     queue = Queue.from_device_idxs(context)
@@ -293,7 +240,6 @@ def test_virtual_buffer():
     assert vbuf._buffer_adapter._real_buffer.device_idx == 0
 
 
-@valloc_cls_fixture
 def test_continuous_pack(valloc_cls):
     context = Context(MockContextAdapter())
     queue = Queue.from_device_idxs(context)

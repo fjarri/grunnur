@@ -4,6 +4,7 @@ import pytest
 
 from grunnur import API, Context, CUDA_API_ID, OPENCL_API_ID
 from grunnur.api import all_api_ids
+from grunnur.virtual_alloc import TrivialManager, ZeroOffsetManager
 from grunnur.pytest_helpers import *
 
 from .mock_pycuda import MockPyCUDA
@@ -117,6 +118,13 @@ def mock_stdin(monkeypatch):
     monkeypatch.setattr('sys.stdin', mock)
     yield mock
     assert mock.empty()
+
+
+@pytest.fixture(
+    params=[TrivialManager, ZeroOffsetManager],
+    ids=['trivial', 'zero_offset'])
+def valloc_cls(request):
+    yield request.param
 
 
 def pytest_addoption(parser):

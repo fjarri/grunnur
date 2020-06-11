@@ -1,6 +1,6 @@
 import pytest
 
-from .utils import check_select_devices
+from ..utils import check_select_devices
 
 
 def test_platform_take_single(mock_stdin, mock_backend_factory, capsys):

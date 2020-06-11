@@ -1,16 +1,9 @@
-import io
-
 import numpy
 
 from grunnur import API, CUDA_API_ID, OPENCL_API_ID
 from grunnur.device_discovery import select_devices
 import grunnur.dtypes as dtypes
 from grunnur.utils import wrap_in_tuple
-
-
-def mock_input(monkeypatch, inputs):
-    inputs_str = "".join(input_ + "\n" for input_ in inputs)
-    monkeypatch.setattr('sys.stdin', io.StringIO(inputs_str))
 
 
 def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=None):

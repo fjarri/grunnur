@@ -58,18 +58,6 @@ def test_compile(context, no_prelude):
     assert (res == ref).all()
 
 
-def test_compilation_error(mock_context, mock_backend, capsys):
-    with mock_backend.make_compilation_fail():
-        with pytest.raises(CompilationError):
-            Program(mock_context, "")
-
-    captured = capsys.readouterr()
-    assert "Failed to compile on device 0" in captured.out
-
-    # check that the full source is shown (including the prelude)
-    assert "#define GRUNNUR_" in captured.out
-
-
 def test_compile_multi_device(multi_device_context):
 
     context = multi_device_context
