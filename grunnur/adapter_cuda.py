@@ -244,8 +244,8 @@ class _ContextStack:
 
     def deactivate(self):
         if self._active_context is not None and self._owns_contexts:
+            self._pycuda_contexts[self._active_context].pop()
             self._active_context = None
-            pycuda_driver.Context.pop()
 
     def activate(self, device_idx):
         if self._active_context != device_idx and self._owns_contexts:

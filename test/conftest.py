@@ -81,14 +81,6 @@ def mock_context(request, mock_backend):
     context = Context.from_criteria(api)
     yield context
 
-    # The yielded object is preserved somewhere inside PyTest, so there is a race condition
-    # between `context` destructor and `monkeypatch` rollback, which leads to
-    # actual PyCUDA context being popped instead of the mock.
-    # So we are releasing the context stack manually in the PyCUDA case.
-
-    if api_id == CUDA_API_ID:
-        context._context_adapter._context_stack = None
-
 
 class MockStdin:
 

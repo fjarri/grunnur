@@ -25,16 +25,21 @@ class MockPyCUDA:
             self.device_names.append(device_name)
 
     def push_context(self, context):
-        for stacked_context in self._context_stack:
-            if stacked_context == context:
-                raise ValueError("The given context is already in the context stack")
-        self._context_stack.append(context)
+        if self.is_stacked(context):
+            raise ValueError("The given context is already in the context stack")
+        self._context_stack.append(weakref.ref(context))
 
     def pop_context(self):
         self._context_stack.pop()
 
     def current_context(self):
-        return self._context_stack[-1]
+        return self._context_stack[-1]()
+
+    def is_stacked(self, context):
+        for stacked_context_ref in self._context_stack:
+            if stacked_context_ref() == context:
+                return True
+        return False
 
 
 class PycudaCompileError(Exception):
@@ -145,7 +150,7 @@ def make_device_class(backend):
 
         def make_context(self):
             context = self._backend_ref().pycuda_driver.Context(self._device_idx)
-            self._backend_ref().push_context(context)
+            context.push()
             return context
 
         def __eq__(self, other):
@@ -164,26 +169,32 @@ def make_device_class(backend):
 @lru_cache()
 def make_context_class(backend):
 
-    backend_ref = weakref.ref(backend)
-
     class Context:
 
-        _backend_ref = backend_ref
+        # Unlike in other classes, we want to make sure that the backend is still alive
+        # as long as a Context object is alive.
+        # This will allow us to check that a Context object is not deleted
+        # without being popped off the stack.
+        _backend = backend
 
         def __init__(self, device_idx):
             self._device_idx = device_idx
 
         @staticmethod
         def pop():
-            Context._backend_ref().pop_context()
+            Context._backend.pop_context()
 
         @staticmethod
         def get_device():
-            backend = Context._backend_ref()
+            backend = Context._backend
             return backend.pycuda_driver.Device(backend.current_context()._device_idx)
 
         def push(self):
-            self._backend_ref().push_context(self)
+            self._backend.push_context(self)
+
+        def __del__(self):
+            if self._backend.is_stacked(self):
+                raise RuntimeError("Context was deleted while still being in the context stack")
 
     return Context
 
