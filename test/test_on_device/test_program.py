@@ -5,8 +5,10 @@ import pytest
 from grunnur import CUDA_API_ID, OPENCL_API_ID, Program, Queue, Array, CompilationError
 from grunnur.template import Template
 
+from ..mock_base import MockKernel, MockSourceSnippet
 
-src_opencl = """
+
+SRC_OPENCL = """
 __kernel void multiply(__global int *dest, __global int *a, __global int *b)
 {
     const int i = get_global_id(0);
@@ -14,7 +16,7 @@ __kernel void multiply(__global int *dest, __global int *a, __global int *b)
 }
 """
 
-src_cuda = """
+SRC_CUDA = """
 extern "C" __global__ void multiply(int *dest, int *a, int *b)
 {
     const int i = threadIdx.x;
@@ -22,7 +24,7 @@ extern "C" __global__ void multiply(int *dest, int *a, int *b)
 }
 """
 
-src_generic = """
+SRC_GENERIC = """
 KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b)
 {
     const int i = get_global_id(0);
@@ -31,15 +33,21 @@ KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b)
 """
 
 
-@pytest.mark.parametrize('no_prelude', [False, True], ids=["with-prelude", "no-prelude"])
-def test_compile(context, no_prelude):
+def _test_compile(context, no_prelude, is_mocked):
 
-    if no_prelude:
-        src = src_cuda if context.api.id == CUDA_API_ID else src_opencl
+    if is_mocked:
+        src = MockSourceSnippet(kernels=[MockKernel('multiply')])
     else:
-        src = src_generic
+        if no_prelude:
+            src = SRC_CUDA if context.api.id == CUDA_API_ID else SRC_OPENCL
+        else:
+            src = SRC_GENERIC
 
     program = Program(context, src, no_prelude=no_prelude)
+
+    if is_mocked and no_prelude:
+        assert program.sources[0].mock.prelude.strip() == ""
+
     a = numpy.arange(16).astype(numpy.int32)
     b = numpy.arange(16).astype(numpy.int32) + 1
     ref = a * b
@@ -55,14 +63,23 @@ def test_compile(context, no_prelude):
 
     res = res_dev.get()
 
-    assert (res == ref).all()
+    if not is_mocked:
+        assert (res == ref).all()
+
+
+@pytest.mark.parametrize('no_prelude', [False, True], ids=["with_prelude", "no_prelude"])
+def test_compile(context, no_prelude):
+    _test_compile(
+        context=context,
+        no_prelude=no_prelude,
+        is_mocked=False)
 
 
 def test_compile_multi_device(multi_device_context):
 
     context = multi_device_context
 
-    program = Program(context, src_generic)
+    program = Program(context, SRC_GENERIC)
     a = numpy.arange(16).astype(numpy.int32)
     b = numpy.arange(16).astype(numpy.int32) + 1
     ref = a * b
@@ -108,7 +125,7 @@ def test_compile_multi_device(multi_device_context):
     assert correct_result
 
 
-src_constant_mem = """
+SRC_CONSTANT_MEM = """
 KERNEL void copy_from_cm(
     GLOBAL_MEM int *dest
 #ifdef GRUNNUR_OPENCL_API
@@ -123,10 +140,19 @@ KERNEL void copy_from_cm(
 """
 
 
-def test_constant_memory(context):
+def _test_constant_memory(context, is_mocked):
 
     cm1 = numpy.arange(16).astype(numpy.int32)
     cm2 = numpy.arange(16).astype(numpy.int32) * 2
+
+    if is_mocked:
+        src = MockSourceSnippet(
+            constant_mem={
+                'cm1': cm1.size * cm1.dtype.itemsize,
+                'cm2': cm2.size * cm2.dtype.itemsize},
+            kernels=[MockKernel('copy_from_cm')])
+    else:
+        src = SRC_CONSTANT_MEM
 
     queue = Queue.from_device_idxs(context)
 
@@ -135,14 +161,57 @@ def test_constant_memory(context):
     res_dev = Array.empty(queue, 16, numpy.int32)
 
     if context.api.id == CUDA_API_ID:
-        program = Program(context, src_constant_mem, constant_arrays=dict(cm1=cm1, cm2=cm2))
+        program = Program(context, src, constant_arrays=dict(cm1=cm1, cm2=cm2))
         program.set_constant_array('cm1', cm1_dev) # setting from a device array
         program.set_constant_array('cm2', cm2, queue=queue) # setting from a host array
         program.copy_from_cm(queue, 16, None, res_dev)
     else:
-        program = Program(context, src_constant_mem)
+        program = Program(context, src)
         program.copy_from_cm(queue, 16, None, res_dev, cm1_dev, cm2_dev)
 
     res = res_dev.get()
 
-    assert (res == cm1 + cm2).all()
+    if not is_mocked:
+        assert (res == cm1 + cm2).all()
+
+
+def test_constant_memory(context):
+    _test_constant_memory(
+        context=context,
+        is_mocked=False)
+
+
+SRC_COMPILE_ERROR = """
+KERNEL void compile_error(GLOBAL_MEM int *dest)
+{
+    const int i = get_global_id(0);
+    dest[i] = 1;
+    zzz
+}
+"""
+
+
+def _test_compilation_error(context, capsys, is_mocked):
+
+    if is_mocked:
+        src = MockSourceSnippet(should_fail=True)
+    else:
+        src = SRC_COMPILE_ERROR
+
+    with pytest.raises(CompilationError):
+        Program(context, src)
+
+    captured = capsys.readouterr()
+    assert "Failed to compile on device 0" in captured.out
+
+    # check that the full source is shown (including the prelude)
+    assert "#define GRUNNUR_" in captured.out
+
+    if is_mocked:
+        assert "<<< mock source >>>" in captured.out
+    else:
+        assert "KERNEL void compile_error(GLOBAL_MEM int *dest)" in captured.out
+
+
+def test_compilation_error(context, capsys):
+    _test_compilation_error(context=context, capsys=capsys, is_mocked=False)
