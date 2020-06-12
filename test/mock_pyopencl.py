@@ -73,14 +73,19 @@ class Mock_pyopencl:
     def enqueue_copy(self, queue, dest, src, wait_for=None, is_blocking=False):
         if isinstance(dest, Buffer):
             assert queue.context == dest.context
+            dest_size = dest.size
         else:
             assert isinstance(dest, numpy.ndarray)
+            dest_size = dest.size * dest.dtype.itemsize
+
         if isinstance(src, Buffer):
             assert queue.context == src.context
+            src_size = src.size
         else:
             assert isinstance(src, numpy.ndarray)
+            src_size = src.dtype.itemsize
 
-        assert dest.size >= src.size
+        assert dest_size >= src_size
 
 
 class Platform:
@@ -153,10 +158,10 @@ class Program:
         assert cache_dir is None or isinstance(cache_dir, str)
         assert devices is None or all(device in self.context.devices for device in devices)
 
-        if self.src.should_fail:
+        if self.src.mock.should_fail:
             raise PyopenclRuntimeError()
 
-        self._kernels = {kernel.name: Kernel(self, kernel) for kernel in self.src.kernels}
+        self._kernels = {kernel.name: Kernel(self, kernel) for kernel in self.src.mock.kernels}
 
     def __getattr__(self, name):
         return self._kernels[name]

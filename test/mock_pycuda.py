@@ -67,16 +67,25 @@ def make_source_module_class(backend):
             assert options is None or all(isinstance(option, str) for option in options)
             assert isinstance(keep, bool)
 
-            if src.should_fail:
+            mock_src = src.mock
+
+            if mock_src.should_fail:
                 raise PycudaCompileError()
 
-            function_cls = self._backend_ref().pycuda_driver.Function
-
             self._context = self._backend_ref().current_context()
-            self._kernels = {kernel.name: function_cls(self, kernel) for kernel in src.kernels}
+
+            function_cls = self._backend_ref().pycuda_driver.Function
+            self._kernels = {kernel.name: function_cls(self, kernel) for kernel in mock_src.kernels}
+            self._constant_mem = mock_src.constant_mem
 
         def get_function(self, name):
             return self._kernels[name]
+
+        def get_global(self, name):
+            size = self._constant_mem[name]
+            alloc = self._backend_ref().pycuda_driver.DeviceAllocation(size)
+            return alloc, size
+
 
     return SourceModule
 
@@ -106,10 +115,39 @@ class Mock_pycuda_driver:
         return self.DeviceAllocation(size)
 
     def memcpy_htod(self, dest, src):
+        self.memcpy_htod_async(dest, src)
+
+    def memcpy_htod_async(self, dest, src, stream=None):
+        current_context = self._backend_ref().current_context()
         assert isinstance(src, numpy.ndarray)
         assert isinstance(dest, self.DeviceAllocation)
-        assert dest._context == self._backend_ref().current_context()
-        assert dest.size >= src.size
+        assert dest._context == current_context
+        if stream is not None:
+            assert stream._context == current_context
+        assert dest.size >= src.size * src.dtype.itemsize
+
+    def memcpy_dtoh(self, dest, src):
+        self.memcpy_dtoh_async(dest, src)
+
+    def memcpy_dtoh_async(self, dest, src, stream=None):
+        current_context = self._backend_ref().current_context()
+        assert isinstance(src, self.DeviceAllocation)
+        assert isinstance(dest, numpy.ndarray)
+        assert src._context == current_context
+        if stream is not None:
+            assert stream._context == current_context
+        assert src.size >= dest.size * dest.dtype.itemsize
+
+    def memcpy_dtod_async(self, dest, src, size, stream=None):
+        current_context = self._backend_ref().current_context()
+        assert isinstance(src, self.DeviceAllocation)
+        assert isinstance(dest, self.DeviceAllocation)
+        assert dest._context == current_context
+        assert src._context == current_context
+        if stream is not None:
+            assert stream._context == current_context
+        assert dest.size >= size
+        assert src.size >= size
 
 
 # We need a device class that is an actual class

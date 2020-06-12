@@ -9,10 +9,11 @@ class MockKernel:
 
 class MockSource:
 
-    def __init__(self, kernels=[], prelude="", should_fail=False):
+    def __init__(self, kernels=[], prelude="", should_fail=False, constant_mem={}):
         self.kernels = kernels
         self.prelude = prelude
         self.should_fail = should_fail
+        self.constant_mem = constant_mem
 
 
 class MockSourceSnippet(Snippet):
@@ -38,16 +39,13 @@ class MockSourceStr:
     def __init__(self, mock):
         self.mock = mock
 
-        self.kernels = mock.kernels
-        self.should_fail = self.mock.should_fail
-        self.prelude = mock.prelude
-
     def __radd__(self, other):
         assert isinstance(other, str)
         return MockSourceStr(MockSource(
             kernels=self.mock.kernels,
             prelude=other + self.mock.prelude,
-            should_fail=self.mock.should_fail))
+            should_fail=self.mock.should_fail,
+            constant_mem=self.mock.constant_mem))
 
     def split(self, delim):
-        return self.prelude.split(delim) + ["<<< mock source >>>"]
+        return self.mock.prelude.split(delim) + ["<<< mock source >>>"]
