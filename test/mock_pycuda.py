@@ -216,9 +216,6 @@ def make_device_allocation_class(backend):
             self._context = self._backend_ref().current_context()
             self.size = size
 
-        def free(self):
-            assert self._context == self._backend_ref().current_context()
-
     return DeviceAllocation
 
 

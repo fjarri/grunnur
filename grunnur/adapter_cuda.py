@@ -462,10 +462,6 @@ class CuBufferAdapter(BufferAdapter):
     def migrate(self, queue_adapter, device_idx):
         pass
 
-    def __del__(self):
-        if self._base_buffer is None:
-            self._ptr.free()
-
 
 def normalize_constant_arrays(constant_arrays):
     normalized = {}
