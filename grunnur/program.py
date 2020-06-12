@@ -4,7 +4,7 @@ from math import log10
 
 import numpy
 
-from .adapter_base import AdapterCompilationError
+from .adapter_base import AdapterCompilationError, KernelAdapter
 from .modules import render_with_modules
 from .utils import wrap_in_tuple
 from .array import Array
@@ -83,7 +83,7 @@ class SingleDeviceProgram:
 
         self.source = self._sd_program_adapter.source
 
-    def __getattr__(self, kernel_name: str) -> SingleDeviceKernel:
+    def get_kernel_adapter(self, kernel_name: str) -> KernelAdapter:
         """
         Returns a :py:class:`SingleDeviceKernel` object for a function (CUDA)/kernel (OpenCL)
         with the name ``kernel_name``.
@@ -186,10 +186,10 @@ class Program:
         Returns a :py:class:`Kernel` object for a function (CUDA)/kernel (OpenCL)
         with the name ``kernel_name``.
         """
-        sd_kernels = {
-            device_idx: getattr(sd_program, kernel_name)
+        sd_kernel_adapters = {
+            device_idx: sd_program.get_kernel_adapter(kernel_name)
             for device_idx, sd_program in self._sd_programs.items()}
-        return Kernel(self, sd_kernels)
+        return Kernel(self, sd_kernel_adapters)
 
     def set_constant_array(
             self, name: str, arr: Union[Array, numpy.ndarray], queue: Optional[Queue]=None):
@@ -207,10 +207,18 @@ class Kernel:
     A kernel compiled for multiple devices.
     """
 
-    def __init__(self, program: Program, sd_kernels: Dict[int, SingleDeviceKernel]):
+    def __init__(self, program: Program, sd_kernel_adapters: Dict[int, KernelAdapter]):
         self._program = program
-        self._device_idxs = set(sd_kernels)
-        self._sd_kernels = sd_kernels
+        self._device_idxs = set(sd_kernel_adapters)
+        self._sd_kernel_adapters = sd_kernel_adapters
+
+    @property
+    def max_total_local_size(self) -> Tuple[int, ...]:
+        """
+        The maximum possible number of threads in a block (CUDA)/work items in a work group (OpenCL)
+        for this kernel.
+        """
+        return tuple(sd_kernel_adapter.max_total_local_size for sd_kernel_adapter in self._sd_kernel_adapters)
 
     def __call__(
             self,
@@ -261,50 +269,8 @@ class Kernel:
         ret_vals = []
         for i, device_idx in enumerate(device_idxs):
             kernel_args = [arg[i] if isinstance(arg, (list, tuple)) else arg for arg in args]
-            ret_val = self._sd_kernels[device_idx](
+            ret_val = self._sd_kernel_adapters[device_idx](
                 queue._queue_adapter, global_size, local_size, *kernel_args, **kwds)
             ret_vals.append(ret_val)
 
         return ret_vals
-
-
-class SingleDeviceKernel:
-    """
-    A kernel compiled for a single device.
-    """
-    def __init__(self, sd_kernel_adapter):
-        self._sd_kernel_adapter = sd_kernel_adapter
-
-    @property
-    def max_total_local_size(self) -> int:
-        """
-        The maximum possible number of threads in a block (CUDA)/work items in a work group (OpenCL)
-        for this kernel.
-        """
-        return self._sd_kernel_adapter.max_total_local_size
-
-    def __call__(
-            self,
-            queue: Queue,
-            global_size: Union[int, Iterable[int]],
-            local_size: Union[int, Iterable[int], None],
-            *args,
-            **kwds):
-        """
-        Enqueues the kernel on a single device.
-
-        :param queue: see :py:meth:`Kernel.__call__`.
-        :param global_size: see :py:meth:`Kernel.__call__`.
-        :param local_size: see :py:meth:`Kernel.__call__`.
-        :param args: see :py:meth:`Kernel.__call__`.
-        :param kwds: see :py:meth:`Kernel.__call__`.
-        """
-        if local_size is not None:
-            local_size = wrap_in_tuple(local_size)
-        global_size = wrap_in_tuple(global_size)
-
-        args = process_arg(args)
-
-        assert self._device_idx in queue.devices
-
-        return self._sd_kernel_adapter(global_size, local_size, *args, **kwds)

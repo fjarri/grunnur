@@ -23,7 +23,7 @@ class StaticKernel:
         else:
             device_idxs = sorted(device_idxs)
 
-        kernels = []
+        kernel_adapters = []
         vs_metadata = []
         for device_idx in device_idxs:
 
@@ -55,28 +55,28 @@ class StaticKernel:
                 # Try to compile the kernel with the corresponding virtual size functions
                 program = SingleDeviceProgram(
                     context, device_idx, src, render_globals=new_render_globals, **kwds)
-                kernel = getattr(program, name)
+                kernel_adapter = program.get_kernel_adapter(name)
 
-                if kernel.max_total_local_size >= prod(vs.real_local_size):
+                if kernel_adapter.max_total_local_size >= prod(vs.real_local_size):
                     # Kernel will execute with this local size, use it
                     break
 
                 # By the contract of VirtualSizes,
                 # prod(vs.real_local_size) <= max_total_local_size
                 # Also, since we're still in this loop,
-                # kernel.max_total_local_size < prod(vs.real_local_size).
+                # kernel_adapter.max_total_local_size < prod(vs.real_local_size).
                 # Therefore the new max_total_local_size value is guaranteed
                 # to be smaller than the previous one.
-                max_total_local_size = kernel.max_total_local_size
+                max_total_local_size = kernel_adapter.max_total_local_size
 
                 # TODO: prevent this being an endless loop
 
-            kernels.append(kernel)
+            kernel_adapters.append(kernel_adapter)
             vs_metadata.append(vs)
 
         self.context = context
         self._vs_metadata = vs_metadata
-        self._kernels = kernels
+        self._kernel_adapters = kernel_adapters
         self._device_idxs = device_idxs
 
     def __call__(self, queue, *args, device_idxs=None):
@@ -101,10 +101,10 @@ class StaticKernel:
         # and reduce overheads?
         events = []
         for i, device_idx in enumerate(device_idxs):
-            kernel = self._kernels[i]
+            kernel_adapter = self._kernel_adapters[i]
             vs = self._vs_metadata[i]
             kernel_args = [arg[i] if isinstance(arg, (list, tuple)) else arg for arg in args]
-            event = kernel(queue._queue_adapter, vs.real_global_size, vs.real_local_size, *kernel_args)
+            event = kernel_adapter(queue._queue_adapter, vs.real_global_size, vs.real_local_size, *kernel_args)
             events.append(event)
         return events
 
