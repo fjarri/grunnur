@@ -1,8 +1,9 @@
 import numpy
 import pytest
 
-from grunnur import Queue, Array, Program, CompilationError, CUDA_API_ID
+from grunnur import API, Context, Queue, Array, Program, CompilationError, CUDA_API_ID
 
+from ..mock_base import MockSourceSnippet, MockKernel
 from ..test_on_device.test_program import (
     _test_compile,
     _test_constant_memory,
@@ -34,3 +35,44 @@ def test_compile_multi_device(mock_4_device_context):
         context=mock_4_device_context,
         device_idxs=[2, 1],
         is_mocked=True)
+
+
+def test_set_constant_array_errors(mock_4_device_context, mock_backend):
+
+    context = mock_4_device_context
+
+    api = API.from_api_id(mock_backend.api_id)
+    other_context = Context.from_criteria(api)
+    other_queue = Queue.from_device_idxs(other_context)
+    other_context.deactivate()
+
+    cm1 = numpy.arange(16).astype(numpy.int32)
+    src = MockSourceSnippet(kernels=[MockKernel('kernel')])
+    queue = Queue.from_device_idxs(context)
+
+    if context.api.id == CUDA_API_ID:
+        program = Program(context, src, constant_arrays=dict(cm1=cm1))
+
+        with pytest.raises(
+                ValueError,
+                match="The provided queue must belong to the same context as this program uses"):
+            program.set_constant_array(other_queue, 'cm1', cm1)
+
+        with pytest.raises(TypeError, match="Unsupported array type"):
+            program.set_constant_array(queue, 'cm1', [1])
+
+        program = Program(context, src, constant_arrays=dict(cm1=cm1), device_idxs=[0, 1, 2])
+        queue3 = Queue.from_device_idxs(context, device_idxs=[3])
+
+        with pytest.raises(
+                ValueError,
+                match="The provided queue must include the device this program uses"):
+            program.set_constant_array(queue3, 'cm1', cm1)
+
+    else:
+        with pytest.raises(ValueError, match="Compile-time constant arrays are only supported by CUDA API"):
+            program = Program(context, src, constant_arrays=dict(cm1=cm1))
+
+        program = Program(context, src)
+        with pytest.raises(RuntimeError, match="Constant arrays are only supported for CUDA API"):
+            program.set_constant_array(queue, 'cm1', cm1)

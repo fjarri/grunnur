@@ -154,6 +154,9 @@ class Program:
         else:
             device_idxs = sorted(device_idxs)
 
+        if context.api.id != CUDA_API_ID and len(constant_arrays) > 0:
+            raise ValueError("Compile-time constant arrays are only supported by CUDA API")
+
         sd_programs = {}
         sources = {}
         for device_idx in device_idxs:
@@ -190,7 +193,7 @@ class Program:
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
         if self.context.api.id != CUDA_API_ID:
-            raise ValueError("Constant arrays are only supported for CUDA API")
+            raise RuntimeError("Constant arrays are only supported for CUDA API")
         for sd_program in self._sd_programs.values():
             sd_program.set_constant_array(queue, name, arr)
 
