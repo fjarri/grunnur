@@ -3,9 +3,10 @@ from grunnur.modules import Snippet, RenderableSnippet
 
 class MockKernel:
 
-    def __init__(self, name, parameters):
+    def __init__(self, name, parameters=[], max_total_local_sizes={}):
         self.name = name
         self.parameters = parameters
+        self.max_total_local_sizes = max_total_local_sizes
 
 
 class MockSource:

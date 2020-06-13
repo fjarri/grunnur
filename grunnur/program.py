@@ -209,12 +209,14 @@ class Kernel:
         self._sd_kernel_adapters = sd_kernel_adapters
 
     @property
-    def max_total_local_size(self) -> Tuple[int, ...]:
+    def max_total_local_sizes(self) -> Dict[int, int]:
         """
         The maximum possible number of threads in a block (CUDA)/work items in a work group (OpenCL)
         for this kernel.
         """
-        return tuple(sd_kernel_adapter.max_total_local_size for sd_kernel_adapter in self._sd_kernel_adapters)
+        return {
+            device_idx: sd_kernel_adapter.max_total_local_size
+            for device_idx, sd_kernel_adapter in self._sd_kernel_adapters.items()}
 
     def __call__(
             self,

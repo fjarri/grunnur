@@ -131,6 +131,10 @@ class MemAttachFlags(Enum):
     GLOBAL = 1
 
 
+class FunctionAttribute(Enum):
+    MAX_THREADS_PER_BLOCK = 0
+
+
 class Mock_pycuda_driver:
 
     def __init__(self, backend, cuda_version):
@@ -147,6 +151,7 @@ class Mock_pycuda_driver:
         self.CompileError = PycudaCompileError
 
         self.mem_attach_flags = MemAttachFlags
+        self.function_attribute = FunctionAttribute
 
     def get_version(self):
         return self._version
@@ -385,5 +390,12 @@ def make_function_class(backend):
             assert all(isinstance(x, int) for x in block)
 
             # TODO: check that every element is smaller than the corresponding maximum for the device
+
+        def get_attribute(self, attribute):
+            if attribute == FunctionAttribute.MAX_THREADS_PER_BLOCK:
+                device_idx = self._source_module._context._device_idx
+                return self._kernel.max_total_local_sizes[device_idx]
+            else:
+                raise ValueError(f"Unknown attribute: {attribute}")
 
     return Function

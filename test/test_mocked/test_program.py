@@ -76,3 +76,19 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
         program = Program(context, src)
         with pytest.raises(RuntimeError, match="Constant arrays are only supported for CUDA API"):
             program.set_constant_array(queue, 'cm1', cm1)
+
+
+def test_max_total_local_sizes(mock_backend):
+    mock_backend.add_devices(["Device1", "Device2 - tag", "Device3 - tag", "Device4"])
+    api = API.from_api_id(mock_backend.api_id)
+    context = Context.from_criteria(api, devices_num=2, device_include_masks=["tag"])
+
+    # Providing max_total_local_sizes for all possible devices to make sure
+    # only the ones corresponding to the context will get picked up
+    kernel = MockKernel('kernel', max_total_local_sizes={0: 64, 1: 1024, 2: 512, 3: 128})
+
+    src = MockSourceSnippet(kernels=[kernel])
+    program = Program(context, src)
+
+    # The indices here correspond to the devices in the context, not in the platform
+    assert program.kernel.max_total_local_sizes == {0: 1024, 1: 512}

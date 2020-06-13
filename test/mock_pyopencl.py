@@ -46,6 +46,10 @@ class PyopenclRuntimeError(Exception):
     pass
 
 
+class KernelWorkGroupInfo(Enum):
+    WORK_GROUP_SIZE = 4528
+
+
 class Mock_pyopencl:
 
     def __init__(self, backend):
@@ -64,6 +68,7 @@ class Mock_pyopencl:
         self.RuntimeError = PyopenclRuntimeError
 
         self.mem_flags = MemFlags
+        self.kernel_work_group_info = KernelWorkGroupInfo
 
     def get_platforms(self):
         return self._backend_ref().platforms
@@ -173,7 +178,9 @@ class Program:
         assert isinstance(self.src, MockSourceStr)
         assert all(isinstance(option, str) for option in options)
         assert cache_dir is None or isinstance(cache_dir, str)
-        assert devices is None or all(device in self.context.devices for device in devices)
+
+        # In Grunnur, we always build separate programs for each device
+        assert len(devices) == 1 and devices[0] in self.context.devices
 
         if self.src.mock.should_fail:
             raise PyopenclRuntimeError()
@@ -207,6 +214,13 @@ class Kernel:
                 assert arg == param
             else:
                 raise TypeError(f"Incorrect argument type: {type(arg)}")
+
+    def get_work_group_info(self, attribute, device):
+        if attribute == KernelWorkGroupInfo.WORK_GROUP_SIZE:
+            device_idx = device.platform.get_devices().index(device)
+            return self._kernel.max_total_local_sizes[device_idx]
+        else:
+            raise ValueError(f"Unknown attribute: {attribute}")
 
 
 class Buffer:
