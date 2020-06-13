@@ -8,7 +8,7 @@ from grunnur import CUDA_API_ID
 from grunnur.dtypes import normalize_type
 from grunnur.utils import prod, wrap_in_tuple
 
-from .mock_base import MockSourceStr
+from .mock_base import MockSourceStr, DeviceInfo
 
 
 class MockPyCUDA:
@@ -17,7 +17,7 @@ class MockPyCUDA:
         self.pycuda_driver = Mock_pycuda_driver(self, cuda_version)
         self.pycuda_compiler = Mock_pycuda_compiler(self)
 
-        self.device_names = []
+        self.device_infos = []
         self._context_stack = []
 
         # Since we need to cast DeviceAllocation objects to integers (to add offsets),
@@ -32,10 +32,12 @@ class MockPyCUDA:
 
         self.api_id = CUDA_API_ID
 
-    def add_devices(self, device_names):
-        assert len(self.device_names) == 0
-        for device_name in device_names:
-            self.device_names.append(device_name)
+    def add_devices(self, device_infos):
+        assert len(self.device_infos) == 0
+        for device_info in device_infos:
+            if isinstance(device_info, str):
+                device_info = DeviceInfo(name=device_info)
+            self.device_infos.append(device_info)
 
     def push_context(self, context):
         if self.is_stacked(context):
@@ -211,12 +213,15 @@ def make_device_class(backend):
         _backend_ref = backend_ref
 
         def __init__(self, device_idx):
-            self._device_idx = device_idx
-            self._name = Device._backend_ref().device_names[device_idx]
-            self.max_threads_per_block = 1024
 
-            self.max_block_dim_x = 1024
-            self.max_block_dim_y = 1024
+            device_info = Device._backend_ref().device_infos[device_idx]
+
+            self._device_idx = device_idx
+            self._name = device_info.name
+            self.max_threads_per_block = device_info.max_total_local_size
+
+            self.max_block_dim_x = device_info.max_total_local_size
+            self.max_block_dim_y = device_info.max_total_local_size
             self.max_block_dim_z = 64
 
             self.max_grid_dim_x = 2**32-1
@@ -246,7 +251,7 @@ def make_device_class(backend):
 
         @staticmethod
         def count():
-            return len(Device._backend_ref().device_names)
+            return len(Device._backend_ref().device_infos)
 
     return Device
 

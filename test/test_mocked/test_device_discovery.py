@@ -1,6 +1,7 @@
 import pytest
 
 from ..utils import check_select_devices
+from ..mock_base import DeviceInfo
 
 
 def test_platform_take_single(mock_stdin, mock_backend_factory, capsys):
@@ -253,7 +254,7 @@ def test_include_pure_parallel_devices(mock_stdin, mock_backend_factory, capsys,
     platforms_devices = [
         ('PlatformFoo', ['Device1', 'Device2']),
         ('PlatformBar', [
-            dict(name='Device3', max_work_group_size=1), 'Device4', 'Device5'])]
+            DeviceInfo(name='Device3', max_work_group_size=1), 'Device4', 'Device5'])]
 
     devices = check_select_devices(
         mock_stdin, mock_backend_factory, capsys, platforms_devices,

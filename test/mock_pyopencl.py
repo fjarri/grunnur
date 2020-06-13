@@ -4,13 +4,9 @@ import weakref
 import numpy
 
 from grunnur import OPENCL_API_ID
+from grunnur.adapter_base import DeviceType
 
-from .mock_base import MockSourceStr
-
-
-class DeviceType(Enum):
-    CPU = 1
-    GPU = 2
+from .mock_base import MockSourceStr, DeviceInfo
 
 
 class MemFlags(Enum):
@@ -31,17 +27,19 @@ class MockPyOpenCL:
         self.platforms.append(platform)
         return platform
 
-    def add_platform_with_devices(self, platform_name, device_names):
+    def add_platform_with_devices(self, platform_name, device_infos):
         platform = self.add_platform(platform_name)
-        for device_name in device_names:
-            platform.add_device(device_name)
+        for device_info in device_infos:
+            if isinstance(device_info, str):
+                device_info = DeviceInfo(name=device_info)
+            platform.add_device(device_info)
         return platform
 
-    def add_devices(self, device_names):
+    def add_devices(self, device_infos):
         # Prevent incorrect usage - this method is added to be similar to that of PyCUDA mock,
         # so it can only be used once.
         assert len(self.platforms) == 0
-        return self.add_platform_with_devices(None, device_names)
+        return self.add_platform_with_devices(None, device_infos)
 
 
 class PyopenclRuntimeError(Exception):
@@ -110,8 +108,8 @@ class Platform:
         self.name = name
         self._devices = []
 
-    def add_device(self, *args, **kwds):
-        device = Device(self, *args, **kwds)
+    def add_device(self, device_info):
+        device = Device(self, device_info)
         self._devices.append(device)
 
     def get_devices(self):
@@ -120,13 +118,14 @@ class Platform:
 
 class Device:
 
-    def __init__(self, platform, name, max_work_group_size=1024):
-        self.name = name
+    def __init__(self, platform, device_info):
+
+        self.name = device_info.name
         self._backend_ref = platform._backend_ref
         self._platform_ref = weakref.ref(platform)
 
-        self.max_work_group_size = max_work_group_size
-        self.max_work_item_sizes = [max_work_group_size] * 3
+        self.max_work_group_size = device_info.max_total_local_size
+        self.max_work_item_sizes = [device_info.max_total_local_size] * 3
         self.address_bits = 64
         self.type = DeviceType.GPU
         self.extensions = []

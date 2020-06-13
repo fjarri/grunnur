@@ -45,13 +45,8 @@ def check_select_devices(mock_stdin, mock_backend_factory, capsys, platforms_dev
     # CUDA API has a single fixed platform, so using the OpenCL one
     backend = mock_backend_factory.mock_pyopencl()
 
-    for platform_name, device_params in platforms_devices:
-        platform = backend.add_platform(platform_name)
-        for params in device_params:
-            if isinstance(params, str):
-                platform.add_device(params)
-            else:
-                platform.add_device(**params)
+    for platform_name, device_infos in platforms_devices:
+        platform = backend.add_platform_with_devices(platform_name, device_infos)
 
     if inputs is not None:
         for line in inputs:

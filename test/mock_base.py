@@ -50,3 +50,10 @@ class MockSourceStr:
 
     def split(self, delim):
         return self.mock.prelude.split(delim) + ["<<< mock source >>>"]
+
+
+class DeviceInfo:
+
+    def __init__(self, name="DefaultDeviceName", max_total_local_size=1024):
+        self.name = name
+        self.max_total_local_size = max_total_local_size
