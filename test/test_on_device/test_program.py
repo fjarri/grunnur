@@ -147,11 +147,12 @@ KERNEL void copy_from_cm(
 #ifdef GRUNNUR_OPENCL_API
     , CONSTANT_MEM_ARG int *cm1
     , CONSTANT_MEM_ARG int *cm2
+    , CONSTANT_MEM_ARG int *cm3
 #endif
     )
 {
     const int i = get_global_id(0);
-    dest[i] = cm1[i] + cm2[i];
+    dest[i] = cm1[i] + cm2[i] + cm3[i];
 }
 """
 
@@ -159,13 +160,15 @@ KERNEL void copy_from_cm(
 def _test_constant_memory(context, is_mocked):
 
     cm1 = numpy.arange(16).astype(numpy.int32)
-    cm2 = numpy.arange(16).astype(numpy.int32) * 2
+    cm2 = numpy.arange(16).astype(numpy.int32) * 2 + 1
+    cm3 = numpy.arange(16).astype(numpy.int32) * 3 + 2
 
     if is_mocked:
         src = MockSourceSnippet(
             constant_mem={
                 'cm1': cm1.size * cm1.dtype.itemsize,
-                'cm2': cm2.size * cm2.dtype.itemsize},
+                'cm2': cm2.size * cm2.dtype.itemsize,
+                'cm3': cm3.size * cm3.dtype.itemsize},
             kernels=[MockKernel('copy_from_cm')])
     else:
         src = SRC_CONSTANT_MEM
@@ -174,21 +177,23 @@ def _test_constant_memory(context, is_mocked):
 
     cm1_dev = Array.from_host(queue, cm1)
     cm2_dev = Array.from_host(queue, cm2)
+    cm3_dev = Array.from_host(queue, cm3)
     res_dev = Array.empty(queue, 16, numpy.int32)
 
     if context.api.id == CUDA_API_ID:
-        program = Program(context, src, constant_arrays=dict(cm1=cm1, cm2=cm2))
-        program.set_constant_array('cm1', cm1_dev) # setting from a device array
-        program.set_constant_array('cm2', cm2, queue=queue) # setting from a host array
+        program = Program(context, src, constant_arrays=dict(cm1=cm1, cm2=cm2, cm3=cm3))
+        program.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
+        program.set_constant_array(queue, 'cm2', cm2) # setting from a host array
+        program.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
         program.copy_from_cm(queue, 16, None, res_dev)
     else:
         program = Program(context, src)
-        program.copy_from_cm(queue, 16, None, res_dev, cm1_dev, cm2_dev)
+        program.copy_from_cm(queue, 16, None, res_dev, cm1_dev, cm2_dev, cm3_dev)
 
     res = res_dev.get()
 
     if not is_mocked:
-        assert (res == cm1 + cm2).all()
+        assert (res == cm1 + cm2 + cm3).all()
 
 
 def test_constant_memory(context):
