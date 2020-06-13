@@ -57,7 +57,7 @@ class Array:
         self._metadata = array_metadata
 
         self.device_idx = device_idx
-        self._queue_device_idx = device_idx if device_idx is not None else 0
+        self._queue_device_idx = device_idx if device_idx is not None else queue.default_device_idx
 
         self.shape = self._metadata.shape
         self.dtype = self._metadata.dtype

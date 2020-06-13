@@ -73,6 +73,7 @@ class Mock_pyopencl:
     def enqueue_copy(self, queue, dest, src, wait_for=None, is_blocking=False):
         if isinstance(dest, Buffer):
             assert queue.context == dest.context
+            dest._access_from(queue.device)
             dest_size = dest.size
         else:
             assert isinstance(dest, numpy.ndarray)
@@ -80,12 +81,26 @@ class Mock_pyopencl:
 
         if isinstance(src, Buffer):
             assert queue.context == src.context
+            src._access_from(queue.device)
             src_size = src.size
         else:
             assert isinstance(src, numpy.ndarray)
             src_size = src.dtype.itemsize
 
         assert dest_size >= src_size
+
+    def enqueue_marker(self, queue, wait_for=None):
+        return Event(queue)
+
+    def enqueue_migrate_mem_objects(self, queue, mem_objects, flags=0, wait_for=None):
+        for mem_object in mem_objects:
+            mem_object._migrate(queue.device)
+
+
+class Event:
+
+    def __init__(self, queue):
+        self.command_queue = queue
 
 
 class Platform:
@@ -143,6 +158,9 @@ class CommandQueue:
             assert device in context.devices
             self.device = device
 
+    def finish(self):
+        pass
+
 
 class Program:
 
@@ -191,7 +209,21 @@ class Kernel:
 
 class Buffer:
 
-    def __init__(self, context, flags, size):
+    def __init__(self, context, flags, size, _migrated_to=None):
         self.context = context
         self.flags = flags
         self.size = size
+        self._migrated_to = _migrated_to
+
+    def _migrate(self, device):
+        self._migrated_to = device
+
+    def _access_from(self, device):
+        if self._migrated_to is None:
+            self._migrated_to = device
+        else:
+            raise RuntimeError("Trying to access a buffer from a different device it was migrated to")
+
+    def get_sub_region(self, origin, size):
+        assert origin + size <= self.size
+        return Buffer(self.context, self.flags, size, _migrated_to=self._migrated_to)

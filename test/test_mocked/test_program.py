@@ -7,6 +7,7 @@ from ..test_on_device.test_program import (
     _test_compile,
     _test_constant_memory,
     _test_compilation_error,
+    _test_compile_multi_device,
     )
 
 
@@ -26,3 +27,10 @@ def test_constant_memory(mock_context):
 
 def test_compilation_error(mock_context, capsys):
     _test_compilation_error(context=mock_context, capsys=capsys, is_mocked=True)
+
+
+def test_compile_multi_device(mock_4_device_context):
+    _test_compile_multi_device(
+        context=mock_4_device_context,
+        device_idxs=[2, 1],
+        is_mocked=True)

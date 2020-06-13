@@ -82,6 +82,16 @@ def mock_context(request, mock_backend):
     yield context
 
 
+@pytest.fixture(scope='function')
+def mock_4_device_context(request, mock_backend):
+    backend = mock_backend
+    api_id = backend.api_id
+    backend.add_devices(['Device1', 'Device2', 'Device3', 'Device4'])
+    api = API.from_api_id(api_id)
+    context = Context.from_criteria(api, devices_num=4)
+    yield context
+
+
 class MockStdin:
 
     def __init__(self):

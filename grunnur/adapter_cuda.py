@@ -428,7 +428,7 @@ class CuBufferAdapter(BufferAdapter):
         else:
             base_buffer = self._base_buffer
         new_ptr = numpy.uintp(self._ptr) + numpy.uintp(origin)
-        return CuBuffer(
+        return CuBufferAdapter(
             self._context_adapter, size,
             offset=self._offset + origin, ptr=new_ptr, base_buffer=base_buffer)
 

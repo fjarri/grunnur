@@ -21,6 +21,7 @@ class Queue:
     def __init__(self, context, queue_adapter, device_idxs):
         self.context = context
         self._queue_adapter = queue_adapter
+        self.default_device_idx = device_idxs[0]
         self.devices = {
             device_idx: Device(queue_adapter.device_adapters[device_idx])
             for device_idx in device_idxs}

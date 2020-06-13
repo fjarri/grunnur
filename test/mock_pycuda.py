@@ -1,9 +1,12 @@
+from enum import Enum
 from functools import lru_cache
 import weakref
 
 import numpy
 
 from grunnur import CUDA_API_ID
+from grunnur.dtypes import normalize_type
+from grunnur.utils import prod, wrap_in_tuple
 
 from .mock_base import MockSourceStr
 
@@ -16,6 +19,16 @@ class MockPyCUDA:
 
         self.device_names = []
         self._context_stack = []
+
+        # Since we need to cast DeviceAllocation objects to integers (to add offsets),
+        # there is no way to use a mock allocation object to track that.
+        # Instead, we have to use recognizable integers as "addresses" and check the validity of
+        # allocations using a kind of a fuzzy match database.
+        # Should work for testing purposes as long as we use small offsets,
+        # and other integer parameters don't fall in the "address" range.
+        self._allocation_start = 2**30
+        self._allocation_step = 2**16
+        self._allocations = []
 
         self.api_id = CUDA_API_ID
 
@@ -40,6 +53,28 @@ class MockPyCUDA:
             if stacked_context_ref() == context:
                 return True
         return False
+
+    def allocate(self, size, managed=False):
+        assert size <= self._allocation_step
+        idx = len(self._allocations)
+        address = self._allocation_start + self._allocation_step * idx
+        self._allocations.append((size, None if managed else self._context_stack[-1]))
+        return idx, address
+
+    def free_allocation(self, idx):
+        self._allocations[idx] = None
+
+    def check_allocation(self, address):
+        # will work as long as we don't have offsets larger than `_allocation_step`
+        idx = (int(address) - self._allocation_start) // self._allocation_step
+
+        if self._allocations[idx] is None:
+            raise RuntimeError("A previously freed allocation is used")
+
+        size, context_ref = self._allocations[idx]
+
+        if context_ref is not None:
+            assert context_ref() == self.current_context()
 
 
 class PycudaCompileError(Exception):
@@ -90,6 +125,10 @@ def make_source_module_class(backend):
     return SourceModule
 
 
+class MemAttachFlags(Enum):
+    GLOBAL = 1
+
+
 class Mock_pycuda_driver:
 
     def __init__(self, backend, cuda_version):
@@ -105,14 +144,22 @@ class Mock_pycuda_driver:
 
         self.CompileError = PycudaCompileError
 
+        self.mem_attach_flags = MemAttachFlags
+
     def get_version(self):
         return self._version
 
     def init(self):
         pass
 
-    def mem_alloc(self, size):
-        return self.DeviceAllocation(size)
+    def mem_alloc(self, size, _managed=False):
+        return self.DeviceAllocation(size, _managed=_managed)
+
+    def managed_empty(self, shape, dtype, mem_flags=None):
+        size = prod(wrap_in_tuple(shape)) * normalize_type(dtype).itemsize
+        class _mock_array:
+            base = self.mem_alloc(size, _managed=True)
+        return _mock_array()
 
     def memcpy_htod(self, dest, src):
         self.memcpy_htod_async(dest, src)
@@ -121,7 +168,7 @@ class Mock_pycuda_driver:
         current_context = self._backend_ref().current_context()
         assert isinstance(src, numpy.ndarray)
         assert isinstance(dest, self.DeviceAllocation)
-        assert dest._context == current_context
+        dest._check()
         if stream is not None:
             assert stream._context == current_context
         assert dest.size >= src.size * src.dtype.itemsize
@@ -133,7 +180,7 @@ class Mock_pycuda_driver:
         current_context = self._backend_ref().current_context()
         assert isinstance(src, self.DeviceAllocation)
         assert isinstance(dest, numpy.ndarray)
-        assert src._context == current_context
+        src._check()
         if stream is not None:
             assert stream._context == current_context
         assert src.size >= dest.size * dest.dtype.itemsize
@@ -142,8 +189,8 @@ class Mock_pycuda_driver:
         current_context = self._backend_ref().current_context()
         assert isinstance(src, self.DeviceAllocation)
         assert isinstance(dest, self.DeviceAllocation)
-        assert dest._context == current_context
-        assert src._context == current_context
+        dest._check()
+        src._check()
         if stream is not None:
             assert stream._context == current_context
         assert dest.size >= size
@@ -209,10 +256,8 @@ def make_context_class(backend):
 
     class Context:
 
-        # Unlike in other classes, we want to make sure that the backend is still alive
-        # as long as a Context object is alive.
-        # This will allow us to check that a Context object is not deleted
-        # without being popped off the stack.
+        # Since we need the backend in __del__(),
+        # we want to make sure that it alive as long as a this object is alive.
         _backend = backend
 
         def __init__(self, device_idx):
@@ -249,6 +294,10 @@ def make_stream_class(backend):
         def __init__(self):
             self._context = self._backend_ref().current_context()
 
+        def synchronize(self):
+            assert self._context == self._backend_ref().current_context()
+
+
     return Stream
 
 
@@ -261,9 +310,27 @@ def make_device_allocation_class(backend):
 
         _backend_ref = backend_ref
 
-        def __init__(self, size):
-            self._context = self._backend_ref().current_context()
+        def __init__(self, size, _managed=True):
+            backend = self._backend_ref()
+
+            idx, address = backend.allocate(size, managed=_managed)
+
+            self._context = backend.current_context()
+            self._address = address
+            self._idx = idx
+
             self.size = size
+
+        def _check(self):
+            self._backend_ref().check_allocation(self._address)
+
+        def __int__(self):
+            return self._address
+
+        def __del__(self):
+            # Backend is held alive by the context object we reference.
+            self._backend_ref().free_allocation(self._idx)
+
 
     return DeviceAllocation
 
@@ -295,8 +362,8 @@ def make_function_class(backend):
             for arg in args:
                 if isinstance(arg, backend.pycuda_driver.DeviceAllocation):
                     assert arg._context == current_context
-                elif isinstance(numpy.number):
-                    pass
+                elif isinstance(arg, numpy.number):
+                    backend.check_allocation(arg)
                 else:
                     raise TypeError(f"Incorrect argument type: {type(arg)}")
 

@@ -75,29 +75,34 @@ def test_compile(context, no_prelude):
         is_mocked=False)
 
 
-def test_compile_multi_device(multi_device_context):
+def _test_compile_multi_device(context, device_idxs, is_mocked):
 
-    context = multi_device_context
+    if is_mocked:
+        src = MockSourceSnippet(kernels=[MockKernel('multiply')])
+    else:
+        src = SRC_GENERIC
 
-    program = Program(context, SRC_GENERIC)
+    program = Program(context, src)
     a = numpy.arange(16).astype(numpy.int32)
     b = numpy.arange(16).astype(numpy.int32) + 1
     ref = a * b
 
-    queue = Queue.from_device_idxs(context, device_idxs=[0, 1])
+    queue = Queue.from_device_idxs(context, device_idxs=device_idxs)
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
     res_dev = Array.empty(queue, 16, numpy.int32)
 
-    a_dev_1 = a_dev.single_device_view(0)[:8]
-    a_dev_2 = a_dev.single_device_view(1)[8:]
+    d1, d2 = device_idxs
 
-    b_dev_1 = b_dev.single_device_view(0)[:8]
-    b_dev_2 = b_dev.single_device_view(1)[8:]
+    a_dev_1 = a_dev.single_device_view(d1)[:8]
+    a_dev_2 = a_dev.single_device_view(d2)[8:]
 
-    res_dev_1 = res_dev.single_device_view(0)[:8]
-    res_dev_2 = res_dev.single_device_view(1)[8:]
+    b_dev_1 = b_dev.single_device_view(d1)[:8]
+    b_dev_2 = b_dev.single_device_view(d2)[8:]
+
+    res_dev_1 = res_dev.single_device_view(d1)[:8]
+    res_dev_2 = res_dev.single_device_view(d2)[8:]
 
     program.multiply(
         queue, 8, None, [res_dev_1, res_dev_2], [a_dev_1, a_dev_2], [b_dev_1, b_dev_2])
@@ -105,24 +110,35 @@ def test_compile_multi_device(multi_device_context):
     queue.synchronize()
 
     res = res_dev.get()
-    correct_result = (res == ref).all()
 
     device_names = [device.name for device in queue.devices.values()]
-    expected_to_fail = (
-        context.api.id == OPENCL_API_ID and
-        'Apple' in context.platform.name and
-        any('GeForce' in name for name in device_names) and
-        not all('GeForce' in name for name in device_names))
 
-    if expected_to_fail:
-        if correct_result:
-            raise Exception("This test was expected to fail on this configuration.")
-        else:
-            pytest.xfail(
-                "Multi-device OpenCL contexts on an Apple platform with one device being a GeForce "
-                "don't work correctly (the kernel invocation on GeForce is ignored).")
+    if not is_mocked:
 
-    assert correct_result
+        correct_result = (res == ref).all()
+
+        expected_to_fail = (
+            context.api.id == OPENCL_API_ID and
+            'Apple' in context.platform.name and
+            any('GeForce' in name for name in device_names) and
+            not all('GeForce' in name for name in device_names))
+
+        if expected_to_fail:
+            if correct_result:
+                raise Exception("This test was expected to fail on this configuration.")
+            else:
+                pytest.xfail(
+                    "Multi-device OpenCL contexts on an Apple platform with one device being a GeForce "
+                    "don't work correctly (the kernel invocation on GeForce is ignored).")
+
+        assert correct_result
+
+
+def test_compile_multi_device(multi_device_context):
+    _test_compile_multi_device(
+        context=multi_device_context,
+        device_idxs=[0, 1],
+        is_mocked=False)
 
 
 SRC_CONSTANT_MEM = """
