@@ -359,11 +359,15 @@ def make_function_class(backend):
                 assert isinstance(stream, backend.pycuda_driver.Stream)
                 assert stream._context == current_context
 
-            for arg in args:
+            for arg, param in zip(args, self._kernel.parameters):
                 if isinstance(arg, backend.pycuda_driver.DeviceAllocation):
+                    assert param is None
                     assert arg._context == current_context
                 elif isinstance(arg, numpy.number):
-                    backend.check_allocation(arg)
+                    if param is None:
+                        backend.check_allocation(arg)
+                    else:
+                        assert arg == param
                 else:
                     raise TypeError(f"Incorrect argument type: {type(arg)}")
 

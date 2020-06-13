@@ -47,7 +47,7 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
     other_context.deactivate()
 
     cm1 = numpy.arange(16).astype(numpy.int32)
-    src = MockSourceSnippet(kernels=[MockKernel('kernel')])
+    src = MockSourceSnippet(kernels=[MockKernel('kernel', [])])
     queue = Queue.from_device_idxs(context)
 
     if context.api.id == CUDA_API_ID:

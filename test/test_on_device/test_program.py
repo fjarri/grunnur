@@ -36,7 +36,7 @@ KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b)
 def _test_compile(context, no_prelude, is_mocked):
 
     if is_mocked:
-        src = MockSourceSnippet(kernels=[MockKernel('multiply')])
+        src = MockSourceSnippet(kernels=[MockKernel('multiply', [None, None, None])])
     else:
         if no_prelude:
             src = SRC_CUDA if context.api.id == CUDA_API_ID else SRC_OPENCL
@@ -78,7 +78,7 @@ def test_compile(context, no_prelude):
 def _test_compile_multi_device(context, device_idxs, is_mocked):
 
     if is_mocked:
-        src = MockSourceSnippet(kernels=[MockKernel('multiply')])
+        src = MockSourceSnippet(kernels=[MockKernel('multiply', [None, None, None])])
     else:
         src = SRC_GENERIC
 
@@ -164,12 +164,15 @@ def _test_constant_memory(context, is_mocked):
     cm3 = numpy.arange(16).astype(numpy.int32) * 3 + 2
 
     if is_mocked:
+        kernel = MockKernel(
+            'copy_from_cm',
+            [None] if context.api.id == CUDA_API_ID else [None, None, None, None])
         src = MockSourceSnippet(
             constant_mem={
                 'cm1': cm1.size * cm1.dtype.itemsize,
                 'cm2': cm2.size * cm2.dtype.itemsize,
                 'cm3': cm3.size * cm3.dtype.itemsize},
-            kernels=[MockKernel('copy_from_cm')])
+            kernels=[kernel])
     else:
         src = SRC_CONSTANT_MEM
 

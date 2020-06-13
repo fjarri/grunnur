@@ -189,7 +189,7 @@ class Kernel:
 
     def __init__(self, program, kernel):
         self.program = program
-        self.kernel = kernel
+        self._kernel = kernel
 
     def __call__(self, queue, global_size, local_size, *args, wait_for=None):
         assert isinstance(global_size, tuple)
@@ -198,11 +198,14 @@ class Kernel:
             assert isinstance(local_size, tuple)
             assert len(local_size) == len(global_size)
 
-        for arg in args:
+        assert len(args) == len(self._kernel.parameters)
+
+        for arg, param in zip(args, self._kernel.parameters):
             if isinstance(arg, Buffer):
+                assert param is None
                 assert arg.context == queue.context
-            elif isinstance(numpy.number):
-                pass
+            elif isinstance(arg, numpy.number):
+                assert arg == param
             else:
                 raise TypeError(f"Incorrect argument type: {type(arg)}")
 

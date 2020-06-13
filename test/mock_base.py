@@ -3,8 +3,9 @@ from grunnur.modules import Snippet, RenderableSnippet
 
 class MockKernel:
 
-    def __init__(self, name):
+    def __init__(self, name, parameters):
         self.name = name
+        self.parameters = parameters
 
 
 class MockSource:
