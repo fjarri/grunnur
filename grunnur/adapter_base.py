@@ -265,6 +265,10 @@ class ContextAdapter(ABC):
         pass
 
     @abstractmethod
+    def deactivate(self):
+        pass
+
+    @abstractmethod
     def render_prelude(self, fast_math: bool=False) -> str:
         """
         Renders the prelude allowing one to write kernels compiling

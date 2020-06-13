@@ -334,6 +334,9 @@ class OclContextAdapter(ContextAdapter):
     def device_adapters(self) -> Tuple[OclDeviceAdapter, ...]:
         return self._device_adapters
 
+    def deactivate(self):
+        pass
+
     def render_prelude(self, fast_math=False):
         return _PRELUDE.render(
             fast_math=fast_math,
