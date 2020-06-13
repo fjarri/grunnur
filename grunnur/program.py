@@ -91,24 +91,20 @@ class SingleDeviceProgram:
         return getattr(self._sd_program_adapter, kernel_name)
 
     def set_constant_array(
-            self, name: str, arr: Union[Array, numpy.ndarray], queue: Optional[Queue]=None):
+            self, queue: Queue, name: str, arr: Union[Array, Buffer, numpy.ndarray]):
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
         if isinstance(arr, Array):
-            # TODO: check that array is contiguous, offset is 0 and there's no padding in the end
-            if queue is None:
-                queue = arr._queue
-            else:
-                raise ValueError("Cannot use a custom queue when setting a constant from Array")
+            # TODO: temporary check; arrays shouldn't have built-in queues
+            assert queue is arr._queue
 
-        if queue is not None:
-            if queue.context is not self.context:
-                raise ValueError(
-                    "The provided queue must belong to the same context as this program uses")
-            if self._device_idx not in queue.devices:
-                raise ValueError(
-                    f"The provided queue must include the device this program uses ({self._device_idx})")
+        if queue.context is not self.context:
+            raise ValueError(
+                "The provided queue must belong to the same context as this program uses")
+        if self._device_idx not in queue.devices:
+            raise ValueError(
+                f"The provided queue must include the device this program uses ({self._device_idx})")
 
         if isinstance(arr, Array):
             constant_data = arr.data._buffer_adapter
@@ -117,12 +113,9 @@ class SingleDeviceProgram:
         elif isinstance(arr, numpy.ndarray):
             constant_data = arr
         else:
-            raise TypeError(f"Uunsupported array type: {type(arr)}")
+            raise TypeError(f"Unsupported array type: {type(arr)}")
 
-        if queue is not None:
-            queue_adapter = queue._queue_adapter
-        else:
-            queue_adapter = None
+        queue_adapter = queue._queue_adapter
 
         self._sd_program_adapter.set_constant_buffer(name, constant_data, queue=queue_adapter)
 
@@ -192,14 +185,14 @@ class Program:
         return Kernel(self, sd_kernel_adapters)
 
     def set_constant_array(
-            self, name: str, arr: Union[Array, numpy.ndarray], queue: Optional[Queue]=None):
+            self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
         if self.context.api.id != CUDA_API_ID:
             raise ValueError("Constant arrays are only supported for CUDA API")
         for sd_program in self._sd_programs.values():
-            sd_program.set_constant_array(name, arr, queue=queue)
+            sd_program.set_constant_array(queue, name, arr)
 
 
 class Kernel:
