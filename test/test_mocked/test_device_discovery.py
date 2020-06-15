@@ -254,7 +254,7 @@ def test_include_pure_parallel_devices(mock_stdin, mock_backend_factory, capsys,
     platforms_devices = [
         ('PlatformFoo', ['Device1', 'Device2']),
         ('PlatformBar', [
-            DeviceInfo(name='Device3', max_work_group_size=1), 'Device4', 'Device5'])]
+            DeviceInfo(name='Device3', max_total_local_size=1), 'Device4', 'Device5'])]
 
     devices = check_select_devices(
         mock_stdin, mock_backend_factory, capsys, platforms_devices,
