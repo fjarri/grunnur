@@ -602,7 +602,6 @@ def get_launch_size(
         raise ValueError("Global size has too many dimensions")
 
     if local_size is not None:
-        local_size = wrap_in_tuple(local_size)
         if len(local_size) != len(global_size):
             raise ValueError("Global/local work sizes have differing dimensions")
     else:

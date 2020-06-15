@@ -37,6 +37,23 @@ def test_compile_multi_device(mock_4_device_context):
         is_mocked=True)
 
 
+def test_wrong_device_idxs(mock_4_device_context):
+    src = MockSourceSnippet(kernels=[MockKernel('multiply', [None])])
+
+    context = mock_4_device_context
+    program = Program(context, src, device_idxs=[0, 1])
+    queue = Queue.from_device_idxs(context, device_idxs=[2, 1])
+    res_dev = Array.empty(queue, 16, numpy.int32)
+
+    # Using all the queue's devices (1, 2)
+    with pytest.raises(ValueError, match="This kernel's program was not compiled for devices"):
+        program.multiply(queue, 8, None, res_dev)
+
+    # Explicit device_idxs
+    with pytest.raises(ValueError, match="This kernel's program was not compiled for devices"):
+        program.multiply(queue, 8, None, res_dev, device_idxs=[0, 2])
+
+
 def test_set_constant_array_errors(mock_4_device_context, mock_backend):
 
     context = mock_4_device_context

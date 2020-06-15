@@ -2,33 +2,33 @@ import numpy
 
 import pytest
 
-from grunnur import CUDA_API_ID, OPENCL_API_ID, Program, Queue, Array, CompilationError
+from grunnur import CUDA_API_ID, OPENCL_API_ID, Program, Queue, Array, CompilationError, MultiDevice
 from grunnur.template import Template
 
 from ..mock_base import MockKernel, MockSourceSnippet
 
 
 SRC_OPENCL = """
-__kernel void multiply(__global int *dest, __global int *a, __global int *b)
+__kernel void multiply(__global int *dest, __global int *a, __global int *b, int c)
 {
     const int i = get_global_id(0);
-    dest[i] = a[i] * b[i];
+    dest[i] = a[i] * b[i] + c;
 }
 """
 
 SRC_CUDA = """
-extern "C" __global__ void multiply(int *dest, int *a, int *b)
+extern "C" __global__ void multiply(int *dest, int *a, int *b, int c)
 {
     const int i = threadIdx.x;
-    dest[i] = a[i] * b[i];
+    dest[i] = a[i] * b[i] + c;
 }
 """
 
 SRC_GENERIC = """
-KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b)
+KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b, int c)
 {
     const int i = get_global_id(0);
-    dest[i] = a[i] * b[i];
+    dest[i] = a[i] * b[i] + c;
 }
 """
 
@@ -36,7 +36,7 @@ KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b)
 def _test_compile(context, no_prelude, is_mocked):
 
     if is_mocked:
-        src = MockSourceSnippet(kernels=[MockKernel('multiply', [None, None, None])])
+        src = MockSourceSnippet(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
     else:
         if no_prelude:
             src = SRC_CUDA if context.api.id == CUDA_API_ID else SRC_OPENCL
@@ -50,7 +50,8 @@ def _test_compile(context, no_prelude, is_mocked):
 
     a = numpy.arange(16).astype(numpy.int32)
     b = numpy.arange(16).astype(numpy.int32) + 1
-    ref = a * b
+    c = numpy.int32(3)
+    ref = a * b + c
 
     queue = Queue.from_device_idxs(context)
 
@@ -58,11 +59,16 @@ def _test_compile(context, no_prelude, is_mocked):
     b_dev = Array.from_host(queue, b)
 
     res_dev = Array.empty(queue, 16, numpy.int32)
-
-    program.multiply(queue, 16, None, res_dev, a_dev, b_dev)
-
+    # Check that passing both Arrays and Buffers is supported
+    program.multiply(queue, 16, None, res_dev, a_dev, b_dev.data, c)
     res = res_dev.get()
+    if not is_mocked:
+        assert (res == ref).all()
 
+    # Explicit local_size
+    res_dev = Array.empty(queue, 16, numpy.int32)
+    program.multiply(queue, 16, 8, res_dev, a_dev, b_dev, c)
+    res = res_dev.get()
     if not is_mocked:
         assert (res == ref).all()
 
@@ -78,14 +84,15 @@ def test_compile(context, no_prelude):
 def _test_compile_multi_device(context, device_idxs, is_mocked):
 
     if is_mocked:
-        src = MockSourceSnippet(kernels=[MockKernel('multiply', [None, None, None])])
+        src = MockSourceSnippet(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
     else:
         src = SRC_GENERIC
 
     program = Program(context, src)
     a = numpy.arange(16).astype(numpy.int32)
     b = numpy.arange(16).astype(numpy.int32) + 1
-    ref = a * b
+    c = numpy.int32(3)
+    ref = a * b + c
 
     queue = Queue.from_device_idxs(context, device_idxs=device_idxs)
 
@@ -105,7 +112,11 @@ def _test_compile_multi_device(context, device_idxs, is_mocked):
     res_dev_2 = res_dev.single_device_view(d2)[8:]
 
     program.multiply(
-        queue, 8, None, [res_dev_1, res_dev_2], [a_dev_1, a_dev_2], [b_dev_1, b_dev_2])
+        queue, 8, None,
+        MultiDevice(res_dev_1, res_dev_2),
+        MultiDevice(a_dev_1, a_dev_2),
+        MultiDevice(b_dev_1, b_dev_2),
+        c)
 
     queue.synchronize()
 

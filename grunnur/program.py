@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from math import log10
+from typing import NamedTuple, Tuple
 
 import numpy
 
@@ -12,13 +13,9 @@ from .buffer import Buffer
 from .api import CUDA_API_ID
 
 
-def process_arg(arg):
-    if isinstance(arg, Array):
-        return arg.data.kernel_arg
-    elif isinstance(arg, (list, tuple)):
-        return [process_arg(arg_part) for arg_part in arg]
-    else:
-        return arg
+class MultiDevice:
+    def __init__(self, *args):
+        self.values = args
 
 
 class CompilationError(RuntimeError):
@@ -198,6 +195,15 @@ class Program:
             sd_program.set_constant_array(queue, name, arr)
 
 
+def process_arg(arg):
+    if isinstance(arg, Array):
+        return arg.data.kernel_arg
+    elif isinstance(arg, Buffer):
+        return arg.kernel_arg
+    else:
+        return arg
+
+
 class Kernel:
     """
     A kernel compiled for multiple devices.
@@ -246,19 +252,10 @@ class Kernel:
         :param kwds: backend-specific keyword parameters.
         """
 
-        if local_size is not None:
-            local_size = wrap_in_tuple(local_size)
-        global_size = wrap_in_tuple(global_size)
-
-        args = process_arg(args)
-
         if device_idxs is None:
-            device_idxs = list(queue.devices)
-        else:
-            device_idxs = list(device_idxs)
+            device_idxs = queue.device_idxs
 
-        # TODO: speed this up. Probably shouldn't create sets on every kernel call.
-        if not set(device_idxs).issubset(self._device_idxs):
+        if not all(device_idx in self._device_idxs for device_idx in device_idxs):
             missing_dev_nums = [
                 str(device_idx) for device_idx in device_idxs if device_idx not in self._device_idxs]
             raise ValueError(
@@ -266,9 +263,18 @@ class Kernel:
 
         ret_vals = []
         for i, device_idx in enumerate(device_idxs):
-            kernel_args = [arg[i] if isinstance(arg, (list, tuple)) else arg for arg in args]
+            kernel_args = [arg.values[i] if isinstance(arg, MultiDevice) else arg for arg in args]
+            kernel_args = [process_arg(arg) for arg in kernel_args]
+
+            kernel_ls = local_size.values[i] if isinstance(local_size, MultiDevice) else local_size
+            kernel_gs = global_size.values[i] if isinstance(global_size, MultiDevice) else global_size
+
+            if kernel_ls is not None:
+                kernel_ls = wrap_in_tuple(kernel_ls)
+            kernel_gs = wrap_in_tuple(kernel_gs)
+
             ret_val = self._sd_kernel_adapters[device_idx](
-                queue._queue_adapter, global_size, local_size, *kernel_args, **kwds)
+                queue._queue_adapter, kernel_gs, kernel_ls, *kernel_args, **kwds)
             ret_vals.append(ret_val)
 
         return ret_vals

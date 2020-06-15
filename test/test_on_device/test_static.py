@@ -1,7 +1,7 @@
 import pytest
 import numpy
 
-from grunnur import StaticKernel, Queue, Array
+from grunnur import StaticKernel, Queue, Array, MultiDevice
 from grunnur import CUDA_API_ID, OPENCL_API_ID
 
 
@@ -63,7 +63,11 @@ def test_compile_static_multi_device(multi_device_context):
     res_dev_2 = res_dev.single_device_view(1)[11:,:]
 
     multiply = StaticKernel(context, src, 'multiply', (11, 15), device_idxs=[0, 1])
-    multiply(queue, [res_dev_1, res_dev_2], [a_dev_1, a_dev_2], [b_dev_1, b_dev_2])
+    multiply(
+        queue,
+        MultiDevice(res_dev_1, res_dev_2),
+        MultiDevice(a_dev_1, a_dev_2),
+        MultiDevice(b_dev_1, b_dev_2))
 
     res = res_dev.get()
     correct_result = (res == ref).all()

@@ -5,7 +5,7 @@ from .api import (
     CUDA_API_ID,
     OPENCL_API_ID,
     )
-from .program import Program, CompilationError
+from .program import Program, CompilationError, MultiDevice
 from .platform import Platform
 from .device import Device
 from .queue import Queue

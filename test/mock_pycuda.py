@@ -377,7 +377,7 @@ def make_function_class(backend):
                     if param is None:
                         backend.check_allocation(arg)
                     else:
-                        assert arg == param
+                        assert arg.dtype == param
                 else:
                     raise TypeError(f"Incorrect argument type: {type(arg)}")
 

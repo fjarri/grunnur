@@ -1,6 +1,6 @@
 from .utils import prod
 from .vsize import VirtualSizes
-from .program import Program, SingleDeviceProgram, process_arg
+from .program import Program, SingleDeviceProgram, process_arg, MultiDevice
 
 
 class StaticKernel:
@@ -95,15 +95,16 @@ class StaticKernel:
             raise ValueError(
                 f"This kernel's program was not compiled for devices {missing_dev_nums.join(', ')}")
 
-        args = process_arg(args)
-
         # TODO: support "single-device" kernels to streamline the logic of kernel.__call__()
         # and reduce overheads?
         events = []
         for i, device_idx in enumerate(device_idxs):
             kernel_adapter = self._kernel_adapters[i]
             vs = self._vs_metadata[i]
-            kernel_args = [arg[i] if isinstance(arg, (list, tuple)) else arg for arg in args]
+
+            kernel_args = [arg.values[i] if isinstance(arg, MultiDevice) else arg for arg in args]
+            kernel_args = [process_arg(arg) for arg in kernel_args]
+
             event = kernel_adapter(queue._queue_adapter, vs.real_global_size, vs.real_local_size, *kernel_args)
             events.append(event)
         return events

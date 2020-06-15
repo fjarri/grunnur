@@ -22,6 +22,7 @@ class Queue:
         self.context = context
         self._queue_adapter = queue_adapter
         self.default_device_idx = device_idxs[0]
+        self.device_idxs = device_idxs # Preserving the order of given device indices
         self.devices = {
             device_idx: Device(queue_adapter.device_adapters[device_idx])
             for device_idx in device_idxs}

@@ -211,7 +211,7 @@ class Kernel:
                 assert param is None
                 assert arg.context == queue.context
             elif isinstance(arg, numpy.number):
-                assert arg == param
+                assert arg.dtype == param
             else:
                 raise TypeError(f"Incorrect argument type: {type(arg)}")
 
