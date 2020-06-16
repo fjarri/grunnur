@@ -5,7 +5,7 @@ import pytest
 from grunnur import CUDA_API_ID, OPENCL_API_ID, Program, Queue, Array, CompilationError, MultiDevice
 from grunnur.template import Template
 
-from ..mock_base import MockKernel, MockSourceSnippet
+from ..mock_base import MockKernel, MockDefTemplate
 
 
 SRC_OPENCL = """
@@ -36,7 +36,7 @@ KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b,
 def _test_compile(context, no_prelude, is_mocked):
 
     if is_mocked:
-        src = MockSourceSnippet(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
+        src = MockDefTemplate(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
     else:
         if no_prelude:
             src = SRC_CUDA if context.api.id == CUDA_API_ID else SRC_OPENCL
@@ -46,7 +46,7 @@ def _test_compile(context, no_prelude, is_mocked):
     program = Program(context, src, no_prelude=no_prelude)
 
     if is_mocked and no_prelude:
-        assert program.sources[0].mock.prelude.strip() == ""
+        assert program.sources[0].prelude.strip() == ""
 
     a = numpy.arange(16).astype(numpy.int32)
     b = numpy.arange(16).astype(numpy.int32) + 1
@@ -84,7 +84,7 @@ def test_compile(context, no_prelude):
 def _test_compile_multi_device(context, device_idxs, is_mocked):
 
     if is_mocked:
-        src = MockSourceSnippet(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
+        src = MockDefTemplate(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
     else:
         src = SRC_GENERIC
 
@@ -178,7 +178,7 @@ def _test_constant_memory(context, is_mocked):
         kernel = MockKernel(
             'copy_from_cm',
             [None] if context.api.id == CUDA_API_ID else [None, None, None, None])
-        src = MockSourceSnippet(
+        src = MockDefTemplate(
             constant_mem={
                 'cm1': cm1.size * cm1.dtype.itemsize,
                 'cm2': cm2.size * cm2.dtype.itemsize,
@@ -229,7 +229,7 @@ KERNEL void compile_error(GLOBAL_MEM int *dest)
 def _test_compilation_error(context, capsys, is_mocked):
 
     if is_mocked:
-        src = MockSourceSnippet(should_fail=True)
+        src = MockDefTemplate(should_fail=True)
     else:
         src = SRC_COMPILE_ERROR
 

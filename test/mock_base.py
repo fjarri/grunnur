@@ -1,4 +1,4 @@
-from grunnur.modules import Snippet, RenderableSnippet
+from grunnur.template import DefTemplate
 
 
 class MockKernel:
@@ -12,45 +12,32 @@ class MockKernel:
 class MockSource:
 
     def __init__(self, kernels=[], prelude="", should_fail=False, constant_mem={}):
+        self.name = "mock_source"
         self.kernels = kernels
         self.prelude = prelude
         self.should_fail = should_fail
         self.constant_mem = constant_mem
 
-
-class MockSourceSnippet(Snippet):
-
-    def __init__(self, *args, **kwds):
-        self.mock = MockSource(*args, **kwds)
-
-    def __process_modules__(self, process):
-        return MockSourceRenderableSnippet(self.mock)
-
-
-class MockSourceRenderableSnippet(RenderableSnippet):
-
-    def __init__(self, mock):
-        self.mock = mock
-
-    def __call__(self):
-        return MockSourceStr(self.mock)
-
-
-class MockSourceStr:
-
-    def __init__(self, mock):
-        self.mock = mock
-
     def __radd__(self, other):
         assert isinstance(other, str)
-        return MockSourceStr(MockSource(
-            kernels=self.mock.kernels,
-            prelude=other + self.mock.prelude,
-            should_fail=self.mock.should_fail,
-            constant_mem=self.mock.constant_mem))
+        return MockSource(
+            kernels=self.kernels,
+            prelude=other + self.prelude,
+            should_fail=self.should_fail,
+            constant_mem=self.constant_mem)
 
     def split(self, delim):
-        return self.mock.prelude.split(delim) + ["<<< mock source >>>"]
+        return self.prelude.split(delim) + ["<<< mock source >>>"]
+
+
+class MockDefTemplate(DefTemplate):
+
+    def __init__(self, *args, **kwds):
+        super().__init__(name="mock_source", mako_def_template=None, source="")
+        self._mock_source = MockSource(*args, **kwds)
+
+    def render(self, *args, **kwds):
+        return self._mock_source
 
 
 class DeviceInfo:

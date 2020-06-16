@@ -6,7 +6,7 @@ import numpy
 from grunnur import OPENCL_API_ID
 from grunnur.adapter_base import DeviceType
 
-from .mock_base import MockSourceStr, DeviceInfo
+from .mock_base import MockSource, DeviceInfo
 
 
 class MemFlags(Enum):
@@ -175,17 +175,17 @@ class Program:
         self._kernels = {}
 
     def build(self, options=[], devices=None, cache_dir=None):
-        assert isinstance(self.src, MockSourceStr)
+        assert isinstance(self.src, MockSource)
         assert all(isinstance(option, str) for option in options)
         assert cache_dir is None or isinstance(cache_dir, str)
 
         # In Grunnur, we always build separate programs for each device
         assert len(devices) == 1 and devices[0] in self.context.devices
 
-        if self.src.mock.should_fail:
+        if self.src.should_fail:
             raise PyopenclRuntimeError()
 
-        self._kernels = {kernel.name: Kernel(self, kernel) for kernel in self.src.mock.kernels}
+        self._kernels = {kernel.name: Kernel(self, kernel) for kernel in self.src.kernels}
 
     def __getattr__(self, name):
         return self._kernels[name]

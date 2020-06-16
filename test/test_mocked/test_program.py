@@ -3,7 +3,7 @@ import pytest
 
 from grunnur import API, Context, Queue, Array, Program, CompilationError, CUDA_API_ID
 
-from ..mock_base import MockSourceSnippet, MockKernel
+from ..mock_base import MockDefTemplate, MockKernel
 from ..test_on_device.test_program import (
     _test_compile,
     _test_constant_memory,
@@ -38,7 +38,7 @@ def test_compile_multi_device(mock_4_device_context):
 
 
 def test_wrong_device_idxs(mock_4_device_context):
-    src = MockSourceSnippet(kernels=[MockKernel('multiply', [None])])
+    src = MockDefTemplate(kernels=[MockKernel('multiply', [None])])
 
     context = mock_4_device_context
     program = Program(context, src, device_idxs=[0, 1])
@@ -64,7 +64,7 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
     other_context.deactivate()
 
     cm1 = numpy.arange(16).astype(numpy.int32)
-    src = MockSourceSnippet(kernels=[MockKernel('kernel', [])])
+    src = MockDefTemplate(kernels=[MockKernel('kernel', [])])
     queue = Queue.from_device_idxs(context)
 
     if context.api.id == CUDA_API_ID:
@@ -104,7 +104,7 @@ def test_max_total_local_sizes(mock_backend):
     # only the ones corresponding to the context will get picked up
     kernel = MockKernel('kernel', max_total_local_sizes={0: 64, 1: 1024, 2: 512, 3: 128})
 
-    src = MockSourceSnippet(kernels=[kernel])
+    src = MockDefTemplate(kernels=[kernel])
     program = Program(context, src)
 
     # The indices here correspond to the devices in the context, not in the platform

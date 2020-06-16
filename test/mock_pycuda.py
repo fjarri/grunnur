@@ -8,7 +8,7 @@ from grunnur import CUDA_API_ID
 from grunnur.dtypes import normalize_type
 from grunnur.utils import prod, wrap_in_tuple
 
-from .mock_base import MockSourceStr, DeviceInfo
+from .mock_base import MockSource, DeviceInfo
 
 
 class MockPyCUDA:
@@ -99,21 +99,19 @@ def make_source_module_class(backend):
         _backend_ref = backend_ref
 
         def __init__(self, src, no_extern_c=False, options=None, keep=False):
-            assert isinstance(src, MockSourceStr)
+            assert isinstance(src, MockSource)
             assert isinstance(no_extern_c, bool)
             assert options is None or all(isinstance(option, str) for option in options)
             assert isinstance(keep, bool)
 
-            mock_src = src.mock
-
-            if mock_src.should_fail:
+            if src.should_fail:
                 raise PycudaCompileError()
 
             self._context = self._backend_ref().current_context()
 
             function_cls = self._backend_ref().pycuda_driver.Function
-            self._kernels = {kernel.name: function_cls(self, kernel) for kernel in mock_src.kernels}
-            self._constant_mem = mock_src.constant_mem
+            self._kernels = {kernel.name: function_cls(self, kernel) for kernel in src.kernels}
+            self._constant_mem = src.constant_mem
 
         def get_function(self, name):
             return self._kernels[name]
