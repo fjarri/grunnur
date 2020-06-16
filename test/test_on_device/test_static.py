@@ -4,8 +4,10 @@ import numpy
 from grunnur import StaticKernel, Queue, Array, MultiDevice
 from grunnur import CUDA_API_ID, OPENCL_API_ID
 
+from ..mock_base import MockKernel, MockDefTemplate, MockDefTemplate
 
-src = """
+
+SRC = """
 KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b)
 {
     ${static.begin};
@@ -17,7 +19,13 @@ KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b)
 """
 
 
-def test_compile_static(context):
+def _test_compile_static(context, is_mocked):
+
+    if is_mocked:
+        kernel = MockKernel('multiply', [None, None, None], max_total_local_sizes={0: 1024})
+        src = MockDefTemplate(kernels=[kernel])
+    else:
+        src = SRC
 
     a = numpy.arange(11).astype(numpy.int32)
     b = numpy.arange(15).astype(numpy.int32)
@@ -35,12 +43,22 @@ def test_compile_static(context):
 
     res = res_dev.get()
 
-    assert (res == ref).all()
+    if not is_mocked:
+        assert (res == ref).all()
 
 
-def test_compile_static_multi_device(multi_device_context):
+def test_compile_static(context):
+    _test_compile_static(context=context, is_mocked=False)
 
-    context = multi_device_context
+
+def _test_compile_static_multi_device(context, is_mocked):
+
+    if is_mocked:
+        kernel = MockKernel(
+            'multiply', [None, None, None], max_total_local_sizes={0: 1024, 1: 512})
+        src = MockDefTemplate(kernels=[kernel])
+    else:
+        src = SRC
 
     a = numpy.arange(22).astype(numpy.int32)
     b = numpy.arange(15).astype(numpy.int32)
@@ -70,14 +88,18 @@ def test_compile_static_multi_device(multi_device_context):
         MultiDevice(b_dev_1, b_dev_2))
 
     res = res_dev.get()
-    correct_result = (res == ref).all()
 
-    device_names = [device.name for device in queue.devices.values()]
-    expected_to_fail = (
-        context.api.id == OPENCL_API_ID and
-        'Apple' in context.platform.name and
-        any('GeForce' in name for name in device_names) and
-        not all('GeForce' in name for name in device_names))
+    if is_mocked:
+        correct_result = True
+        expected_to_fail = False
+    else:
+        correct_result = (res == ref).all()
+        device_names = [device.name for device in queue.devices.values()]
+        expected_to_fail = (
+            context.api.id == OPENCL_API_ID and
+            'Apple' in context.platform.name and
+            any('GeForce' in name for name in device_names) and
+            not all('GeForce' in name for name in device_names))
 
     if expected_to_fail:
         if correct_result:
@@ -88,3 +110,7 @@ def test_compile_static_multi_device(multi_device_context):
                 "don't work correctly (the kernel invocation on GeForce is ignored).")
 
     assert correct_result
+
+
+def test_compile_static_multi_device(multi_device_context):
+    _test_compile_static_multi_device(context=multi_device_context, is_mocked=False)
