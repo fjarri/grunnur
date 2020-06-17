@@ -1,6 +1,6 @@
 from .utils import prod
 from .vsize import VirtualSizes
-from .program import Program, SingleDeviceProgram, process_arg, MultiDevice
+from .program import Program, SingleDeviceProgram, process_arg, MultiDevice, _call_kernels
 
 
 class StaticKernel:
@@ -23,7 +23,7 @@ class StaticKernel:
         else:
             device_idxs = sorted(device_idxs)
 
-        kernel_adapters = []
+        kernel_adapters = {}
         vs_metadata = []
         for device_idx in device_idxs:
 
@@ -71,43 +71,26 @@ class StaticKernel:
 
                 # TODO: prevent this being an endless loop
 
-            kernel_adapters.append(kernel_adapter)
+            kernel_adapters[device_idx] = kernel_adapter
             vs_metadata.append(vs)
 
         self.context = context
         self._vs_metadata = vs_metadata
-        self._kernel_adapters = kernel_adapters
+        self._sd_kernel_adapters = kernel_adapters
         self._device_idxs = device_idxs
 
-    def __call__(self, queue, *args, device_idxs=None):
+        self._global_sizes = MultiDevice(*[vs.real_global_size for vs in self._vs_metadata])
+        self._local_sizes = MultiDevice(*[vs.real_local_size for vs in self._vs_metadata])
+
+    def __call__(self, queue, *args):
         """
         Execute the kernel.
         :py:class:`Array` objects are allowed as arguments.
         In case of the OpenCL backend, returns a ``pyopencl.Event`` object.
         """
-        # TODO: speed this up. Probably shouldn't create sets on every kernel call.
-        if device_idxs is None:
-            device_idxs = list(queue.devices)
-
-        if not set(device_idxs).issubset(self._device_idxs):
-            missing_dev_nums = [
-                device_idx for device_idx in device_idxs if device_idx not in self._device_idxs]
-            raise ValueError(
-                f"This kernel's program was not compiled for devices {missing_dev_nums.join(', ')}")
-
-        # TODO: support "single-device" kernels to streamline the logic of kernel.__call__()
-        # and reduce overheads?
-        events = []
-        for i, device_idx in enumerate(device_idxs):
-            kernel_adapter = self._kernel_adapters[i]
-            vs = self._vs_metadata[i]
-
-            kernel_args = [arg.values[i] if isinstance(arg, MultiDevice) else arg for arg in args]
-            kernel_args = [process_arg(arg) for arg in kernel_args]
-
-            event = kernel_adapter(queue._queue_adapter, vs.real_global_size, vs.real_local_size, *kernel_args)
-            events.append(event)
-        return events
+        return _call_kernels(
+            queue, self._sd_kernel_adapters, self._global_sizes, self._local_sizes, *args,
+            device_idxs=self._device_idxs)
 
     def set_constant_array(self, name, arr, queue=None):
         """
@@ -115,4 +98,4 @@ class StaticKernel:
         corresponding to the symbol ``name`` to device.
         """
         for kernel in self._kernels:
-            kernel.set_constant(name, arr, queue=queue)
+            kernel.set_constant_array(name, arr, queue=queue)
