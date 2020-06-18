@@ -336,15 +336,12 @@ class CuContextAdapter(ContextAdapter):
 
     def compile_single_device(
             self, device_idx, prelude, src, keep=False, fast_math=False, compiler_options=[],
-            constant_arrays=None):
+            constant_arrays={}):
 
-        if constant_arrays is not None:
-            constant_arrays = normalize_constant_arrays(constant_arrays)
-            constant_arrays_src = _CONSTANT_ARRAYS_DEF.render(
-                dtypes=dtypes,
-                constant_arrays=constant_arrays)
-        else:
-            constant_arrays_src = ""
+        constant_arrays = normalize_constant_arrays(constant_arrays)
+        constant_arrays_src = _CONSTANT_ARRAYS_DEF.render(
+            dtypes=dtypes,
+            constant_arrays=constant_arrays)
 
         options = compiler_options + (['-use_fast_math'] if fast_math else [])
         full_src = prelude + constant_arrays_src + src
