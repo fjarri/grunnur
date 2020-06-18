@@ -42,3 +42,13 @@ def test_all_by_shortcut_not_available(mock_backend_factory):
 def test_all_by_shortcut_not_found():
     with pytest.raises(ValueError):
         API.all_by_shortcut("something non-existent")
+
+
+def test_from_api_id(mock_backend_factory):
+    for api_id in all_api_ids():
+        with pytest.raises(ImportError):
+            API.from_api_id(api_id)
+
+        mock_backend_factory.mock(api_id)
+        api = API.from_api_id(api_id)
+        assert api.id == api_id
