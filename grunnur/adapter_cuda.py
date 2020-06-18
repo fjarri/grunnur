@@ -263,21 +263,6 @@ class CuContextAdapter(ContextAdapter):
     """
 
     @classmethod
-    def from_any_base(cls, objs) -> CuContextAdapter:
-        """
-        Create a context based on any object supported by other ``from_*`` methods.
-        """
-        objs = wrap_in_tuple(objs)
-        if isinstance(objs[0], pycuda_driver.Device):
-            return cls.from_pycuda_devices(objs)
-        elif isinstance(objs[0], pycuda_driver.Context):
-            return cls.from_pycuda_contexts(objs)
-        elif isinstance(objs[0], CuDeviceAdapter):
-            return cls.from_device_adapters(objs)
-        else:
-            raise TypeError(f"Do not know how to create a context out of {type(objs[0])}")
-
-    @classmethod
     def from_pycuda_devices(cls, pycuda_devices: Iterable[pycuda_driver.Device]) -> CuContextAdapter:
         """
         Creates a context based on one or several (distinct) PyCuda ``Device`` objects.

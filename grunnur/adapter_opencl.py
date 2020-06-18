@@ -266,21 +266,6 @@ class OclDeviceParameters(DeviceParameters):
 class OclContextAdapter(ContextAdapter):
 
     @classmethod
-    def from_any_base(cls, objs) -> OclContextAdapter:
-        """
-        Create a context based on any object supported by other ``from_*`` methods.
-        """
-        objs = wrap_in_tuple(objs)
-        if isinstance(objs[0], pyopencl.Device):
-            return cls.from_pyopencl_devices(objs)
-        elif isinstance(objs[0], pyopencl.Context):
-            return cls.from_pyopencl_context(objs)
-        elif isinstance(objs[0], OclDeviceAdapter):
-            return cls.from_devices(objs)
-        else:
-            raise TypeError(f"Do not know how to create a context out of {type(objs[0])}")
-
-    @classmethod
     def from_pyopencl_devices(cls, pyopencl_devices: Iterable[pyopencl.Device]) -> OclContextAdapter:
         """
         Creates a context based on one or several (distinct) PyOpenCL ``Device`` objects.
