@@ -2,7 +2,7 @@ import numpy
 
 import pytest
 
-from grunnur import CUDA_API_ID, OPENCL_API_ID, Program, Queue, Array, CompilationError, MultiDevice
+from grunnur import CUDA_API_ID, OPENCL_API_ID, Program, Queue, Array, CompilationError, MultiDevice, StaticKernel
 from grunnur.template import Template
 
 from ..mock_base import MockKernel, MockDefTemplate
@@ -168,7 +168,24 @@ KERNEL void copy_from_cm(
 """
 
 
-def _test_constant_memory(context, is_mocked):
+SRC_CONSTANT_MEM_STATIC = """
+KERNEL void copy_from_cm(
+    GLOBAL_MEM int *dest
+#ifdef GRUNNUR_OPENCL_API
+    , CONSTANT_MEM_ARG int *cm1
+    , CONSTANT_MEM_ARG int *cm2
+    , CONSTANT_MEM_ARG int *cm3
+#endif
+    )
+{
+    ${static.begin};
+    const int i = ${static.global_id}(0);
+    dest[i] = cm1[i] + cm2[i] + cm3[i];
+}
+"""
+
+
+def _test_constant_memory(context, is_mocked, is_static):
 
     cm1 = numpy.arange(16).astype(numpy.int32)
     cm2 = numpy.arange(16).astype(numpy.int32) * 2 + 1
@@ -177,7 +194,8 @@ def _test_constant_memory(context, is_mocked):
     if is_mocked:
         kernel = MockKernel(
             'copy_from_cm',
-            [None] if context.api.id == CUDA_API_ID else [None, None, None, None])
+            [None] if context.api.id == CUDA_API_ID else [None, None, None, None],
+            max_total_local_sizes={0: 1024})
         src = MockDefTemplate(
             constant_mem={
                 'cm1': cm1.size * cm1.dtype.itemsize,
@@ -185,7 +203,7 @@ def _test_constant_memory(context, is_mocked):
                 'cm3': cm3.size * cm3.dtype.itemsize},
             kernels=[kernel])
     else:
-        src = SRC_CONSTANT_MEM
+        src = SRC_CONSTANT_MEM_STATIC if is_static else SRC_CONSTANT_MEM
 
     queue = Queue.from_device_idxs(context)
 
@@ -195,14 +213,30 @@ def _test_constant_memory(context, is_mocked):
     res_dev = Array.empty(queue, 16, numpy.int32)
 
     if context.api.id == CUDA_API_ID:
-        program = Program(context, src, constant_arrays=dict(cm1=cm1, cm2=cm2, cm3=cm3))
-        program.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
-        program.set_constant_array(queue, 'cm2', cm2) # setting from a host array
-        program.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
-        program.copy_from_cm(queue, 16, None, res_dev)
+        if is_static:
+            copy_from_cm = StaticKernel(
+                context, src, 'copy_from_cm',
+                global_size=16, constant_arrays=dict(cm1=cm1, cm2=cm2, cm3=cm3))
+            copy_from_cm.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
+            copy_from_cm.set_constant_array(queue, 'cm2', cm2) # setting from a host array
+            copy_from_cm.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
+        else:
+            program = Program(context, src, constant_arrays=dict(cm1=cm1, cm2=cm2, cm3=cm3))
+            program.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
+            program.set_constant_array(queue, 'cm2', cm2) # setting from a host array
+            program.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
+            copy_from_cm = lambda queue, *args: program.copy_from_cm(queue, 16, None, *args)
+
+        copy_from_cm(queue, res_dev)
     else:
-        program = Program(context, src)
-        program.copy_from_cm(queue, 16, None, res_dev, cm1_dev, cm2_dev, cm3_dev)
+
+        if is_static:
+            copy_from_cm = StaticKernel(context, src, 'copy_from_cm', global_size=16)
+        else:
+            program = Program(context, src)
+            copy_from_cm = lambda queue, *args: program.copy_from_cm(queue, 16, None, *args)
+
+        copy_from_cm(queue, res_dev, cm1_dev, cm2_dev, cm3_dev)
 
     res = res_dev.get()
 
@@ -211,9 +245,7 @@ def _test_constant_memory(context, is_mocked):
 
 
 def test_constant_memory(context):
-    _test_constant_memory(
-        context=context,
-        is_mocked=False)
+    _test_constant_memory(context=context, is_mocked=False, is_static=False)
 
 
 SRC_COMPILE_ERROR = """

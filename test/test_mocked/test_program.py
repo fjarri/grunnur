@@ -1,7 +1,7 @@
 import numpy
 import pytest
 
-from grunnur import API, Context, Queue, Array, Program, CompilationError, CUDA_API_ID
+from grunnur import API, Context, Queue, Array, Program, CompilationError, CUDA_API_ID, StaticKernel
 
 from ..mock_base import MockDefTemplate, MockKernel
 from ..test_on_device.test_program import (
@@ -21,9 +21,7 @@ def test_compile(mock_context, no_prelude):
 
 
 def test_constant_memory(mock_context):
-    _test_constant_memory(
-        context=mock_context,
-        is_mocked=True)
+    _test_constant_memory(context=mock_context, is_mocked=True, is_static=False)
 
 
 def test_compilation_error(mock_context, capsys):
@@ -64,7 +62,8 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
     other_context.deactivate()
 
     cm1 = numpy.arange(16).astype(numpy.int32)
-    src = MockDefTemplate(kernels=[MockKernel('kernel', [])])
+    src = MockDefTemplate(kernels=[
+        MockKernel('kernel', [], max_total_local_sizes={0: 1024, 1: 1024, 2: 1024, 3: 1024})])
     queue = Queue.from_device_idxs(context)
 
     if context.api.id == CUDA_API_ID:
@@ -91,8 +90,15 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
             program = Program(context, src, constant_arrays=dict(cm1=cm1))
 
         program = Program(context, src)
-        with pytest.raises(RuntimeError, match="Constant arrays are only supported for CUDA API"):
+        with pytest.raises(ValueError, match="Constant arrays are only supported for CUDA API"):
             program.set_constant_array(queue, 'cm1', cm1)
+
+        with pytest.raises(ValueError, match="Compile-time constant arrays are only supported by CUDA API"):
+            sk = StaticKernel(context, src, 'kernel', 1024, constant_arrays=dict(cm1=cm1))
+
+        sk = StaticKernel(context, src, 'kernel', 1024)
+        with pytest.raises(ValueError, match="Constant arrays are only supported for CUDA API"):
+            sk.set_constant_array(queue, 'cm1', cm1)
 
 
 def test_max_total_local_sizes(mock_backend):

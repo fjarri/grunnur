@@ -5,6 +5,7 @@ from ..test_on_device.test_static import (
     _test_compile_static,
     _test_compile_static_multi_device,
     )
+from ..test_on_device.test_program import _test_constant_memory
 
 
 def test_compile_static(mock_context):
@@ -21,3 +22,7 @@ def test_find_local_size(mock_context):
 
 def test_compile_static_multi_device(mock_4_device_context):
     _test_compile_static_multi_device(context=mock_4_device_context, is_mocked=True)
+
+
+def test_constant_memory(mock_context):
+    _test_constant_memory(context=mock_context, is_mocked=True, is_static=True)

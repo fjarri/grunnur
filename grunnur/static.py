@@ -1,6 +1,7 @@
+from .api import CUDA_API_ID
 from .utils import prod
 from .vsize import VirtualSizes
-from .program import Program, SingleDeviceProgram, process_arg, MultiDevice, _call_kernels
+from .program import Program, SingleDeviceProgram, process_arg, MultiDevice, _call_kernels, _set_constant_array
 
 
 class StaticKernel:
@@ -14,7 +15,10 @@ class StaticKernel:
 
     def __init__(
             self, context, src, name, global_size,
-            local_size=None, device_idxs=None, render_globals={}, **kwds):
+            local_size=None, device_idxs=None, render_globals={}, constant_arrays={}, **kwds):
+
+        if context.api.id != CUDA_API_ID and len(constant_arrays) > 0:
+            raise ValueError("Compile-time constant arrays are only supported by CUDA API")
 
         self.context = context
 
@@ -54,7 +58,8 @@ class StaticKernel:
 
                 # Try to compile the kernel with the corresponding virtual size functions
                 program = SingleDeviceProgram(
-                    context, device_idx, src, render_globals=new_render_globals, **kwds)
+                    context, device_idx, src, render_globals=new_render_globals,
+                    constant_arrays=constant_arrays, **kwds)
                 kernel_adapter = program.get_kernel_adapter(name)
 
                 if kernel_adapter.max_total_local_size >= prod(vs.real_local_size):
@@ -92,10 +97,12 @@ class StaticKernel:
             queue, self._sd_kernel_adapters, self._global_sizes, self._local_sizes, *args,
             device_idxs=self._device_idxs)
 
-    def set_constant_array(self, name, arr, queue=None):
+    def set_constant_array(self, queue, name, arr):
         """
         Load a constant array (``arr`` can be either ``numpy`` array or a :py:class:`Array` object)
         corresponding to the symbol ``name`` to device.
         """
-        for kernel in self._kernels:
-            kernel.set_constant_array(name, arr, queue=queue)
+        if self.context.api.id != CUDA_API_ID:
+            raise ValueError("Constant arrays are only supported for CUDA API")
+        for kernel_adapter in self._sd_kernel_adapters.values():
+            _set_constant_array(queue, kernel_adapter.program_adapter, name, arr)

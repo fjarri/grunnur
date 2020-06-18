@@ -5,6 +5,7 @@ from grunnur import StaticKernel, Queue, Array, MultiDevice
 from grunnur import CUDA_API_ID, OPENCL_API_ID
 
 from ..mock_base import MockKernel, MockDefTemplate, MockDefTemplate
+from ..test_on_device.test_program import _test_constant_memory
 
 
 SRC = """
@@ -114,3 +115,7 @@ def _test_compile_static_multi_device(context, is_mocked):
 
 def test_compile_static_multi_device(multi_device_context):
     _test_compile_static_multi_device(context=multi_device_context, is_mocked=False)
+
+
+def test_constant_memory(context):
+    _test_constant_memory(context=context, is_mocked=False, is_static=True)
