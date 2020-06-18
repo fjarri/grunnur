@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import API, Platform, Device, OPENCL_API_ID
+from grunnur import API, Platform, Device, OPENCL_API_ID, CUDA_API_ID
 
 
 def test_all(mock_backend):
@@ -29,19 +29,25 @@ def test_all_by_masks(mock_backend, unique_only):
         assert devices[0] != devices[1]
 
 
-def test_from_backend_device_opencl(mock_backend_pyopencl):
-    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1'])
+def test_from_backend_device(mock_backend):
+    mock_backend.add_devices(['Device1'])
 
-    api = API.from_api_id(mock_backend_pyopencl.api_id)
+    api = API.from_api_id(mock_backend.api_id)
 
-    backend_device = mock_backend_pyopencl.pyopencl.get_platforms()[0].get_devices()[0]
+    if api.id == OPENCL_API_ID:
+        backend_device = mock_backend.pyopencl.get_platforms()[0].get_devices()[0]
+    elif api.id == CUDA_API_ID:
+        backend_device = mock_backend.pycuda_driver.Device(0)
+    else:
+        raise NotImplementedError
 
     with pytest.raises(TypeError, match="was not recognized as a device object"):
         Device.from_backend_device(1)
 
     device = Device.from_backend_device(backend_device)
     assert device.platform.api == api
-    assert device.platform.name == 'Platform1'
+    if api.id != CUDA_API_ID:
+        assert device.platform.name == 'Platform0'
     assert device.name == 'Device1'
 
 
