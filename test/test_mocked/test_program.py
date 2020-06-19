@@ -63,7 +63,9 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
 
     cm1 = numpy.arange(16).astype(numpy.int32)
     src = MockDefTemplate(kernels=[
-        MockKernel('kernel', [], max_total_local_sizes={0: 1024, 1: 1024, 2: 1024, 3: 1024})])
+        MockKernel(
+            'kernel', [], max_total_local_sizes={0: 1024, 1: 1024, 2: 1024, 3: 1024})],
+            constant_mem={'cm1': cm1.size * cm1.dtype.itemsize})
     queue = Queue.from_device_idxs(context)
 
     if context.api.id == CUDA_API_ID:
@@ -76,6 +78,9 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
 
         with pytest.raises(TypeError, match="Unsupported array type"):
             program.set_constant_array(queue, 'cm1', [1])
+
+        with pytest.raises(ValueError, match="Incorrect size of the constant buffer;"):
+            program.set_constant_array(queue, 'cm1', cm1[:8])
 
         program = Program(context, src, constant_arrays=dict(cm1=cm1), device_idxs=[0, 1, 2])
         queue3 = Queue.from_device_idxs(context, device_idxs=[3])

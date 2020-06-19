@@ -502,33 +502,40 @@ class CuProgram(ProgramAdapter):
         return CuKernel(self, self._device_idx, pycuda_kernel)
 
     def set_constant_buffer(
-            self, name: str, arr: Union[CuBufferAdapter, numpy.ndarray], queue: Optional[CuQueue]=None):
+            self, queue: CuQueue, name: str, arr: Union[CuBufferAdapter, numpy.ndarray]):
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
         self.context_adapter.activate_device(self._device_idx)
         symbol, size = self._pycuda_program.get_global(name)
 
-        if queue is not None:
-            pycuda_stream = queue._pycuda_streams[self._device_idx]
+        pycuda_stream = queue._pycuda_streams[self._device_idx]
 
         if isinstance(arr, CuBufferAdapter):
-            if size != arr.size:
-                raise ValueError(
-                    f"Incorrect size of the constant buffer; "
-                    f"expected {size} bytes, got {arr.size}")
-
-            if queue is None:
-                pycuda_driver.memcpy_dtod(symbol, arr.kernel_arg, arr.size)
-            else:
-                pycuda_driver.memcpy_dtod_async(symbol, arr.kernel_arg, arr.size, stream=pycuda_stream)
+            transfer_size = arr.size
         elif isinstance(arr, numpy.ndarray):
-            if queue is None:
-                pycuda_driver.memcpy_htod(symbol, arr)
-            else:
-                pycuda_driver.memcpy_htod_async(symbol, arr, stream=pycuda_stream)
+            transfer_size = prod(arr.shape) * arr.dtype.itemsize
+        else: # pragma: no cover
+            # Shouldn't reach this path because the type is already checked by the caller.
+            # Nevertheless leaving it here as a sanity check.
+            raise TypeError(f"Unsupported array type: {type(arr)}")
+
+        if transfer_size != size:
+            raise ValueError(
+                f"Incorrect size of the constant buffer; "
+                f"expected {size} bytes, got {transfer_size}")
+
+        if isinstance(arr, CuBufferAdapter):
+            pycuda_driver.memcpy_dtod_async(symbol, arr.kernel_arg, arr.size, stream=pycuda_stream)
         else:
-            raise TypeError(f"Uunsupported array type: {type(arr)}")
+            # This serves two purposes:
+            # 1. Gives us a pagelocked array, as PyCUDA requires
+            # 2. Makes the array contiguous
+            # Constant array are usually quite small, so it won't affect the performance.
+            buf = pycuda_driver.pagelocked_empty(arr.shape, arr.dtype)
+            numpy.copyto(buf, arr)
+            pycuda_driver.memcpy_htod_async(symbol, buf, stream=pycuda_stream)
+
 
 
 class CuKernel(KernelAdapter):

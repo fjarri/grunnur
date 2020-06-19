@@ -201,6 +201,9 @@ class Mock_pycuda_driver:
         assert dest.size >= size
         assert src.size >= size
 
+    def pagelocked_empty(self, shape, dtype):
+        return numpy.empty(shape, dtype)
+
 
 # We need a device class that is an actual class
 # (so that `type()` works on the results of its `__call__()`),

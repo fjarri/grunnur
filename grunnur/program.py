@@ -53,7 +53,7 @@ def _set_constant_array(
     else:
         raise TypeError(f"Unsupported array type: {type(arr)}")
 
-    program_adapter.set_constant_buffer(name, constant_data, queue=queue_adapter)
+    program_adapter.set_constant_buffer(queue_adapter, name, constant_data)
 
 
 
