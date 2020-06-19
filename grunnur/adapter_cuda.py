@@ -12,7 +12,7 @@ except ImportError:
     pycuda_driver = None
     pycuda_compiler = None
 
-from .utils import all_same, all_different, wrap_in_tuple, prod, normalize_object_sequence
+from .utils import all_same, all_different, wrap_in_tuple, prod, normalize_object_sequence, get_launch_size
 from .template import Template
 from . import dtypes
 from .adapter_base import (
@@ -531,77 +531,6 @@ class CuProgram(ProgramAdapter):
             raise TypeError(f"Uunsupported array type: {type(arr)}")
 
 
-def max_factor(x: int, y: int) -> int:
-    """
-    Find the maximum `d` such that `x % d == 0` and `d <= y`.
-    """
-    if x <= y:
-        return x
-
-    # TODO: speed up
-
-    for d in range(y, 0, -1):
-        if x % d == 0:
-            return d
-
-    return 1
-
-
-def find_local_size(
-        global_size: Sequence[int],
-        max_local_sizes: Sequence[int],
-        max_total_local_size: int) -> Tuple[int, ...]:
-    """
-    Mimics the OpenCL local size finding algorithm.
-    Returns the tuple of the same length as ``global_size``, with every element
-    being a factor of the corresponding element of ``global_size``.
-    Neither of the elements of ``local_size`` are greater then the corresponding element
-    of ``max_local_sizes``, and their product is not greater than ``max_total_local_size``.
-    """
-    if max_total_local_size == 1:
-        return (1,) * len(global_size)
-
-    local_size = []
-    for gs, mls in zip(global_size, max_local_sizes):
-        d = max_factor(gs, min(mls, max_total_local_size))
-        max_total_local_size //= d
-        local_size.append(d)
-
-    return tuple(local_size)
-
-
-def get_launch_size(
-        max_local_sizes: Sequence[int],
-        max_total_local_size: int,
-        global_size: Sequence[int],
-        local_size: Optional[Sequence[int]]=None) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
-    """
-    Constructs the grid and block tuples to launch a CUDA kernel
-    based on the provided global and local sizes.
-    """
-
-    if len(global_size) > len(max_local_sizes):
-        raise ValueError("Global size has too many dimensions")
-
-    if local_size is not None:
-        if len(local_size) != len(global_size):
-            raise ValueError("Global/local work sizes have differing dimensions")
-    else:
-        local_size = find_local_size(global_size, max_local_sizes, max_total_local_size)
-
-    grid_list = []
-    for gs, ls in zip(global_size, local_size):
-        if gs % ls != 0:
-            raise ValueError("Global sizes must be multiples of corresponding local sizes")
-        grid_list.append(gs // ls)
-
-    # append missing dimensions, otherwise PyCUDA will complain
-    block = local_size + (1,) * (3 - len(grid_list))
-    grid: Tuple[int, ...] = tuple(grid_list) + (1,) * (3 - len(grid_list))
-
-    return grid, block
-
-
 class CuKernel(KernelAdapter):
 
     def __init__(self, program_adapter, device_idx, pycuda_function):
@@ -614,7 +543,7 @@ class CuKernel(KernelAdapter):
         return self._pycuda_function.get_attribute(
             pycuda_driver.function_attribute.MAX_THREADS_PER_BLOCK)
 
-    def __call__(self, queue_adapter, global_size, local_size, *args, local_mem=0):
+    def __call__(self, queue_adapter, global_size: Tuple[int, ...], local_size: Tuple[int, ...], *args, local_mem=0):
 
         device_adapter = queue_adapter.device_adapters[self._device_idx]
 
@@ -622,6 +551,11 @@ class CuKernel(KernelAdapter):
             device_adapter.params.max_local_sizes,
             device_adapter.params.max_total_local_size,
             global_size, local_size)
+
+        # append missing dimensions, otherwise PyCUDA will complain
+        max_dims = len(device_adapter.params.max_local_sizes)
+        block = block + (1,) * (max_dims - len(block))
+        grid = grid + (1,) * (max_dims - len(grid))
 
         self.program_adapter.context_adapter.activate_device(self._device_idx)
         self._pycuda_function(

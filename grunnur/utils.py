@@ -1,7 +1,7 @@
 import collections
 from functools import reduce
 import os.path
-from typing import Tuple, Iterable, Optional, Tuple, TypeVar, Type
+from typing import Tuple, Iterable, Optional, Tuple, TypeVar, Type, Sequence
 import re
 
 
@@ -118,3 +118,67 @@ def normalize_object_sequence(objs, expected_cls: Type[_T]) -> Tuple[_T, ...]:
         raise TypeError(f"The iterable must contain only subclasses of {expected_cls}, got {types}")
 
     return objs
+
+
+def max_factor(x: int, y: int) -> int:
+    """
+    Find the maximum `d` such that `x % d == 0` and `d <= y`.
+    """
+    if x <= y:
+        return x
+
+    result = 1
+    for d in range(2, min(int(x**0.5), y) + 1):
+        inv_d = x // d
+        if inv_d * d == x:
+            if inv_d <= y:
+                return inv_d
+            result = d
+
+    return result
+
+
+def find_local_size(
+        global_size: Sequence[int],
+        max_local_sizes: Sequence[int],
+        max_total_local_size: int) -> Tuple[int, ...]:
+    """
+    Mimics the OpenCL local size finding algorithm.
+    Returns the tuple of the same length as ``global_size``, with every element
+    being a factor of the corresponding element of ``global_size``.
+    Neither of the elements of ``local_size`` are greater then the corresponding element
+    of ``max_local_sizes``, and their product is not greater than ``max_total_local_size``.
+    """
+    local_size = []
+    for gs, mls in zip(global_size, max_local_sizes):
+        d = max_factor(gs, min(mls, max_total_local_size))
+        max_total_local_size //= d
+        local_size.append(d)
+
+    return tuple(local_size)
+
+
+def get_launch_size(
+        max_local_sizes: Tuple[int, ...],
+        max_total_local_size: int,
+        global_size: Tuple[int, ...],
+        local_size: Optional[Tuple[int, ...]]=None) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+    """
+    Constructs the grid and block tuples to launch a CUDA kernel
+    based on the provided global and local sizes.
+    """
+
+    if len(global_size) > len(max_local_sizes):
+        raise ValueError("Global size has too many dimensions")
+
+    if local_size is not None:
+        if len(local_size) != len(global_size):
+            raise ValueError("Global/local work sizes have differing dimensions")
+        for gs, ls in zip(global_size, local_size):
+            if gs % ls != 0:
+                raise ValueError("Global sizes must be multiples of corresponding local sizes")
+    else:
+        local_size = find_local_size(global_size, max_local_sizes, max_total_local_size)
+
+    grid_size = tuple(gs // ls for gs, ls in zip(global_size, local_size))
+    return grid_size, local_size

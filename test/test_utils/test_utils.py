@@ -2,7 +2,7 @@ import pytest
 
 from grunnur.utils import (
     all_same, all_different, wrap_in_tuple, min_blocks, log2, bounding_power_of_2, prod,
-    string_matches_masks, normalize_object_sequence)
+    string_matches_masks, normalize_object_sequence, max_factor, find_local_size, get_launch_size)
 
 
 def test_all_same():
@@ -75,3 +75,31 @@ def test_normalize_object_sequence():
     # Wrong type
     with pytest.raises(TypeError):
         normalize_object_sequence(['1', 2], str)
+
+
+def test_max_factor():
+    assert max_factor(3, 6) == 3
+    assert max_factor(6, 6) == 6
+    assert max_factor(37 * 37, 1024) == 37
+    assert max_factor(512 * 37, 1024) == 37 * 16
+    assert max_factor(1024 * 37, 1024) == 1024
+    assert max_factor(521, 512) == 1
+
+
+def test_find_local_size():
+    assert find_local_size((10 * 127, 3 * 127, 300), (64, 64, 32), 64) == (10, 3, 2)
+    assert find_local_size((10 * 127, 3 * 127, 300), (1, 1, 1), 1) == (1, 1, 1)
+
+
+def test_get_launch_size():
+    with pytest.raises(ValueError, match="Global size has too many dimensions"):
+        get_launch_size((64, 64, 64), 64, (100, 100, 100, 100))
+
+    with pytest.raises(ValueError, match="Global/local work sizes have differing dimensions"):
+        get_launch_size((64, 64, 64), 64, (100, 100, 100), (10, 10))
+
+    with pytest.raises(ValueError, match="Global sizes must be multiples of corresponding local sizes"):
+        get_launch_size((64, 64, 64), 64, (100, 100, 100), (10, 10, 15))
+
+    assert get_launch_size((64, 64, 32), 64, (10 * 127, 3 * 127, 300)) == ((127, 127, 150), (10, 3, 2))
+    assert get_launch_size((64, 64, 32), 64, (100, 200, 300), (5, 10, 1)) == ((20, 20, 300), (5, 10, 1))
