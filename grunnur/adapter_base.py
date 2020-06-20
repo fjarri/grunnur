@@ -341,11 +341,11 @@ class BufferAdapter(ABC):
         pass
 
     @abstractmethod
-    def set(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
+    def set(self, queue_adapter, device_idx, host_array, async_=False):
         pass
 
     @abstractmethod
-    def get(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
+    def get(self, queue_adapter, device_idx, host_array, async_=False):
         pass
 
     @abstractmethod

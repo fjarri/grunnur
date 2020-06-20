@@ -23,15 +23,13 @@ class Buffer:
     def size(self):
         return self._buffer_adapter.size
 
-    def set(self, queue, device_idx, host_array, async_=False, dont_sync_other_devices=False):
-        self._buffer_adapter.set(
-            queue._queue_adapter, device_idx, host_array,
-            async_=async_, dont_sync_other_devices=dont_sync_other_devices)
+    def set(self, queue, host_array, async_=False, device_idx=None):
+        device_idx = queue.device_idxs[0] if device_idx is None else device_idx
+        self._buffer_adapter.set(queue._queue_adapter, device_idx, host_array, async_=async_)
 
-    def get(self, queue, device_idx, host_array, async_=False, dont_sync_other_devices=False):
-        self._buffer_adapter.get(
-            queue._queue_adapter, device_idx, host_array,
-            async_=async_, dont_sync_other_devices=dont_sync_other_devices)
+    def get(self, queue, host_array, async_=False, device_idx=None):
+        device_idx = queue.device_idxs[0] if device_idx is None else device_idx
+        self._buffer_adapter.get(queue._queue_adapter, device_idx, host_array, async_=async_)
 
     def get_sub_region(self, origin, size):
         return Buffer(self.context, self._buffer_adapter.get_sub_region(origin, size))

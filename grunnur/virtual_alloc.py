@@ -62,21 +62,21 @@ class VirtualBufferAdapter(BufferAdapter):
         self._manager = manager
         self._id = id_
         self._size = size
-        self._real_buffer: Optional[Buffer] = None
+        self._real_buffer_adapter: Optional[BufferAdapter] = None
 
     @property
     def kernel_arg(self):
-        return self._real_buffer.kernel_arg
+        return self._real_buffer_adapter.kernel_arg
 
     def get_sub_region(self, origin, size):
         # FIXME: how to handle it?
         raise NotImplementedError("Virtual buffers do not support subregions")
 
     def get(self, *args, **kwds):
-        return self._real_buffer.get(*args, **kwds)
+        return self._real_buffer_adapter.get(*args, **kwds)
 
     def set(self, *args, **kwds):
-        return self._real_buffer.set(*args, **kwds)
+        return self._real_buffer_adapter.set(*args, **kwds)
 
     @property
     def offset(self) -> int:
@@ -87,10 +87,10 @@ class VirtualBufferAdapter(BufferAdapter):
         return self._size
 
     def migrate(self, *args, **kwds):
-        self._real_buffer.migrate(*args, **kwds)
+        self._real_buffer_adapter.migrate(*args, **kwds)
 
-    def _set_real_buffer(self, buf: Buffer):
-        self._real_buffer = buf._buffer_adapter
+    def _set_real_buffer_adapter(self, buf: Buffer):
+        self._real_buffer_adapter = buf._buffer_adapter
 
 
 class VirtualManager:
@@ -155,7 +155,7 @@ class VirtualManager:
         vbuf = self._virtual_buffers[id_]()
         assert vbuf is not None
         buf = self._get_real_buffer(id_)
-        vbuf._set_real_buffer(buf)
+        vbuf._set_real_buffer_adapter(buf)
 
     def _update_all(self):
         for id_ in self._virtual_buffers:

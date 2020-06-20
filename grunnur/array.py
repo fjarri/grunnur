@@ -95,7 +95,7 @@ class Array:
         Sets the data in this array from a CPU array.
         If ``async_`` is ``True``, this call blocks.
         """
-        self.data.set(self._queue, self._queue_device_idx, array)
+        self.data.set(self._queue, array, device_idx=self._queue_device_idx)
 
     def get(self, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
         """
@@ -107,7 +107,7 @@ class Array:
         # TODO: check if the array is contiguous
         if dest is None:
             dest = numpy.empty(self.shape, self.dtype)
-        self.data.get(self._queue, self._queue_device_idx, dest, async_=async_)
+        self.data.get(self._queue, dest, async_=async_, device_idx=self._queue_device_idx)
         return dest
 
 

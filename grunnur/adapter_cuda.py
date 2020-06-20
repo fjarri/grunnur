@@ -417,12 +417,11 @@ class CuBufferAdapter(BufferAdapter):
             self._context_adapter, size,
             offset=self._offset + origin, ptr=new_ptr, base_buffer=base_buffer)
 
-    def set(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
+    def set(self, queue_adapter, device_idx, host_array, async_=False):
         # TODO: is there a way to keep the whole thing async, but still wait until
         # all current tasks on other devices finish, like with events in OpenCL?
 
-        if not dont_sync_other_devices:
-            queue_adapter._synchronize_other_streams(device_idx)
+        queue_adapter._synchronize_other_streams(device_idx)
 
         self._context_adapter.activate_device(device_idx)
 
@@ -432,9 +431,8 @@ class CuBufferAdapter(BufferAdapter):
         else:
             pycuda_driver.memcpy_htod(self._ptr, host_array)
 
-    def get(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
-        if not dont_sync_other_devices:
-            queue_adapter._synchronize_other_streams(device_idx)
+    def get(self, queue_adapter, device_idx, host_array, async_=False):
+        queue_adapter._synchronize_other_streams(device_idx)
 
         self._context_adapter.activate_device(device_idx)
 

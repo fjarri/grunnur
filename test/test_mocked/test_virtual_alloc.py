@@ -28,7 +28,7 @@ class MockPlatformAdapter:
     platform_idx = 0
 
 
-class MockDeviceAdapter():
+class MockDeviceAdapter:
     platform_adapter = MockPlatformAdapter()
     name = "mock"
     device_idx = 0
@@ -43,10 +43,10 @@ class MockBufferAdapter:
         self.kernel_arg = numpy.empty(size, numpy.uint8)
         self.device_idx = None
 
-    def set(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
+    def set(self, queue_adapter, device_idx, host_array, async_=False):
         self.kernel_arg[:] = host_array[:self.size]
 
-    def get(self, queue_adapter, device_idx, host_array, async_=False, dont_sync_other_devices=False):
+    def get(self, queue_adapter, device_idx, host_array, async_=False):
         host_array[:self.size] = self.kernel_arg
 
     def migrate(self, queue_adapter, device_idx):
@@ -230,14 +230,14 @@ def test_virtual_buffer():
     assert vbuf.offset == 0
 
     arr = numpy.arange(100).astype(numpy.uint8)
-    vbuf.set(queue, 0, arr)
+    vbuf.set(queue, arr)
     res = numpy.empty_like(arr)
-    vbuf.get(queue, 0, res)
+    vbuf.get(queue, res)
     assert (arr == res).all()
 
-    assert vbuf._buffer_adapter._real_buffer.device_idx is None
+    assert vbuf._buffer_adapter._real_buffer_adapter.device_idx is None
     vbuf.migrate(queue, 0)
-    assert vbuf._buffer_adapter._real_buffer.device_idx == 0
+    assert vbuf._buffer_adapter._real_buffer_adapter.device_idx == 0
 
 
 def test_continuous_pack(valloc_cls):
