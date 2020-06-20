@@ -1,6 +1,7 @@
 import time
 import numpy
 from grunnur import opencl_api as api
+from grunnur import Context, Queue, Program, Array, MultiDevice
 
 
 src = """
@@ -32,20 +33,16 @@ def calc_ref(x, pwr):
     return res
 
 
-def test_single_device(full_len, benchmark=False):
+def test_single_device(device_idx, full_len, benchmark=False):
     pwr = 50
 
     a = numpy.arange(full_len).astype(numpy.uint64)
 
-    p = api.get_platforms()[0]
-    ds = p.get_devices()
-    ds = [ds[2]]
+    context = Context.from_devices([api[0][device_idx]])
+    queue = Queue.from_device_idxs(context)
 
-    context = api.create_context(ds)
-    queue = context.make_queue()
-
-    program = context.compile(src)
-    a_dev = context.upload(queue, a)
+    program = Program(context, src)
+    a_dev = Array.from_host(queue, a)
 
     gs = full_len
     ls = None
@@ -55,7 +52,7 @@ def test_single_device(full_len, benchmark=False):
     program.sum(queue, gs, ls, a_dev, numpy.int32(pwr))
     queue.synchronize()
     t2 = time.time()
-    print("Single device time:", t2 - t1)
+    print(f"Single device time (device {device_idx}):", t2 - t1)
 
     a_res = a_dev.get()
 
@@ -64,21 +61,17 @@ def test_single_device(full_len, benchmark=False):
         assert (a_ref == a_res).all()
 
 
-def test_multi_device(full_len, benchmark=False):
+def test_multi_device(device_idxs, full_len, benchmark=False):
 
     pwr = 50
 
     a = numpy.arange(full_len).astype(numpy.uint64)
 
-    p = api.get_platforms()[0]
-    ds = p.get_devices()
-    ds = [ds[1], ds[2]]
+    context = Context.from_devices([api[0][device_idx] for device_idx in device_idxs])
+    queue = Queue.from_device_idxs(context)
 
-    context = api.create_context(ds)
-    queue = context.make_queue()
-
-    program = context.compile(src)
-    a_dev = context.upload(queue, a)
+    program = Program(context, src)
+    a_dev = Array.from_host(queue, a)
 
     a_dev_1 = a_dev.single_device_view(0)[:full_len//2]
     a_dev_2 = a_dev.single_device_view(1)[full_len//2:]
@@ -88,10 +81,10 @@ def test_multi_device(full_len, benchmark=False):
 
     queue.synchronize()
     t1 = time.time()
-    program.sum(queue, gs, ls, [a_dev_1, a_dev_2], numpy.int32(pwr), device_nums=[0, 1])
+    program.sum(queue, gs, ls, MultiDevice(a_dev_1, a_dev_2), numpy.int32(pwr), device_idxs=[0, 1])
     queue.synchronize()
     t2 = time.time()
-    print("Multidevice time:", t2 - t1)
+    print(f"Multidevice time (devices {device_idxs}):", t2 - t1)
 
     a_res = a_dev.get()
 
@@ -99,8 +92,10 @@ def test_multi_device(full_len, benchmark=False):
         a_ref = calc_ref(a, pwr)
         assert (a_ref == a_res).all()
 
-test_single_device(2**20)
-test_multi_device(2**20)
+test_single_device(1, 2**20)
+test_single_device(2, 2**20)
+test_multi_device([1, 2], 2**20)
 
-test_single_device(2**24, benchmark=True)
-test_multi_device(2**24, benchmark=True)
+test_single_device(1, 2**24, benchmark=True)
+test_single_device(2, 2**24, benchmark=True)
+test_multi_device([1, 2], 2**24, benchmark=True)
