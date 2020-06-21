@@ -392,11 +392,11 @@ class OclBufferAdapter(BufferAdapter):
     def offset(self) -> int:
         return self.pyopencl_buffer.offset
 
-    def set(self, queue_adapter, device_idx, host_array, async_=False):
+    def set(self, queue_adapter, device_idx, host_array, no_async=False):
         wait_for = queue_adapter._other_device_events(device_idx)
         pyopencl.enqueue_copy(
             queue_adapter._pyopencl_queues[device_idx], self.pyopencl_buffer, host_array,
-            wait_for=wait_for, is_blocking=not async_)
+            wait_for=wait_for, is_blocking=no_async)
 
     def get(self, queue_adapter, device_idx, host_array, async_=False):
         wait_for = queue_adapter._other_device_events(device_idx)

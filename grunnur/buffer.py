@@ -24,10 +24,10 @@ class Buffer:
     def size(self):
         return self._buffer_adapter.size
 
-    def set(self, queue, host_array, async_=False):
+    def set(self, queue, host_array, no_async=False):
         if self._device_idx is None:
             raise RuntimeError("This buffer has not been bound to any device yet")
-        self._buffer_adapter.set(queue._queue_adapter, self._device_idx, host_array, async_=async_)
+        self._buffer_adapter.set(queue._queue_adapter, self._device_idx, host_array, no_async=no_async)
         self.migrate(queue)
 
     def get(self, queue, host_array, async_=False):
