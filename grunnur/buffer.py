@@ -39,8 +39,9 @@ class Buffer:
         return Buffer(self.context, self._buffer_adapter.get_sub_region(origin, size))
 
     def bind(self, device_idx):
-        if device_idx > len(self.context.devices):
-            raise ValueError(f"Device index {device_idx} out of available range for this context (0-{len(context.devices)-1})")
+        if device_idx >= len(self.context.devices):
+            max_idx = len(self.context.devices) - 1
+            raise ValueError(f"Device index {device_idx} out of available range for this context (0-{max_idx})")
 
         if self._device_idx is None:
             self._device_idx = device_idx
