@@ -92,6 +92,11 @@ class Mock_pyopencl:
 
         assert dest_size >= src_size
 
+        if isinstance(dest, Buffer) and isinstance(src, numpy.ndarray):
+            dest._set(src)
+        elif isinstance(dest, numpy.ndarray) and isinstance(src, Buffer):
+            src._get(dest)
+
     def enqueue_marker(self, queue, wait_for=None):
         return Event(queue)
 
@@ -230,14 +235,24 @@ class Buffer:
         self.flags = flags
         self.size = size
         self._migrated_to = _migrated_to
+        self._buffer = b"\xef" * size
 
     def _migrate(self, device):
         self._migrated_to = device
 
+    def _set(self, arr):
+        data = arr.tobytes()
+        assert len(data) <= self.size
+        self._buffer = data + b"\xef" * (self.size - len(data))
+
+    def _get(self, arr):
+        buf = numpy.frombuffer(self._buffer[:arr.size * arr.dtype.itemsize], arr.dtype).reshape(arr.shape)
+        numpy.copyto(arr, buf)
+
     def _access_from(self, device):
         if self._migrated_to is None:
             self._migrated_to = device
-        else:
+        elif device != self._migrated_to:
             raise RuntimeError("Trying to access a buffer from a different device it was migrated to")
 
     def get_sub_region(self, origin, size):

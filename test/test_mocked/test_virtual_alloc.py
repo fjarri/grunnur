@@ -11,100 +11,31 @@ from grunnur.virtual_alloc import extract_dependencies, TrivialManager, ZeroOffs
 
 
 def mock_fill(buf, val):
-    buf.kernel_arg[:buf.size] = val
+    buf.kernel_arg._set(numpy.ones(buf.size, numpy.uint8) * numpy.uint8(val))
 
 
 def mock_get(buf):
-    return buf.kernel_arg[:buf.size]
+    res = numpy.empty(buf.size, numpy.uint8)
+    buf.kernel_arg._get(res)
+    return res
 
 
-class MockAPIAdapter:
-    id = APIID("mock")
+def test_extract_dependencies(mock_context):
 
+    queue = Queue.from_device_idxs(mock_context)
+    virtual_alloc = TrivialManager(queue).allocator()
 
-class MockPlatformAdapter:
-    api_adapter = MockAPIAdapter()
-    name = "mock"
-    platform_idx = 0
+    vbuf = virtual_alloc(100)
+    varr = Array.empty(queue, 100, numpy.int32, allocator=virtual_alloc)
 
-
-class MockDeviceAdapter:
-    platform_adapter = MockPlatformAdapter()
-    name = "mock"
-    device_idx = 0
-
-
-class MockBufferAdapter:
-
-    def __init__(self, context, id_, size):
-        self.id = id_
-        self.size = size
-        self.context = context
-        self.kernel_arg = numpy.empty(size, numpy.uint8)
-        self.device_idx = None
-
-    def set(self, queue_adapter, device_idx, host_array, async_=False):
-        self.kernel_arg[:] = host_array[:self.size]
-
-    def get(self, queue_adapter, device_idx, host_array, async_=False):
-        host_array[:self.size] = self.kernel_arg
-
-    def migrate(self, queue_adapter, device_idx):
-        self.device_idx = device_idx
-
-
-class MockContextAdapter:
-
-    def __init__(self):
-        self._allocation_id = 0
-        self.allocations = weakref.WeakValueDictionary()
-        self.device_adapters = [MockDeviceAdapter()]
-
-    def allocate(self, size):
-        buf = MockBufferAdapter(self, self._allocation_id, size)
-        self.allocations[self._allocation_id] = buf
-        self._allocation_id += 1
-        return buf
-
-    def make_queue_adapter(self, device_idxs):
-        return MockQueueAdapter(self)
-
-
-class MockQueueAdapter:
-
-    def __init__(self, context_adapter):
-        self.context_adapter = context_adapter
-        self.device_adapters = {
-            device_idx: context_adapter.device_adapters[device_idx]
-            for device_idx in range(len(context_adapter.device_adapters))}
-
-    def synchronize(self):
-        pass
-
-
-def test_extract_dependencies(monkeypatch):
-
-    class MockVirtualBufferAdapter:
-        def __init__(self, id_):
-            self._id = id_
-
-    class MockArray:
-        def __init__(self, id_):
-            self.data = Buffer(None, MockVirtualBufferAdapter(id_))
-
-    monkeypatch.setattr('grunnur.virtual_alloc.VirtualBufferAdapter', MockVirtualBufferAdapter)
-    monkeypatch.setattr('grunnur.virtual_alloc.Array', MockArray)
-
-    assert extract_dependencies(MockVirtualBufferAdapter(123)) == {123}
-    assert extract_dependencies(MockArray(123)) == {123}
-
-    arrays = [MockArray(123), MockArray(123), MockArray(456)]
-    assert extract_dependencies(arrays) == {123, 456}
+    assert extract_dependencies(vbuf) == {vbuf._buffer_adapter._id}
+    assert extract_dependencies(varr) == {varr.data._buffer_adapter._id}
+    assert extract_dependencies([vbuf, varr]) == {vbuf._buffer_adapter._id, varr.data._buffer_adapter._id}
 
     class DependencyHolder:
-        __virtual_allocations__ = [MockArray(5), MockArray(6), MockArray(7)]
+        __virtual_allocations__ = [vbuf, varr]
 
-    assert extract_dependencies(DependencyHolder()) == {5, 6, 7}
+    assert extract_dependencies(DependencyHolder()) == {vbuf._buffer_adapter._id, varr.data._buffer_adapter._id}
 
     # An object not having any dependencies
     assert extract_dependencies(123) == set()
@@ -136,9 +67,11 @@ def allocate_test_set(virtual_alloc, allocate_callable):
 
 
 @pytest.mark.parametrize('pack', [False, True], ids=['no_pack', 'pack'])
-def test_contract(valloc_cls, pack):
+def test_contract(mock_backend_pycuda, mock_context_pycuda, valloc_cls, pack):
 
-    context = Context(MockContextAdapter())
+    # Using PyCUDA backend here because it tracks the allocations.
+
+    context = mock_context_pycuda
     queue = Queue.from_device_idxs(context)
     virtual_alloc = valloc_cls(queue)
 
@@ -169,7 +102,7 @@ def test_contract(valloc_cls, pack):
 
     # Check that after deleting virtual buffers all the real buffers are freed as well
     del buffers
-    assert len(context._context_adapter.allocations) == 0
+    assert mock_backend_pycuda.allocation_count() == 0
 
 
 def check_statistics(buffers_metadata, stats):
@@ -182,9 +115,9 @@ def check_statistics(buffers_metadata, stats):
     assert stats.real_num <= len(virtual_sizes)
 
 
-def test_statistics(valloc_cls):
+def test_statistics(mock_context, valloc_cls):
 
-    context = Context(MockContextAdapter())
+    context = mock_context
     queue = Queue.from_device_idxs(context)
     virtual_alloc = valloc_cls(queue)
 
@@ -206,16 +139,19 @@ def test_statistics(valloc_cls):
     assert str(stats.virtual_num) in s
 
 
-def test_non_existent_dependencies(valloc_cls):
-    context = Context(MockContextAdapter())
+def test_non_existent_dependencies(mock_context, valloc_cls):
+    context = mock_context
     queue = Queue.from_device_idxs(context)
     virtual_alloc = valloc_cls(queue)
     with pytest.raises(ValueError, match="12345"):
         virtual_alloc._allocate_virtual(100, {12345})
 
 
-def test_virtual_buffer():
-    context = Context(MockContextAdapter())
+def test_virtual_buffer(mock_4_device_context_pyopencl):
+
+    # Using an OpenCL mock context here because it keeps track of buffer migrations
+
+    context = mock_4_device_context_pyopencl
     queue = Queue.from_device_idxs(context)
     virtual_alloc = TrivialManager(queue)
 
@@ -223,25 +159,28 @@ def test_virtual_buffer():
     vbuf = allocator(100)
 
     assert vbuf.size == 100
-    assert isinstance(vbuf.kernel_arg, numpy.ndarray)
+    assert isinstance(vbuf.kernel_arg._buffer, bytes)
     assert vbuf.context is context
     with pytest.raises(NotImplementedError):
         vbuf.get_sub_region(0, 50)
     assert vbuf.offset == 0
 
     arr = numpy.arange(100).astype(numpy.uint8)
+    vbuf.bind(1)
     vbuf.set(queue, arr)
     res = numpy.empty_like(arr)
     vbuf.get(queue, res)
     assert (arr == res).all()
 
-    assert vbuf._buffer_adapter._real_buffer_adapter.device_idx is None
-    vbuf.migrate(queue, 0)
-    assert vbuf._buffer_adapter._real_buffer_adapter.device_idx == 0
+    vbuf2 = allocator(100)
+    assert vbuf2.kernel_arg._migrated_to is None
+    vbuf2.bind(1)
+    vbuf2.migrate(queue)
+    assert vbuf2.kernel_arg._migrated_to == context.devices[1]._device_adapter.pyopencl_device
 
 
-def test_continuous_pack(valloc_cls):
-    context = Context(MockContextAdapter())
+def test_continuous_pack(mock_context, valloc_cls):
+    context = mock_context
     queue = Queue.from_device_idxs(context)
     virtual_alloc_ref = valloc_cls(queue, pack_on_alloc=False, pack_on_free=False)
     virtual_alloc = valloc_cls(queue, pack_on_alloc=True, pack_on_free=True)

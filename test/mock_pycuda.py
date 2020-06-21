@@ -28,7 +28,8 @@ class MockPyCUDA:
         # and other integer parameters don't fall in the "address" range.
         self._allocation_start = 2**30
         self._allocation_step = 2**16
-        self._allocations = []
+        self._allocation_idx = 0
+        self._allocations = {}
 
         self.api_id = CUDA_API_ID
 
@@ -58,20 +59,24 @@ class MockPyCUDA:
 
     def allocate(self, size, managed=False):
         assert size <= self._allocation_step
-        idx = len(self._allocations)
+        idx = self._allocation_idx
+        self._allocation_idx += 1
         address = self._allocation_start + self._allocation_step * idx
-        self._allocations.append((size, None if managed else self._context_stack[-1]))
+        self._allocations[idx] = (size, None if managed else self._context_stack[-1])
         return idx, address
 
+    def allocation_count(self):
+        return len(self._allocations)
+
     def free_allocation(self, idx):
-        self._allocations[idx] = None
+        del self._allocations[idx]
 
     def check_allocation(self, address):
         # will work as long as we don't have offsets larger than `_allocation_step`
         idx = (int(address) - self._allocation_start) // self._allocation_step
 
-        if self._allocations[idx] is None:
-            raise RuntimeError("A previously freed allocation is used")
+        if idx not in self._allocations:
+            raise RuntimeError("A previously freed allocation or an incorrect address is used")
 
         size, context_ref = self._allocations[idx]
 
@@ -177,6 +182,7 @@ class Mock_pycuda_driver:
         if stream is not None:
             assert stream._context == current_context
         assert dest.size >= src.size * src.dtype.itemsize
+        dest._set(src)
 
     def memcpy_dtoh(self, dest, src):
         self.memcpy_dtoh_async(dest, src)
@@ -189,6 +195,7 @@ class Mock_pycuda_driver:
         if stream is not None:
             assert stream._context == current_context
         assert src.size >= dest.size * dest.dtype.itemsize
+        src._get(dest)
 
     def memcpy_dtod_async(self, dest, src, size, stream=None):
         current_context = self._backend_ref().current_context()
@@ -332,8 +339,19 @@ def make_device_allocation_class(backend):
 
             self.size = size
 
+            self._buffer = b"\xef" * size
+
         def _check(self):
             self._backend_ref().check_allocation(self._address)
+
+        def _set(self, arr):
+            data = arr.tobytes()
+            assert len(data) <= self.size
+            self._buffer = data + b"\xef" * (self.size - len(data))
+
+        def _get(self, arr):
+            buf = numpy.frombuffer(self._buffer[:arr.size * arr.dtype.itemsize], arr.dtype).reshape(arr.shape)
+            numpy.copyto(arr, buf)
 
         def __int__(self):
             return self._address

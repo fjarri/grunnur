@@ -72,24 +72,31 @@ def mock_backend_pycuda(request, mock_backend_factory):
     yield mock_backend_factory.mock_pycuda()
 
 
+def make_context(backend, devices_num):
+    api_id = backend.api_id
+    backend.add_devices(['Device' + str(i) for i in range(devices_num)])
+    api = API.from_api_id(api_id)
+    return Context.from_criteria(api, devices_num=devices_num)
+
+
 @pytest.fixture(scope='function')
 def mock_context(request, mock_backend):
-    backend = mock_backend
-    api_id = backend.api_id
-    backend.add_devices(['Device1'])
-    api = API.from_api_id(api_id)
-    context = Context.from_criteria(api)
-    yield context
+    yield make_context(mock_backend, 1)
+
+
+@pytest.fixture(scope='function')
+def mock_context_pycuda(request, mock_backend_pycuda):
+    yield make_context(mock_backend_pycuda, 1)
 
 
 @pytest.fixture(scope='function')
 def mock_4_device_context(request, mock_backend):
-    backend = mock_backend
-    api_id = backend.api_id
-    backend.add_devices(['Device1', 'Device2', 'Device3', 'Device4'])
-    api = API.from_api_id(api_id)
-    context = Context.from_criteria(api, devices_num=4)
-    yield context
+    yield make_context(mock_backend, 4)
+
+
+@pytest.fixture(scope='function')
+def mock_4_device_context_pyopencl(request, mock_backend_pyopencl):
+    yield make_context(mock_backend_pyopencl, 4)
 
 
 class MockStdin:
