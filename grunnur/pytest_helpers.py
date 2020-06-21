@@ -139,7 +139,10 @@ def generate_tests(metafunc):
     if 'multi_device_context' in metafunc.fixturenames:
         device_sets = get_multi_device_sets(metafunc.config)
         ids = ["+".join(device.shortcut for device in device_set) for device_set in device_sets]
-        metafunc.parametrize('multi_device_context', device_sets, ids=ids, indirect=True)
+        metafunc.parametrize(
+            'multi_device_context', device_sets,
+            ids=['no_multi_device'] if len(device_sets) == 0 else ids,
+            indirect=True)
 
 
 def report_header(config):
