@@ -230,12 +230,16 @@ class Kernel:
 
 class Buffer:
 
-    def __init__(self, context, flags, size, _migrated_to=None):
+    def __init__(self, context, flags, size, _migrated_to=None, _offset=0, _base_buffer=None):
         self.context = context
         self.flags = flags
         self.size = size
+        self.offset = _offset
         self._migrated_to = _migrated_to
-        self._buffer = b"\xef" * size
+
+        if _base_buffer is None:
+            self._buffer = b"\xef" * size
+        self._base_buffer = _base_buffer
 
     def _migrate(self, device):
         self._migrated_to = device
@@ -243,11 +247,23 @@ class Buffer:
     def _set(self, arr):
         data = arr.tobytes()
         assert len(data) <= self.size
-        self._buffer = data + b"\xef" * (self.size - len(data))
+
+        insert_data = lambda buf: buf[:self.offset] + data + buf[self.offset+len(data):]
+
+        if self._base_buffer is None:
+            self._buffer = insert_data(self._buffer)
+        else:
+            self._base_buffer._buffer = insert_data(self._base_buffer._buffer)
 
     def _get(self, arr):
-        buf = numpy.frombuffer(self._buffer[:arr.size * arr.dtype.itemsize], arr.dtype).reshape(arr.shape)
-        numpy.copyto(arr, buf)
+        data = arr.tobytes()
+        assert len(data) <= self.size
+
+        full_buf = self._buffer if self._base_buffer is None else self._base_buffer._buffer
+
+        buf = full_buf[self.offset:self.offset + len(data)]
+        buf_as_arr = numpy.frombuffer(buf, arr.dtype).reshape(arr.shape)
+        numpy.copyto(arr, buf_as_arr)
 
     def _access_from(self, device):
         if self._migrated_to is None:
@@ -257,4 +273,6 @@ class Buffer:
 
     def get_sub_region(self, origin, size):
         assert origin + size <= self.size
-        return Buffer(self.context, self.flags, size, _migrated_to=self._migrated_to)
+        return Buffer(
+            self.context, self.flags, size,
+            _migrated_to=self._migrated_to, _offset=origin, _base_buffer=self)

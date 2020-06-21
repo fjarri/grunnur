@@ -62,8 +62,16 @@ class MockPyCUDA:
         idx = self._allocation_idx
         self._allocation_idx += 1
         address = self._allocation_start + self._allocation_step * idx
-        self._allocations[idx] = (size, None if managed else self._context_stack[-1])
+        self._allocations[idx] = (size, None if managed else self._context_stack[-1], b"\xef" * size)
         return idx, address
+
+    def get_allocation_buffer(self, idx, offset, region_size):
+        size, context, buf = self._allocations[idx]
+        return buf[offset:offset+region_size]
+
+    def set_allocation_buffer(self, idx, offset, data):
+        size, context, buf = self._allocations[idx]
+        self._allocations[idx] = size, context, buf[:offset] + data + buf[offset+len(data):]
 
     def allocation_count(self):
         return len(self._allocations)
@@ -74,14 +82,17 @@ class MockPyCUDA:
     def check_allocation(self, address):
         # will work as long as we don't have offsets larger than `_allocation_step`
         idx = (int(address) - self._allocation_start) // self._allocation_step
+        offset = (int(address) - self._allocation_start) % self._allocation_step
 
         if idx not in self._allocations:
             raise RuntimeError("A previously freed allocation or an incorrect address is used")
 
-        size, context_ref = self._allocations[idx]
+        size, context_ref, _buffer = self._allocations[idx]
 
         if context_ref is not None:
             assert context_ref() == self.current_context()
+
+        return idx, offset, size - offset
 
 
 class PycudaCompileError(Exception):
@@ -123,7 +134,7 @@ def make_source_module_class(backend):
 
         def get_global(self, name):
             size = self._constant_mem[name]
-            alloc = self._backend_ref().pycuda_driver.DeviceAllocation(size)
+            alloc = self._backend_ref().pycuda_driver.DeviceAllocation._allocate(size)
             return alloc, size
 
 
@@ -163,7 +174,7 @@ class Mock_pycuda_driver:
         pass
 
     def mem_alloc(self, size, _managed=False):
-        return self.DeviceAllocation(size, _managed=_managed)
+        return self.DeviceAllocation._allocate(size, _managed=_managed)
 
     def managed_empty(self, shape, dtype, mem_flags=None):
         size = prod(wrap_in_tuple(shape)) * normalize_type(dtype).itemsize
@@ -177,11 +188,10 @@ class Mock_pycuda_driver:
     def memcpy_htod_async(self, dest, src, stream=None):
         current_context = self._backend_ref().current_context()
         assert isinstance(src, numpy.ndarray)
-        assert isinstance(dest, self.DeviceAllocation)
-        dest._check()
+        dest = self.DeviceAllocation._from_kernel_arg(dest)
         if stream is not None:
             assert stream._context == current_context
-        assert dest.size >= src.size * src.dtype.itemsize
+        assert dest._size >= src.size * src.dtype.itemsize
         dest._set(src)
 
     def memcpy_dtoh(self, dest, src):
@@ -189,24 +199,21 @@ class Mock_pycuda_driver:
 
     def memcpy_dtoh_async(self, dest, src, stream=None):
         current_context = self._backend_ref().current_context()
-        assert isinstance(src, self.DeviceAllocation)
         assert isinstance(dest, numpy.ndarray)
-        src._check()
+        src = self.DeviceAllocation._from_kernel_arg(src)
         if stream is not None:
             assert stream._context == current_context
-        assert src.size >= dest.size * dest.dtype.itemsize
+        assert src._size >= dest.size * dest.dtype.itemsize
         src._get(dest)
 
     def memcpy_dtod_async(self, dest, src, size, stream=None):
         current_context = self._backend_ref().current_context()
-        assert isinstance(src, self.DeviceAllocation)
-        assert isinstance(dest, self.DeviceAllocation)
-        dest._check()
-        src._check()
+        dest = self.DeviceAllocation._from_kernel_arg(dest)
+        src = self.DeviceAllocation._from_kernel_arg(src)
         if stream is not None:
             assert stream._context == current_context
-        assert dest.size >= size
-        assert src.size >= size
+        assert dest._size >= size
+        assert src._size >= size
 
     def pagelocked_empty(self, shape, dtype):
         return numpy.empty(shape, dtype)
@@ -328,37 +335,50 @@ def make_device_allocation_class(backend):
 
         _backend_ref = backend_ref
 
-        def __init__(self, size, _managed=True):
-            backend = self._backend_ref()
-
+        @classmethod
+        def _allocate(cls, size, _managed=True):
             idx, address = backend.allocate(size, managed=_managed)
+            return cls(idx, address, 0, size, owns_buffer=True)
 
-            self._context = backend.current_context()
+        @classmethod
+        def _from_kernel_arg(cls, kernel_arg):
+            if isinstance(kernel_arg, cls):
+                return kernel_arg
+            elif isinstance(kernel_arg, numpy.uintp):
+                # Unfortunately we can't keep track of subregion size in PyCUDA,
+                # so for the size we just choose the maximum available.
+                idx, offset, size = cls._backend_ref().check_allocation(kernel_arg)
+                return cls(idx, int(kernel_arg), offset, size, owns_buffer=False)
+            else:
+                raise TypeError(type(kernel_arg))
+
+        def __init__(self, idx, address, offset, size, owns_buffer=False):
+            self._context = self._backend_ref().current_context()
             self._address = address
             self._idx = idx
-
-            self.size = size
-
-            self._buffer = b"\xef" * size
-
-        def _check(self):
-            self._backend_ref().check_allocation(self._address)
+            self._offset = offset
+            self._size = size
+            self._owns_buffer = owns_buffer
 
         def _set(self, arr):
             data = arr.tobytes()
-            assert len(data) <= self.size
-            self._buffer = data + b"\xef" * (self.size - len(data))
+            assert len(data) <= self._size
+            self._backend_ref().set_allocation_buffer(self._idx, self._offset, data)
 
         def _get(self, arr):
-            buf = numpy.frombuffer(self._buffer[:arr.size * arr.dtype.itemsize], arr.dtype).reshape(arr.shape)
-            numpy.copyto(arr, buf)
+            data = arr.tobytes()
+            assert len(data) <= self._size
+            buf = self._backend_ref().get_allocation_buffer(self._idx, self._offset, len(data))
+            buf_as_arr = numpy.frombuffer(buf, arr.dtype).reshape(arr.shape)
+            numpy.copyto(arr, buf_as_arr)
 
         def __int__(self):
             return self._address
 
         def __del__(self):
             # Backend is held alive by the context object we reference.
-            self._backend_ref().free_allocation(self._idx)
+            if self._owns_buffer:
+                self._backend_ref().free_allocation(self._idx)
 
 
     return DeviceAllocation

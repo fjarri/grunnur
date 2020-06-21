@@ -82,7 +82,8 @@ def test_contract(mock_backend_pycuda, mock_context_pycuda, valloc_cls, pack):
         # Virtual buffer size should be exactly as requested
         assert buffers[name].size == size
         # The real buffer behind the virtual buffer may be larger
-        assert buffers[name].kernel_arg.size >= size
+        # (note that _size is only present in mocked DeviceAllocation)
+        assert buffers[name].kernel_arg._size >= size
 
     if pack:
         virtual_alloc.pack()
