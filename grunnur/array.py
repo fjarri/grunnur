@@ -35,8 +35,7 @@ class Array:
     @classmethod
     def from_host(cls, queue, host_arr):
         metadata = ArrayMetadata.from_arraylike(host_arr)
-        buf = Buffer.allocate(queue.context, metadata.buffer_size)
-        array = cls(queue, metadata, buf)
+        array = cls(queue, metadata)
         array.set(host_arr)
         return array
 
@@ -47,17 +46,13 @@ class Array:
 
     def __init__(
             self, queue: Queue, array_metadata: ArrayMetadata,
-            data: Optional[Buffer]=None, allocator: Callable[[int], Buffer]=None,
-            device_idx=None):
+            data: Optional[Buffer]=None, allocator: Callable[[int], Buffer]=None):
 
         if allocator is None:
             allocator = lambda size: Buffer.allocate(queue.context, size)
 
         self._queue = queue
         self._metadata = array_metadata
-
-        self.device_idx = device_idx
-        self._queue_device_idx = device_idx if device_idx is not None else queue.default_device_idx
 
         self.shape = self._metadata.shape
         self.dtype = self._metadata.dtype
@@ -67,11 +62,9 @@ class Array:
 
         if data is None:
             data = allocator(self.buffer_size)
+            data.bind(queue.device_idxs[0])
 
         self.data = data
-
-        if device_idx is not None:
-            self.data.migrate(queue, device_idx)
 
     def single_device_view(self, device_idx: int):
         """
@@ -79,23 +72,21 @@ class Array:
         """
         return SingleDeviceFactory(self, device_idx)
 
-    def _view(self, slices, subregion=False, device_idx=None):
+    def _view(self, slices, device_idx):
         new_metadata = self._metadata[slices]
 
-        if subregion:
-            origin, size, new_metadata = new_metadata.minimal_subregion()
-            data = self.data.get_sub_region(origin, size)
-        else:
-            data = self.data
+        origin, size, new_metadata = new_metadata.minimal_subregion()
+        data = self.data.get_sub_region(origin, size)
+        data.bind(device_idx)
 
-        return Array(self._queue, new_metadata, device_idx=device_idx, data=data)
+        return Array(self._queue, new_metadata, data=data)
 
     def set(self, array: numpy.ndarray, async_: bool=False):
         """
         Sets the data in this array from a CPU array.
         If ``async_`` is ``True``, this call blocks.
         """
-        self.data.set(self._queue, array, device_idx=self._queue_device_idx)
+        self.data.set(self._queue, array)
 
     def get(self, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
         """
@@ -107,7 +98,7 @@ class Array:
         # TODO: check if the array is contiguous
         if dest is None:
             dest = numpy.empty(self.shape, self.dtype)
-        self.data.get(self._queue, dest, async_=async_, device_idx=self._queue_device_idx)
+        self.data.get(self._queue, dest, async_=async_)
         return dest
 
 
@@ -125,4 +116,4 @@ class SingleDeviceFactory:
         Return a view of the parent array bound to the device this factory was created for
         (see :py:meth:`Array.single_device_view`).
         """
-        return self._array._view(slices, subregion=True, device_idx=self._device_idx)
+        return self._array._view(slices, self._device_idx)
