@@ -63,6 +63,11 @@ class Array:
         if data is None:
             data = allocator(self.buffer_size)
             data.bind(queue.device_idxs[0])
+        else:
+            if data.size < self.buffer_size:
+                raise ValueError(
+                    "Provided data buffer is not big enough to hold the array "
+                    "(minimum required {self.buffer_size})")
 
         self.data = data
 
@@ -70,6 +75,10 @@ class Array:
         """
         Returns a subscriptable object that produces sub-arrays based on the device ``device_idx``.
         """
+        if device_idx not in self._queue.devices:
+            device_nums = ', '.join(str(i) for i in self._queue.devices)
+            raise ValueError(
+                f"The device number must be one of those present in the queue ({device_nums})")
         return SingleDeviceFactory(self, device_idx)
 
     def _view(self, slices, device_idx):
@@ -82,12 +91,12 @@ class Array:
 
         return Array(self._queue, new_metadata, data=data)
 
-    def set(self, array: numpy.ndarray, async_: bool=False):
+    def set(self, array: numpy.ndarray, no_async: bool=False):
         """
         Sets the data in this array from a CPU array.
         If ``async_`` is ``True``, this call blocks.
         """
-        self.data.set(self._queue, array)
+        self.data.set(self._queue, array, no_async=no_async)
 
     def get(self, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
         """
