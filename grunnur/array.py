@@ -78,6 +78,7 @@ class Array:
         origin, size, new_metadata = new_metadata.minimal_subregion()
         data = self.data.get_sub_region(origin, size)
         data.bind(device_idx)
+        data.migrate(self._queue)
 
         return Array(self._queue, new_metadata, data=data)
 
