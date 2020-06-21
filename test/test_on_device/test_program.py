@@ -48,8 +48,10 @@ def _test_compile(context, no_prelude, is_mocked):
     if is_mocked and no_prelude:
         assert program.sources[0].prelude.strip() == ""
 
-    a = numpy.arange(16).astype(numpy.int32)
-    b = numpy.arange(16).astype(numpy.int32) + 1
+    length = 64
+
+    a = numpy.arange(length).astype(numpy.int32)
+    b = numpy.arange(length).astype(numpy.int32) + 1
     c = numpy.int32(3)
     ref = a * b + c
 
@@ -58,19 +60,19 @@ def _test_compile(context, no_prelude, is_mocked):
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
 
-    res_dev = Array.empty(queue, 16, numpy.int32)
+    res_dev = Array.empty(queue, length, numpy.int32)
     # Check that passing both Arrays and Buffers is supported
-    program.multiply(queue, 16, None, res_dev, a_dev, b_dev.data, c)
+    program.multiply(queue, length, None, res_dev, a_dev, b_dev.data, c)
     res = res_dev.get()
     if not is_mocked:
         assert (res == ref).all()
 
     # Explicit local_size
-    res_dev = Array.empty(queue, 16, numpy.int32)
-    program.multiply(queue, 16, 8, res_dev, a_dev, b_dev, c)
-    res = res_dev.get()
+    res2_dev = Array.from_host(queue, a) # Array.empty(queue, length, numpy.int32)
+    program.multiply(queue, length, length // 2, res2_dev, a_dev, b_dev, c)
+    res2 = res2_dev.get()
     if not is_mocked:
-        assert (res == ref).all()
+        assert (res2 == ref).all()
 
 
 @pytest.mark.parametrize('no_prelude', [False, True], ids=["with_prelude", "no_prelude"])
@@ -88,9 +90,11 @@ def _test_compile_multi_device(context, device_idxs, is_mocked):
     else:
         src = SRC_GENERIC
 
+    length = 64
+
     program = Program(context, src)
-    a = numpy.arange(16).astype(numpy.int32)
-    b = numpy.arange(16).astype(numpy.int32) + 1
+    a = numpy.arange(length).astype(numpy.int32)
+    b = numpy.arange(length).astype(numpy.int32) + 1
     c = numpy.int32(3)
     ref = a * b + c
 
@@ -98,21 +102,21 @@ def _test_compile_multi_device(context, device_idxs, is_mocked):
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
-    res_dev = Array.empty(queue, 16, numpy.int32)
+    res_dev = Array.empty(queue, length, numpy.int32)
 
     d1, d2 = device_idxs
 
-    a_dev_1 = a_dev.single_device_view(d1)[:8]
-    a_dev_2 = a_dev.single_device_view(d2)[8:]
+    a_dev_1 = a_dev.single_device_view(d1)[:length//2]
+    a_dev_2 = a_dev.single_device_view(d2)[length//2:]
 
-    b_dev_1 = b_dev.single_device_view(d1)[:8]
-    b_dev_2 = b_dev.single_device_view(d2)[8:]
+    b_dev_1 = b_dev.single_device_view(d1)[:length//2]
+    b_dev_2 = b_dev.single_device_view(d2)[length//2:]
 
-    res_dev_1 = res_dev.single_device_view(d1)[:8]
-    res_dev_2 = res_dev.single_device_view(d2)[8:]
+    res_dev_1 = res_dev.single_device_view(d1)[:length//2]
+    res_dev_2 = res_dev.single_device_view(d2)[length//2:]
 
     program.multiply(
-        queue, 8, None,
+        queue, length // 2, None,
         MultiDevice(res_dev_1, res_dev_2),
         MultiDevice(a_dev_1, a_dev_2),
         MultiDevice(b_dev_1, b_dev_2),
