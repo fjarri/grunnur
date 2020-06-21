@@ -19,7 +19,7 @@ __kernel void multiply(__global int *dest, __global int *a, __global int *b, int
 SRC_CUDA = """
 extern "C" __global__ void multiply(int *dest, int *a, int *b, int c)
 {
-    const int i = threadIdx.x;
+    const int i = threadIdx.x + blockIdx.x * blockDim.x;
     dest[i] = a[i] * b[i] + c;
 }
 """
