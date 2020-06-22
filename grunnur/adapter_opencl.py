@@ -78,7 +78,7 @@ class OclAPIAdapter(APIAdapter):
     def make_context_adapter_from_backend_contexts(self, pyopencl_contexts, take_ownership):
         if len(pyopencl_contexts) > 1:
             raise ValueError("Cannot make one OpenCL context out of several contexts")
-        return OclContextAdapter(pyopencl_contexts[0])
+        return OclContextAdapter.from_pyopencl_context(pyopencl_contexts[0])
 
 
 class OclPlatformAdapter(PlatformAdapter):
@@ -288,19 +288,16 @@ class OclContextAdapter(ContextAdapter):
         Creates a context based on one or several (distinct) :py:class:`OclDeviceAdapter` objects.
         """
         device_adapters = normalize_object_sequence(device_adapters, OclDeviceAdapter)
-        if not all_same(device_adapter.platform_adapter for device_adapter in device_adapters):
-            raise ValueError("All devices must belong to the same platform")
         return cls.from_pyopencl_devices(
             [device_adapter.pyopencl_device for device_adapter in device_adapters])
 
     def __init__(self, pyopencl_context: pyopencl.Context, pyopencl_devices=None):
         if pyopencl_devices is None:
             pyopencl_devices = pyopencl_context.devices
-        else:
-            if not set(pyopencl_context.devices) == set(pyopencl_devices):
-                raise ValueError(
-                    "`pyopencl_devices` argument must contain the same devices "
-                    "as the provided context")
+
+        # Not checking here that all the `pyopencl_devices` are actually present in `pyopencl_context`,
+        # since the constructor should only be called from the trusted classmethods,
+        # which already ensure that.
 
         self._pyopencl_context = pyopencl_context
         self._pyopencl_devices = pyopencl_devices
@@ -312,10 +309,10 @@ class OclContextAdapter(ContextAdapter):
         # On an Apple platform, in a multi-device context with nVidia cards it is necessary to have
         # any created OpenCL buffers allocated on the host (with ALLOC_HOST_PTR flag).
         # If it is not the case, using a subregion of such a buffer leads to a crash.
-        self._buffers_host_allocation = (
-            len(self._pyopencl_devices) > 1 and
-            self._pyopencl_devices[0].platform.name == 'Apple' and
-            any('GeForce' in device.name for device in self._pyopencl_devices))
+        is_multi_device = len(self._pyopencl_devices) > 1
+        is_apple_platform = self._pyopencl_devices[0].platform.name == 'Apple'
+        has_geforce_device = any('GeForce' in device.name for device in self._pyopencl_devices)
+        self._buffers_host_allocation = is_multi_device and is_apple_platform and has_geforce_device
 
     @property
     def device_adapters(self) -> Tuple[OclDeviceAdapter, ...]:
