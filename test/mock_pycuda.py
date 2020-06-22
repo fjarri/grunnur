@@ -13,7 +13,7 @@ from .mock_base import MockSource, DeviceInfo
 
 class MockPyCUDA:
 
-    def __init__(self, cuda_version="0.0"):
+    def __init__(self, cuda_version=(10, 0, 0)):
         self.pycuda_driver = Mock_pycuda_driver(self, cuda_version)
         self.pycuda_compiler = Mock_pycuda_compiler(self)
 

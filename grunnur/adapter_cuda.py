@@ -119,7 +119,7 @@ class CuPlatformAdapter(PlatformAdapter):
 
     @property
     def version(self):
-        return ".".join(str(x) for x in pycuda_driver.get_version())
+        return "CUDA " + ".".join(str(x) for x in pycuda_driver.get_version())
 
     @property
     def device_count(self):

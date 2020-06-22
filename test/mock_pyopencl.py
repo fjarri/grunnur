@@ -117,6 +117,8 @@ class Platform:
         self._backend_ref = weakref.ref(backend)
         self.name = name
         self._devices = []
+        self.vendor = 'Mock Platforms'
+        self.version = 'OpenCL 1.2'
 
     def add_device(self, device_info):
         device = Device(self, device_info)

@@ -72,6 +72,9 @@ class Platform:
         self.shortcut = f"{self.api.shortcut},{platform_adapter.platform_idx}"
         self.short_name = f"platform({self.shortcut})"
 
+        self.vendor = platform_adapter.vendor
+        self.version = platform_adapter.version
+
     def __eq__(self, other):
         return isinstance(other, Platform) and self._platform_adapter == other._platform_adapter
 

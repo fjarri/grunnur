@@ -106,3 +106,17 @@ def test_getitem(mock_backend_pyopencl):
 
     assert p1[0].name == 'Device1'
     assert p1[1].name == 'Device2'
+
+
+def test_attributes(mock_backend):
+    mock_backend.add_devices(['Device1'])
+    api = API.from_api_id(mock_backend.api_id)
+    p = Platform.from_index(api, 0)
+
+    assert p.api == api
+    assert p.name == {CUDA_API_ID: 'nVidia CUDA', OPENCL_API_ID: 'Platform0'}[api.id]
+    assert p.shortcut == api.shortcut + ',0'
+    assert p.short_name == 'platform(' + p.shortcut + ')'
+    assert p.vendor == {CUDA_API_ID: 'nVidia', OPENCL_API_ID: 'Mock Platforms'}[api.id]
+    assert p.version == {CUDA_API_ID: "CUDA 10.0.0", OPENCL_API_ID: 'OpenCL 1.2'}[api.id]
+
