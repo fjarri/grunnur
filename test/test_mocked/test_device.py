@@ -94,3 +94,15 @@ def test_hash(mock_backend):
     d = {d0: 0, d1: 1}
     assert d[d0] == 0
     assert d[d1] == 1
+
+
+def test_attributes(mock_backend):
+    mock_backend.add_devices(['Device1'])
+    api = API.from_api_id(mock_backend.api_id)
+    p = Platform.from_index(api, 0)
+    d = Device.from_index(p, 0)
+
+    assert d.platform == p
+    assert d.name == 'Device1'
+    assert d.shortcut == p.shortcut + ',0'
+    assert d.short_name == 'device(' + d.shortcut + ')'
