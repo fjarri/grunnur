@@ -100,6 +100,5 @@ class Device:
 
     @property
     def params(self):
-        if self._params is None:
-            self._params = self._device_adapter.params
-        return self._params
+        # Already cached in the adapters
+        return self._device_adapter.params
