@@ -94,7 +94,8 @@ class OclPlatformAdapter(PlatformAdapter):
             if pyopencl_platform == platform_adapter.pyopencl_platform:
                 return cls(api_adapter, pyopencl_platform, platform_idx)
 
-        raise Exception(f"{pyopencl_platform} was not found among OpenCL platforms")
+        # Sanity check, should not be reachable as long as `pyopencl` is consistent.
+        raise RuntimeError(f"{pyopencl_platform} was not found among OpenCL platforms") # pragma: no cover
 
     def __init__(self, api_adapter, pyopencl_platform, platform_idx):
         self._api_adapter = api_adapter
@@ -149,7 +150,8 @@ class OclDeviceAdapter(DeviceAdapter):
             if pyopencl_device == device_adapter.pyopencl_device:
                 return cls(platform_adapter, pyopencl_device, device_idx)
 
-        raise Exception(f"{pyopencl_device} was not found among OpenCL devices")
+        # Sanity check, should not be reachable as long as `pyopencl` is consistent.
+        raise RuntimeError(f"{pyopencl_device} was not found among OpenCL devices") # pragma: no cover
 
     def __init__(self, platform_adapter, pyopencl_device, device_idx):
         self._platform_adapter = platform_adapter

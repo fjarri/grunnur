@@ -143,7 +143,8 @@ class CuDeviceAdapter(DeviceAdapter):
             if pycuda_device == device_adapter.pycuda_device:
                 return cls(platform_adapter, pycuda_device, device_idx)
 
-        raise Exception(f"{pycuda_device} was not found among CUDA devices")
+        # Sanity check, should not be reachable as long as `pycuda` is consistent.
+        raise RuntimeError(f"{pycuda_device} was not found among CUDA devices") # pragma: no cover
 
     def __init__(self, platform_adapter, pycuda_device, device_idx):
         self._platform_adapter = platform_adapter
