@@ -68,3 +68,29 @@ def test_params(mock_backend):
     params1 = device.params
     params2 = device.params
     assert params1 is params2 # check caching
+
+
+def test_eq(mock_backend):
+    mock_backend.add_devices(['Device0', 'Device1'])
+    api = API.from_api_id(mock_backend.api_id)
+
+    platform = Platform.from_index(api, 0)
+    d0_v1 = Device.from_index(platform, 0)
+    d0_v2 = Device.from_index(platform, 0)
+    d1 = Device.from_index(platform, 1)
+
+    assert d0_v1 is not d0_v2 and d0_v1 == d0_v2
+    assert d0_v1 != d1
+
+
+def test_hash(mock_backend):
+    mock_backend.add_devices(['Device0', 'Device1'])
+    api = API.from_api_id(mock_backend.api_id)
+
+    platform = Platform.from_index(api, 0)
+    d0 = Device.from_index(platform, 0)
+    d1 = Device.from_index(platform, 1)
+
+    d = {d0: 0, d1: 1}
+    assert d[d0] == 0
+    assert d[d1] == 1
