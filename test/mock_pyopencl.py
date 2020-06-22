@@ -6,7 +6,7 @@ import numpy
 from grunnur import OPENCL_API_ID
 from grunnur.adapter_base import DeviceType
 
-from .mock_base import MockSource, DeviceInfo
+from .mock_base import MockSource
 
 
 class MemFlags(IntEnum):
@@ -32,7 +32,11 @@ class MockPyOpenCL:
         platform = self.add_platform(platform_name)
         for device_info in device_infos:
             if isinstance(device_info, str):
-                device_info = DeviceInfo(name=device_info)
+                device_info = PyOpenCLDeviceInfo(name=device_info)
+            elif isinstance(device_info, PyOpenCLDeviceInfo):
+                pass
+            else:
+                raise TypeError(type(device_info))
             platform.add_device(device_info)
         return platform
 
@@ -129,6 +133,34 @@ class Platform:
         return self._devices
 
 
+class PyOpenCLDeviceInfo:
+
+    def __init__(
+            self,
+            name="DefaultDeviceName",
+            vendor="Mock Devices",
+            type=DeviceType.GPU,
+            max_work_group_size=1024,
+            max_work_item_sizes=[1024, 1024, 1024],
+            local_mem_size=64 * 1024,
+            address_bits=32,
+            max_compute_units=8,
+            extensions=[],
+            compute_capability_major_nv=None,
+            warp_size_nv=None):
+        self.name = name
+        self.vendor = vendor
+        self.type = type
+        self.max_work_group_size = max_work_group_size
+        self.max_work_item_sizes = max_work_item_sizes
+        self.local_mem_size = local_mem_size
+        self.address_bits = address_bits
+        self.max_compute_units = max_compute_units
+        self.extensions = extensions
+        self.compute_capability_major_nv = compute_capability_major_nv
+        self.warp_size_nv = warp_size_nv
+
+
 class Device:
 
     def __init__(self, platform, device_info):
@@ -137,14 +169,16 @@ class Device:
         self._backend_ref = platform._backend_ref
         self._platform_ref = weakref.ref(platform)
 
-        self.max_work_group_size = device_info.max_total_local_size
-        self.max_work_item_sizes = [device_info.max_total_local_size] * 3
-        self.address_bits = 64
-        self.type = DeviceType.GPU
-        self.extensions = []
-        self.vendor = 'Mock Devices'
-        self.local_mem_size = 48 * 1024
-        self.max_compute_units = 1
+        self.max_work_group_size = device_info.max_work_group_size
+        self.max_work_item_sizes = device_info.max_work_item_sizes
+        self.address_bits = device_info.address_bits
+        self.type = device_info.type
+        self.extensions = device_info.extensions
+        self.vendor = device_info.vendor
+        self.local_mem_size = device_info.local_mem_size
+        self.max_compute_units = device_info.max_compute_units
+        self.compute_capability_major_nv = device_info.compute_capability_major_nv
+        self.warp_size_nv = device_info.warp_size_nv
 
     @property
     def platform(self):

@@ -204,7 +204,8 @@ class OclDeviceParameters(DeviceParameters):
             self._max_total_local_size = pyopencl_device.max_work_group_size
             self._max_local_sizes = tuple(pyopencl_device.max_work_item_sizes)
 
-        max_size = 2**pyopencl_device.address_bits
+        # The limit of `2**address_bits` is for global size
+        max_size = 2**pyopencl_device.address_bits // self._max_total_local_size
         self._max_num_groups = (max_size, max_size, max_size)
 
         if pyopencl_device.type == pyopencl.device_type.CPU:

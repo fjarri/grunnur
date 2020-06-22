@@ -1,7 +1,7 @@
 import pytest
 
 from ..utils import check_select_devices
-from ..mock_base import DeviceInfo
+from ..mock_pyopencl import PyOpenCLDeviceInfo
 
 
 def test_platform_take_single(mock_stdin, mock_backend_factory, capsys):
@@ -251,10 +251,12 @@ def test_unique_devices_only(mock_stdin, mock_backend_factory, capsys, unique_on
 @pytest.mark.parametrize('include_pp', [False, True], ids=["include_pp=False", "include_pp=True"])
 def test_include_pure_parallel_devices(mock_stdin, mock_backend_factory, capsys, include_pp):
 
+    # `check_select_devices()` mocks OpenCL, so we can use multiple platforms
+    # and OpenCL-specific device info
     platforms_devices = [
         ('PlatformFoo', ['Device1', 'Device2']),
         ('PlatformBar', [
-            DeviceInfo(name='Device3', max_total_local_size=1), 'Device4', 'Device5'])]
+            PyOpenCLDeviceInfo(name='Device3', max_work_group_size=1), 'Device4', 'Device5'])]
 
     devices = check_select_devices(
         mock_stdin, mock_backend_factory, capsys, platforms_devices,

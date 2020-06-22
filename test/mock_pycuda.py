@@ -10,7 +10,7 @@ from grunnur import CUDA_API_ID
 from grunnur.dtypes import normalize_type
 from grunnur.utils import prod, wrap_in_tuple
 
-from .mock_base import MockSource, DeviceInfo
+from .mock_base import MockSource
 
 
 class MockPyCUDA:
@@ -39,7 +39,11 @@ class MockPyCUDA:
         assert len(self.device_infos) == 0
         for device_info in device_infos:
             if isinstance(device_info, str):
-                device_info = DeviceInfo(name=device_info)
+                device_info = PyCUDADeviceInfo(name=device_info)
+            elif isinstance(device_info, PyCUDADeviceInfo):
+                pass
+            else:
+                raise TypeError(type(device_info))
             self.device_infos.append(device_info)
 
     def push_context(self, context):
@@ -228,6 +232,36 @@ class Mock_pycuda_driver:
         return numpy.empty(shape, dtype)
 
 
+class PyCUDADeviceInfo:
+
+    def __init__(
+            self,
+            name="DefaultDeviceName",
+            max_threads_per_block=1024,
+            max_block_dim_x=1024,
+            max_block_dim_y=1024,
+            max_block_dim_z=64,
+            max_grid_dim_x=2**32-1,
+            max_grid_dim_y=2**32-1,
+            max_grid_dim_z=65536,
+            warp_size=32,
+            max_shared_memory_per_block=64*1024,
+            multiprocessor_count=8,
+            compute_capability=5):
+        self.name = name
+        self.max_threads_per_block = max_threads_per_block
+        self.max_block_dim_x = max_block_dim_x
+        self.max_block_dim_y = max_block_dim_y
+        self.max_block_dim_z = max_block_dim_z
+        self.max_grid_dim_x = max_grid_dim_x
+        self.max_grid_dim_y = max_grid_dim_y
+        self.max_grid_dim_z = max_grid_dim_z
+        self.warp_size = warp_size
+        self.max_shared_memory_per_block = max_shared_memory_per_block
+        self.multiprocessor_count = multiprocessor_count
+        self.compute_capability = compute_capability
+
+
 # We need a device class that is an actual class
 # (so that `type()` works on the results of its `__call__()`),
 # but at the same time retains a reference to the backend object used to create it
@@ -247,25 +281,27 @@ def make_device_class(backend):
 
             self._device_idx = device_idx
             self._name = device_info.name
-            self.max_threads_per_block = device_info.max_total_local_size
+            self.max_threads_per_block = device_info.max_threads_per_block
 
-            self.max_block_dim_x = device_info.max_total_local_size
-            self.max_block_dim_y = device_info.max_total_local_size
-            self.max_block_dim_z = 64
+            self.max_block_dim_x = device_info.max_block_dim_x
+            self.max_block_dim_y = device_info.max_block_dim_y
+            self.max_block_dim_z = device_info.max_block_dim_z
 
-            self.max_grid_dim_x = 2**32-1
-            self.max_grid_dim_y = 2**32-1
-            self.max_grid_dim_z = 65536
+            self.max_grid_dim_x = device_info.max_grid_dim_x
+            self.max_grid_dim_y = device_info.max_grid_dim_y
+            self.max_grid_dim_z = device_info.max_grid_dim_z
 
-            self.warp_size = 32
-            self.max_shared_memory_per_block = 48 * 1024
-            self.multiprocessor_count = 8
+            self.warp_size = device_info.warp_size
+            self.max_shared_memory_per_block = device_info.max_shared_memory_per_block
+            self.multiprocessor_count = device_info.multiprocessor_count
+
+            self._compute_capability = device_info.compute_capability
 
         def name(self):
             return self._name
 
         def compute_capability(self):
-            return (5, 0)
+            return (self._compute_capability, 0)
 
         def make_context(self):
             context = self._backend_ref().pycuda_driver.Context(self._device_idx)

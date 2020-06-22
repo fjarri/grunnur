@@ -1,3 +1,4 @@
+from grunnur.adapter_base import DeviceType
 from grunnur.template import DefTemplate
 
 
@@ -44,10 +45,3 @@ class MockDefTemplate(DefTemplate):
 
     def __str__(self):
         return str(self._mock_source)
-
-
-class DeviceInfo:
-
-    def __init__(self, name="DefaultDeviceName", max_total_local_size=1024):
-        self.name = name
-        self.max_total_local_size = max_total_local_size
