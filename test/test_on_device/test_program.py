@@ -64,7 +64,9 @@ def _test_compile(context, no_prelude, is_mocked):
 
     res_dev = Array.empty(queue, length, numpy.int32)
     # Check that passing both Arrays and Buffers is supported
-    program.multiply(queue, length, None, res_dev, a_dev, b_dev.data, c)
+    # Pass one of the buffers as a subregion, too.
+    a_dev_view = a_dev.data.get_sub_region(0, a_dev.data.size)
+    program.multiply(queue, length, None, res_dev, a_dev_view, b_dev.data, c)
     res = res_dev.get()
     if not is_mocked:
         assert (res == ref).all()
