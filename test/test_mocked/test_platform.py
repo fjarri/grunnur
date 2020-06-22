@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import API, Platform, OPENCL_API_ID
+from grunnur import API, Platform, OPENCL_API_ID, CUDA_API_ID
 
 
 def test_all(mock_backend_pyopencl):
@@ -22,10 +22,15 @@ def test_all_by_masks(mock_backend_pyopencl):
     assert platforms[0].name == 'foo-baz'
 
 
-def test_from_backend_platform(mock_backend_pyopencl):
+def test_from_backend_platform(mock_backend_factory):
+    mock_backend_pyopencl = mock_backend_factory.mock(OPENCL_API_ID)
     mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1'])
     mock_backend_pyopencl.add_platform_with_devices('Platform2', ['Device2'])
-    api = API.from_api_id(mock_backend_pyopencl.api_id)
+
+    # Add a CUDA API to make sure it is queried whether the object is its platform object
+    # (even though CUDA doesn't have platforms)
+    mock_backend_pycuda = mock_backend_factory.mock(CUDA_API_ID)
+    mock_backend_pycuda.add_devices(['Device1', 'Device2'])
 
     backend_platform = mock_backend_pyopencl.pyopencl.get_platforms()[0]
 
@@ -33,7 +38,7 @@ def test_from_backend_platform(mock_backend_pyopencl):
         Platform.from_backend_platform(1)
 
     platform = Platform.from_backend_platform(backend_platform)
-    assert platform.api == api
+    assert platform.api.id == OPENCL_API_ID
     assert platform.name == 'Platform1'
 
 
@@ -46,30 +51,50 @@ def test_from_index(mock_backend_pyopencl):
     assert platform.name == 'Platform2'
 
 
-def test_eq(mock_backend_pyopencl):
-    mock_backend_pyopencl.add_platform_with_devices('Platform0', ['Device0'])
-    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1'])
-    api = API.from_api_id(mock_backend_pyopencl.api_id)
+def test_eq(mock_backend):
+    if mock_backend.api_id == CUDA_API_ID:
+        mock_backend.add_devices(['Device1'])
+        api = API.from_api_id(mock_backend.api_id)
 
-    p0_v1 = Platform.from_index(api, 0)
-    p0_v2 = Platform.from_index(api, 0)
-    p1 = Platform.from_index(api, 1)
+        p0_v1 = Platform.from_index(api, 0)
+        p0_v2 = Platform.from_index(api, 0)
 
-    assert p0_v1 is not p0_v2 and p0_v1 == p0_v2
-    assert p0_v1 != p1
+        assert p0_v1 is not p0_v2 and p0_v1 == p0_v2
+
+    else:
+        mock_backend.add_platform_with_devices('Platform0', ['Device0'])
+        mock_backend.add_platform_with_devices('Platform1', ['Device1'])
+        api = API.from_api_id(mock_backend.api_id)
+
+        p0_v1 = Platform.from_index(api, 0)
+        p0_v2 = Platform.from_index(api, 0)
+        p1 = Platform.from_index(api, 1)
+
+        assert p0_v1 is not p0_v2 and p0_v1 == p0_v2
+        assert p0_v1 != p1
 
 
-def test_hash(mock_backend_pyopencl):
-    mock_backend_pyopencl.add_platform_with_devices('Platform0', ['Device0'])
-    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1'])
-    api = API.from_api_id(mock_backend_pyopencl.api_id)
+def test_hash(mock_backend):
+    if mock_backend.api_id == CUDA_API_ID:
+        mock_backend.add_devices(['Device1'])
+        api = API.from_api_id(mock_backend.api_id)
 
-    p0 = Platform.from_index(api, 0)
-    p1 = Platform.from_index(api, 1)
+        p0 = Platform.from_index(api, 0)
 
-    d = {p0: 0, p1: 1}
-    assert d[p0] == 0
-    assert d[p1] == 1
+        d = {p0: 0}
+        assert d[p0] == 0
+
+    else:
+        mock_backend.add_platform_with_devices('Platform0', ['Device0'])
+        mock_backend.add_platform_with_devices('Platform1', ['Device1'])
+        api = API.from_api_id(mock_backend.api_id)
+
+        p0 = Platform.from_index(api, 0)
+        p1 = Platform.from_index(api, 1)
+
+        d = {p0: 0, p1: 1}
+        assert d[p0] == 0
+        assert d[p1] == 1
 
 
 def test_getitem(mock_backend_pyopencl):
