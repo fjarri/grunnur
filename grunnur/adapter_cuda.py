@@ -436,22 +436,30 @@ class CuBufferAdapter(BufferAdapter):
 
         self._context_adapter.activate_device(device_idx)
 
+        # PyCUDA needs pointers to be passed as `numpy.number` to kernels,
+        # but `memcpy` functions require Python `int`s.
+        ptr = int(self._ptr) if isinstance(self._ptr, numpy.number) else self._ptr
+
         if no_async:
-            pycuda_driver.memcpy_htod(self._ptr, host_array)
+            pycuda_driver.memcpy_htod(ptr, host_array)
         else:
             pycuda_driver.memcpy_htod_async(
-                self._ptr, host_array, stream=queue_adapter._pycuda_streams[device_idx])
+                ptr, host_array, stream=queue_adapter._pycuda_streams[device_idx])
 
     def get(self, queue_adapter, device_idx, host_array, async_=False):
         queue_adapter._synchronize_other_streams(device_idx)
 
         self._context_adapter.activate_device(device_idx)
 
+        # PyCUDA needs pointers to be passed as `numpy.number` to kernels,
+        # but `memcpy` functions require Python `int`s.
+        ptr = int(self._ptr) if isinstance(self._ptr, numpy.number) else self._ptr
+
         if async_:
             pycuda_driver.memcpy_dtoh_async(
-                host_array, self._ptr, stream=queue_adapter._pycuda_streams[device_idx])
+                host_array, ptr, stream=queue_adapter._pycuda_streams[device_idx])
         else:
-            pycuda_driver.memcpy_dtoh(host_array, self._ptr)
+            pycuda_driver.memcpy_dtoh(host_array, ptr)
 
     def migrate(self, queue_adapter, device_idx):
         pass

@@ -197,7 +197,7 @@ class Mock_pycuda_driver:
     def memcpy_htod_async(self, dest, src, stream=None):
         current_context = self._backend_ref().current_context()
         assert isinstance(src, numpy.ndarray)
-        dest = self.DeviceAllocation._from_kernel_arg(dest)
+        dest = self.DeviceAllocation._from_memcpy_arg(dest)
         if stream is not None:
             assert stream._context == current_context
         assert dest._size >= src.size * src.dtype.itemsize
@@ -209,7 +209,7 @@ class Mock_pycuda_driver:
     def memcpy_dtoh_async(self, dest, src, stream=None):
         current_context = self._backend_ref().current_context()
         assert isinstance(dest, numpy.ndarray)
-        src = self.DeviceAllocation._from_kernel_arg(src)
+        src = self.DeviceAllocation._from_memcpy_arg(src)
         if stream is not None:
             assert stream._context == current_context
         assert src._size >= dest.size * dest.dtype.itemsize
@@ -217,8 +217,8 @@ class Mock_pycuda_driver:
 
     def memcpy_dtod_async(self, dest, src, size, stream=None):
         current_context = self._backend_ref().current_context()
-        dest = self.DeviceAllocation._from_kernel_arg(dest)
-        src = self.DeviceAllocation._from_kernel_arg(src)
+        dest = self.DeviceAllocation._from_memcpy_arg(dest)
+        src = self.DeviceAllocation._from_memcpy_arg(src)
         if stream is not None:
             assert stream._context == current_context
         assert dest._size >= size
@@ -350,14 +350,23 @@ def make_device_allocation_class(backend):
             return cls(idx, address, 0, size, owns_buffer=True)
 
         @classmethod
-        def _from_kernel_arg(cls, kernel_arg):
-            if isinstance(kernel_arg, cls):
-                return kernel_arg
-            elif isinstance(kernel_arg, numpy.uintp):
+        def _from_memcpy_arg(cls, arg):
+            # `memcpy` functions in PyCUDA require pointers to be `int`s,
+            # and kernels require them to be `numpy.number`s. Go figure.
+            if isinstance(arg, cls):
+                return arg
+            elif isinstance(arg, int):
                 # Unfortunately we can't keep track of subregion size in PyCUDA,
                 # so for the size we just choose the maximum available.
-                idx, offset, size = cls._backend_ref().check_allocation(kernel_arg)
-                return cls(idx, int(kernel_arg), offset, size, owns_buffer=False)
+                idx, offset, size = cls._backend_ref().check_allocation(arg)
+                return cls(idx, arg, offset, size, owns_buffer=False)
+            else:
+                raise TypeError(type(arg))
+
+        @classmethod
+        def _from_kernel_arg(cls, arg):
+            if isinstance(arg, (cls, numpy.uintp)):
+                return cls._from_memcpy_arg(int(arg))
             else:
                 raise TypeError(type(kernel_arg))
 
@@ -418,14 +427,11 @@ def make_function_class(backend):
                 assert stream._context == current_context
 
             for arg, param in zip(args, self._kernel.parameters):
-                if isinstance(arg, backend.pycuda_driver.DeviceAllocation):
-                    assert param is None
-                    assert arg._context == current_context
+                if param is None:
+                    # Checks validity on creation
+                    backend.pycuda_driver.DeviceAllocation._from_kernel_arg(arg)
                 elif isinstance(arg, numpy.number):
-                    if param is None:
-                        backend.check_allocation(arg)
-                    else:
-                        assert arg.dtype == param
+                    assert arg.dtype == param
                 else:
                     raise TypeError(f"Incorrect argument type: {type(arg)}")
 
