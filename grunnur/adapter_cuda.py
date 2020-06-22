@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from tempfile import mkdtemp
 from typing import Iterable, Union, Optional, Tuple, List, Sequence, cast
 
 import numpy
@@ -349,9 +350,17 @@ class CuContextAdapter(ContextAdapter):
         full_src = prelude + constant_arrays_src + src
         self.activate_device(device_idx)
 
+        # For some reason, `keep=True` does not work without an explicit `cache_dir`.
+        # A new temporary dir is still created, and everything is placed there,
+        # and `cache_dir` receives a copy of `kernel.cubin`.
+        if keep:
+            cache_dir = mkdtemp()
+        else:
+            cache_dir = None
+
         try:
             module = pycuda_compiler.SourceModule(
-                full_src, no_extern_c=True, options=options, keep=keep)
+                full_src, no_extern_c=True, options=options, keep=keep, cache_dir=cache_dir)
         except pycuda_driver.CompileError as e:
             raise AdapterCompilationError(e, full_src)
 

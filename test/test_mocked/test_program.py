@@ -9,6 +9,7 @@ from ..test_on_device.test_program import (
     _test_constant_memory,
     _test_compilation_error,
     _test_compile_multi_device,
+    _test_keep,
     )
 
 
@@ -120,3 +121,7 @@ def test_max_total_local_sizes(mock_backend):
 
     # The indices here correspond to the devices in the context, not in the platform
     assert program.kernel.max_total_local_sizes == {0: 1024, 1: 512}
+
+
+def test_keep(mock_context, capsys):
+    _test_keep(context=mock_context, capsys=capsys, is_mocked=True)

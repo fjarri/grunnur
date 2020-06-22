@@ -1,5 +1,7 @@
 from enum import Enum
 from functools import lru_cache
+from tempfile import mkdtemp
+import os.path
 import weakref
 
 import numpy
@@ -114,7 +116,7 @@ def make_source_module_class(backend):
 
         _backend_ref = backend_ref
 
-        def __init__(self, src, no_extern_c=False, options=None, keep=False):
+        def __init__(self, src, no_extern_c=False, options=None, keep=False, cache_dir=None):
             assert isinstance(src, MockSource)
             assert isinstance(no_extern_c, bool)
             assert options is None or all(isinstance(option, str) for option in options)
@@ -128,6 +130,13 @@ def make_source_module_class(backend):
             function_cls = self._backend_ref().pycuda_driver.Function
             self._kernels = {kernel.name: function_cls(self, kernel) for kernel in src.kernels}
             self._constant_mem = src.constant_mem
+
+            # See the note in compile_single_device(). Apparently that's how PyCUDA operates.
+            if keep and cache_dir is not None:
+                temp_dir = mkdtemp()
+                with open(os.path.join(temp_dir, 'kernel.cu'), 'w') as f:
+                    f.write(str(src))
+                print(f"*** compiler output in {temp_dir}")
 
         def get_function(self, name):
             return self._kernels[name]

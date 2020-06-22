@@ -29,6 +29,9 @@ class MockSource:
     def split(self, delim):
         return self.prelude.split(delim) + ["<<< mock source >>>"]
 
+    def __str__(self):
+        return self.name
+
 
 class MockDefTemplate(DefTemplate):
 
@@ -38,6 +41,9 @@ class MockDefTemplate(DefTemplate):
 
     def render(self, *args, **kwds):
         return self._mock_source
+
+    def __str__(self):
+        return str(self._mock_source)
 
 
 class DeviceInfo:

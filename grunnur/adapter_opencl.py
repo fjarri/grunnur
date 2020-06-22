@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from tempfile import mkdtemp
 from typing import Iterable, List, Tuple, Optional, Sequence
 
 import numpy
@@ -338,7 +340,9 @@ class OclContextAdapter(ContextAdapter):
             temp_file_path = os.path.join(temp_dir, 'kernel.cl')
 
             with open(temp_file_path, 'w') as f:
-                f.write(src)
+                # `str()` is for convenience of mocking;
+                # during a normal operation `src` is already a string
+                f.write(str(src))
 
             print("*** compiler output in", temp_dir)
 

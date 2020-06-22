@@ -1,5 +1,7 @@
-import numpy
+import os.path
+import re
 
+import numpy
 import pytest
 
 from grunnur import CUDA_API_ID, OPENCL_API_ID, Program, Queue, Array, CompilationError, MultiDevice, StaticKernel
@@ -286,3 +288,29 @@ def _test_compilation_error(context, capsys, is_mocked):
 
 def test_compilation_error(context, capsys):
     _test_compilation_error(context=context, capsys=capsys, is_mocked=False)
+
+
+def _test_keep(context, capsys, is_mocked):
+    if is_mocked:
+        src = MockDefTemplate(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
+    else:
+        src = SRC_GENERIC
+
+    program = Program(context, src, keep=True)
+    captured = capsys.readouterr()
+    path = re.match(r'\*\*\* compiler output in (.*)', captured.out).group(1)
+    assert os.path.isdir(path)
+
+    if context.api.id == OPENCL_API_ID:
+        srcfile = os.path.join(path, 'kernel.cl')
+    elif context.api.id == CUDA_API_ID:
+        srcfile = os.path.join(path, 'kernel.cu')
+
+    with open(srcfile) as f:
+        source = f.read()
+
+    assert str(src) in source
+
+
+def test_keep(context, capsys):
+    _test_keep(context=context, capsys=capsys, is_mocked=False)
