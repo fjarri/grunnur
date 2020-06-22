@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, IntEnum
 import weakref
 
 import numpy
@@ -9,8 +9,9 @@ from grunnur.adapter_base import DeviceType
 from .mock_base import MockSource, DeviceInfo
 
 
-class MemFlags(Enum):
+class MemFlags(IntEnum):
     READ_WRITE = 1
+    ALLOC_HOST_PTR = 16
 
 
 class MockPyOpenCL:
