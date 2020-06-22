@@ -44,3 +44,40 @@ def test_from_index(mock_backend_pyopencl):
 
     platform = Platform.from_index(api, 1)
     assert platform.name == 'Platform2'
+
+
+def test_eq(mock_backend_pyopencl):
+    mock_backend_pyopencl.add_platform_with_devices('Platform0', ['Device0'])
+    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1'])
+    api = API.from_api_id(mock_backend_pyopencl.api_id)
+
+    p0_v1 = Platform.from_index(api, 0)
+    p0_v2 = Platform.from_index(api, 0)
+    p1 = Platform.from_index(api, 1)
+
+    assert p0_v1 is not p0_v2 and p0_v1 == p0_v2
+    assert p0_v1 != p1
+
+
+def test_hash(mock_backend_pyopencl):
+    mock_backend_pyopencl.add_platform_with_devices('Platform0', ['Device0'])
+    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1'])
+    api = API.from_api_id(mock_backend_pyopencl.api_id)
+
+    p0 = Platform.from_index(api, 0)
+    p1 = Platform.from_index(api, 1)
+
+    d = {p0: 0, p1: 1}
+    assert d[p0] == 0
+    assert d[p1] == 1
+
+
+def test_getitem(mock_backend_pyopencl):
+    mock_backend_pyopencl.add_platform_with_devices('Platform0', ['Device0'])
+    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1', 'Device2'])
+    api = API.from_api_id(mock_backend_pyopencl.api_id)
+
+    p1 = Platform.from_index(api, 1)
+
+    assert p1[0].name == 'Device1'
+    assert p1[1].name == 'Device2'
