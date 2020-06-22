@@ -79,7 +79,8 @@ class CuAPIAdapter(APIAdapter):
     def make_device_adapter(self, pycuda_device):
         return CuDeviceAdapter.from_pycuda_device(pycuda_device)
 
-    def make_platform_adapter(self, pycuda_platform):
+    def make_platform_adapter(self, pycuda_platform): # pragma: no cover
+        # Not going to be called since `isa_backend_platform()` always returns `False`
         raise Exception("CUDA does not have the concept of a platform")
 
     def make_context_adapter_from_backend_contexts(self, backend_contexts, take_ownership):
