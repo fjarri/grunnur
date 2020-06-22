@@ -49,6 +49,10 @@ def test_from_backend_contexts_opencl(mock_backend_pyopencl):
     backend_devices = backend.pyopencl.get_platforms()[1].get_devices()
     backend_context = backend.pyopencl.Context(backend_devices)
 
+    backend_context2 = backend.pyopencl.Context(backend_devices)
+    with pytest.raises(ValueError, match="Cannot make one OpenCL context out of several contexts"):
+        Context.from_backend_contexts([backend_context, backend_context2])
+
     context = Context.from_backend_contexts(backend_context)
 
     assert context.platform.name == 'Platform2'
