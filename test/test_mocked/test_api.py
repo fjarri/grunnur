@@ -52,3 +52,44 @@ def test_from_api_id(mock_backend_factory):
         mock_backend_factory.mock(api_id)
         api = API.from_api_id(api_id)
         assert api.id == api_id
+
+
+def test_eq(mock_backend_factory):
+    api_id0 = all_api_ids()[0]
+    api_id1 = all_api_ids()[1]
+
+    mock_backend_factory.mock(api_id0)
+    mock_backend_factory.mock(api_id1)
+
+    api0_v1 = API.from_api_id(api_id0)
+    api0_v2 = API.from_api_id(api_id0)
+    api1 = API.from_api_id(api_id1)
+
+    assert api0_v1 is not api0_v2 and api0_v1 == api0_v2
+    assert api0_v1 != api1
+
+
+def test_hash(mock_backend_factory):
+    api_id0 = all_api_ids()[0]
+    api_id1 = all_api_ids()[1]
+
+    mock_backend_factory.mock(api_id0)
+    mock_backend_factory.mock(api_id1)
+
+    api0 = API.from_api_id(api_id0)
+    api1 = API.from_api_id(api_id1)
+
+    d = {api0: 0, api1: 1}
+    assert d[api0] == 0
+    assert d[api1] == 1
+
+
+def test_getitem(mock_backend_pyopencl):
+    api_id = mock_backend_pyopencl.api_id
+
+    mock_backend_pyopencl.add_platform_with_devices('Platform0', ['Device0'])
+    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1'])
+
+    api = API.from_api_id(api_id)
+    assert api[0].name == 'Platform0'
+    assert api[1].name == 'Platform1'

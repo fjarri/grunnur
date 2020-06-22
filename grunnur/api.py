@@ -92,7 +92,10 @@ class API:
         self.short_name = f"api({self.shortcut})"
 
     def __eq__(self, other):
-        return self._api_adapter == other._api_adapter
+        return isinstance(other, API) and self._api_adapter == other._api_adapter
+
+    def __hash__(self):
+        return hash((type(self), self._api_adapter))
 
     def __getitem__(self, idx):
         from .platform import Platform # avoiding circular imports

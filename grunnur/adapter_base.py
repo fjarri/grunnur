@@ -103,7 +103,7 @@ class APIAdapter(ABC):
         return type(self) == type(other) and self.id == other.id
 
     def __hash__(self):
-        return hash(type(self), self.id)
+        return hash((type(self), self.id))
 
 
 class PlatformAdapter(ABC):
