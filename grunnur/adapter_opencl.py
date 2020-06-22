@@ -428,14 +428,9 @@ class OclQueueAdapter(QueueAdapter):
             for device_idx in self._pyopencl_queues
             if device_idx != skip_device_idx]
 
-    def synchronize(self, device_idx=None):
-        if device_idx is None:
-            device_idxs = self._pyopencl_queues.keys()
-        else:
-            device_idxs = [device_idx]
-
-        for device_idx in device_idxs:
-            self._pyopencl_queues[device_idx].finish()
+    def synchronize(self):
+        for pyopencl_queue in self._pyopencl_queues.values():
+            pyopencl_queue.finish()
 
 
 class OclProgram(ProgramAdapter):
