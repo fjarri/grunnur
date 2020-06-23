@@ -150,10 +150,12 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Topic :: Software Development',
         'Topic :: Scientific/Engineering',
-        'Operating System :: OS Independent'
+        'Operating System :: OS Independent',
+        'Framework :: Pytest'
     ],
     cmdclass={
         'upload': UploadCommand,
         'test': PyTest,
     },
+    entry_points={"pytest11": ["pytest_grunnur = grunnur.pytest_plugin"]},
 )

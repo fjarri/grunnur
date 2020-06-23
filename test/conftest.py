@@ -5,7 +5,13 @@ import pytest
 from grunnur import API, Context, CUDA_API_ID, OPENCL_API_ID
 from grunnur.api import all_api_ids
 from grunnur.virtual_alloc import TrivialManager, ZeroOffsetManager
-from grunnur.pytest_helpers import *
+
+# Cannot just use the plugin directly since it is loaded before the coverage plugin,
+# and all the function definitions in all `grunnur` modules get marked as not covered.
+from grunnur.pytest_plugin import context, multi_device_context
+from grunnur.pytest_plugin import pytest_addoption as grunnur_pytest_addoption
+from grunnur.pytest_plugin import pytest_generate_tests as grunnur_pytest_generate_tests
+from grunnur.pytest_plugin import pytest_report_header as grunnur_pytest_report_header
 
 from .mock_pycuda import MockPyCUDA
 from .mock_pyopencl import MockPyOpenCL
@@ -137,12 +143,12 @@ def valloc_cls(request):
 
 
 def pytest_addoption(parser):
-    addoption(parser)
+    grunnur_pytest_addoption(parser)
 
 
 def pytest_generate_tests(metafunc):
-    generate_tests(metafunc)
+    grunnur_pytest_generate_tests(metafunc)
 
 
 def pytest_report_header(config):
-    report_header(config)
+    grunnur_pytest_report_header(config)

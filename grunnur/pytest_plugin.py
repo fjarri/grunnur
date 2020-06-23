@@ -8,7 +8,7 @@ from .device import Device
 from .context import Context
 
 
-def addoption(parser):
+def pytest_addoption(parser):
 
     api_shortcuts = [api_id.shortcut for api_id in all_api_ids()]
     parser.addoption(
@@ -109,7 +109,7 @@ def multi_device_context(request):
     yield context
 
 
-def generate_tests(metafunc):
+def pytest_generate_tests(metafunc):
 
     apis = get_apis(metafunc.config)
     platforms = get_platforms(metafunc.config)
@@ -145,7 +145,7 @@ def generate_tests(metafunc):
             indirect=True)
 
 
-def report_header(config):
+def pytest_report_header(config):
     devices = get_devices(config)
 
     if len(devices) == 0:
