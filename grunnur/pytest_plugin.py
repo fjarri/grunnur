@@ -41,7 +41,7 @@ def pytest_addoption(parser):
 
     parser.addoption(
         "--include-duplicate-devices",
-        action="store_false",
+        action="store_true",
         help="Run tests on all available devices and not only on uniquely named ones",
         default=False)
 
@@ -95,14 +95,14 @@ def get_multi_device_sets(config):
     return [device_set for device_set in device_sets if len(device_set) > 1]
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def context(request):
     device = request.param
     context = Context.from_devices(device)
     yield context
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def multi_device_context(request):
     devices = request.param
     context = Context.from_devices(devices)
@@ -120,7 +120,6 @@ def pytest_generate_tests(metafunc):
     idgen = lambda val: val.short_name
 
     fixtures = [
-        ('api_id', api_ids),
         ('api', apis),
         ('platform', platforms),
         ('device', devices),
