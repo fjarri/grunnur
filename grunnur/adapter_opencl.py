@@ -6,10 +6,10 @@ from typing import Iterable, List, Tuple, Optional, Sequence
 
 import numpy
 
-try:
+# Skipping coverage count - can't test properly
+try: # pragma: no cover
     import pyopencl
-    import pyopencl.array
-except ImportError:
+except ImportError: # pragma: no cover
     pyopencl = None
 
 from .utils import all_same, all_different, wrap_in_tuple, normalize_object_sequence

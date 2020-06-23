@@ -5,10 +5,11 @@ from typing import Iterable, Union, Optional, Tuple, List, Sequence, cast
 
 import numpy
 
-try:
+# Skipping coverage count - can't test properly
+try: # pragma: no cover
     import pycuda.driver as pycuda_driver
     import pycuda.compiler as pycuda_compiler
-except ImportError:
+except ImportError: # pragma: no cover
     # these variables are used for a PyCUDA mock during tests
     pycuda_driver = None
     pycuda_compiler = None
@@ -26,7 +27,9 @@ from .adapter_base import (
 # if CUDA was initialized correctly, but it is better to distinguish import errors
 # (PyCUDA not installed, which is quite common) and initialization errors
 # (some problem with the package).
-if pycuda_driver is not None:
+#
+# Skipping coverage count - can't test properly
+if pycuda_driver is not None: # pragma: no cover
     pycuda_driver.init()
 
 
