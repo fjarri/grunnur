@@ -471,14 +471,11 @@ def normalize_constant_arrays(constant_arrays):
         if isinstance(metadata, (list, tuple)):
             shape, dtype = metadata
             shape = wrap_in_tuple(shape)
-            dtype = normalize_type(dtype)
+            dtype = dtypes.normalize_type(dtype)
             length = prod(shape)
-        elif isinstance(metadata, numpy.ndarray):
+        elif hasattr(metadata, 'shape') and hasattr(metadata, 'dtype'):
             dtype = metadata.dtype
-            length = metadata.size
-        elif isinstance(metadata, CuArray):
-            dtype = metadata.dtype
-            length = metadata.buffer_size
+            length = prod(metadata.shape)
         else:
             raise TypeError(f"Unknown constant array metadata type: {type(metadata)}")
 

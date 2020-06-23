@@ -83,6 +83,9 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
         with pytest.raises(ValueError, match="Incorrect size of the constant buffer;"):
             program.set_constant_array(queue, 'cm1', cm1[:8])
 
+        with pytest.raises(TypeError, match="Unknown constant array metadata type"):
+            program = Program(context, src, constant_arrays=dict(cm1=1), device_idxs=[0, 1, 2])
+
         program = Program(context, src, constant_arrays=dict(cm1=cm1), device_idxs=[0, 1, 2])
         queue3 = Queue.from_device_idxs(context, device_idxs=[3])
 

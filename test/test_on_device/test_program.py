@@ -221,15 +221,22 @@ def _test_constant_memory(context, is_mocked, is_static):
     res_dev = Array.empty(queue, 16, numpy.int32)
 
     if context.api.id == CUDA_API_ID:
+
+        # Use different forms of constant array representation
+        constant_arrays=dict(
+            cm1=cm1, # as an array(-like) object
+            cm2=(cm2.shape, cm2.dtype), # as a tuple of shape and dtype
+            cm3=cm3_dev) # as a device array
+
         if is_static:
             copy_from_cm = StaticKernel(
                 context, src, 'copy_from_cm',
-                global_size=16, constant_arrays=dict(cm1=cm1, cm2=cm2, cm3=cm3))
+                global_size=16, constant_arrays=constant_arrays)
             copy_from_cm.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
             copy_from_cm.set_constant_array(queue, 'cm2', cm2) # setting from a host array
             copy_from_cm.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
         else:
-            program = Program(context, src, constant_arrays=dict(cm1=cm1, cm2=cm2, cm3=cm3))
+            program = Program(context, src, constant_arrays=constant_arrays)
             program.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
             program.set_constant_array(queue, 'cm2', cm2) # setting from a host array
             program.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
