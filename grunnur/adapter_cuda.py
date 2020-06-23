@@ -413,10 +413,6 @@ class CuBufferAdapter(BufferAdapter):
     def offset(self):
         return self._offset
 
-    @property
-    def context_adapter(self):
-        return self._context_adapter
-
     def get_sub_region(self, origin, size):
         assert origin + size <= self._size
         if self._base_buffer is None:

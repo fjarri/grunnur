@@ -308,14 +308,6 @@ class BufferAdapter(ABC):
     A memory buffer on the device.
     """
 
-    #@property
-    #@abstractmethod
-    #def context_adapter(self):
-    #    """
-    #    The :py:class:`Context` object this buffer object was created in.
-    #    """
-    #    pass
-
     @property
     @abstractmethod
     def size(self) -> int:

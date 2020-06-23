@@ -384,7 +384,7 @@ class OclContextAdapter(ContextAdapter):
 class OclBufferAdapter(BufferAdapter):
 
     def __init__(self, context_adapter, pyopencl_buffer):
-        self.context_adapter = context_adapter
+        self._context_adapter = context_adapter
         self.pyopencl_buffer = pyopencl_buffer
         self.kernel_arg = pyopencl_buffer
 
@@ -409,7 +409,7 @@ class OclBufferAdapter(BufferAdapter):
             wait_for=wait_for, is_blocking=not async_)
 
     def get_sub_region(self, origin, size):
-        return OclBufferAdapter(self.context_adapter, self.pyopencl_buffer.get_sub_region(origin, size))
+        return OclBufferAdapter(self._context_adapter, self.pyopencl_buffer.get_sub_region(origin, size))
 
     def migrate(self, queue_adapter, device_idx):
         pyopencl.enqueue_migrate_mem_objects(
