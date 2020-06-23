@@ -42,9 +42,6 @@ class APIID:
     def __hash__(self):
         return hash((type(self), self.shortcut))
 
-    def __str__(self):
-        return self.short_name
-
 
 class APIAdapterFactory(ABC):
     """
