@@ -310,6 +310,9 @@ class Buffer:
 
     def get_sub_region(self, origin, size):
         assert origin + size <= self.size
+        # Trying to do that in PyOpenCL leads to segfault
+        if self._base_buffer is not None:
+            raise RuntimeError("Cannot create a subregion of subregion")
         return Buffer(
             self.context, self.flags, size,
             _migrated_to=self._migrated_to, _offset=origin, _base_buffer=self)

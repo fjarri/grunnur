@@ -1,7 +1,7 @@
 import numpy
 import pytest
 
-from grunnur import Buffer, Queue
+from grunnur import Buffer, Queue, CUDA_API_ID
 
 
 def _test_allocate(context):
@@ -43,6 +43,17 @@ def _test_allocate(context):
     buf.get(queue, res)
     queue.synchronize()
     assert (res == arr).all()
+
+    # Subregion of subregion
+    if context.api.id == CUDA_API_ID:
+        # In OpenCL that leads to segfault, but with CUDA we just emulate that with pointers.
+        arr_region2 = (numpy.ones(20) * 200).astype(dtype)
+        arr[25+20:25+40] = arr_region2
+        buf_region2 = buf_region.get_sub_region(20 * dtype.itemsize, 20 * dtype.itemsize)
+        buf_region2.set(queue, arr_region2)
+        buf.get(queue, res)
+        queue.synchronize()
+        assert (res == arr).all()
 
 
 def test_allocate(context):
