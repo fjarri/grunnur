@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from math import log10
-from typing import NamedTuple, Tuple
+from typing import NamedTuple, Tuple, Union, List, Dict, Optional, Iterable, Mapping, Generic, TypeVar
 
 import numpy
 
@@ -10,12 +10,17 @@ from .modules import render_with_modules
 from .utils import wrap_in_tuple
 from .array import Array
 from .buffer import Buffer
+from .queue import Queue
+from .context import Context
 from .api import CUDA_API_ID
 
 
-class MultiDevice:
-    def __init__(self, *args):
-        self.values = args
+_T = TypeVar('_T')
+
+
+class MultiDevice(Generic[_T]):
+    def __init__(self, *args: _T):
+        self.values: Tuple[_T, ...] = args
 
 
 class CompilationError(RuntimeError):
@@ -214,11 +219,14 @@ def process_arg(arg):
         return arg
 
 
+_SizeType = TypeVar('_SizeType', bound=Union[int, Iterable[int]])
+
+
 def _call_kernels(
             queue: Queue,
             sd_kernel_adapters,
-            global_size: Union[int, Iterable[int]],
-            local_size: Union[int, Iterable[int], None],
+            global_size: Union[_SizeType, MultiDevice[_SizeType]],
+            local_size: Union[_SizeType, MultiDevice[_SizeType], None],
             *args,
             device_idxs: Optional[Iterable[int]]=None,
             **kwds):
@@ -237,12 +245,11 @@ def _call_kernels(
         kernel_args = [arg.values[i] if isinstance(arg, MultiDevice) else arg for arg in args]
         kernel_args = [process_arg(arg) for arg in kernel_args]
 
-        kernel_ls = local_size.values[i] if isinstance(local_size, MultiDevice) else local_size
-        kernel_gs = global_size.values[i] if isinstance(global_size, MultiDevice) else global_size
+        _kernel_ls = local_size.values[i] if isinstance(local_size, MultiDevice) else local_size
+        _kernel_gs = global_size.values[i] if isinstance(global_size, MultiDevice) else global_size
 
-        if kernel_ls is not None:
-            kernel_ls = wrap_in_tuple(kernel_ls)
-        kernel_gs = wrap_in_tuple(kernel_gs)
+        kernel_ls = wrap_in_tuple(_kernel_ls) if _kernel_ls is not None else _kernel_ls
+        kernel_gs = wrap_in_tuple(_kernel_gs)
 
         ret_val = sd_kernel_adapters[device_idx](
             queue._queue_adapter, kernel_gs, kernel_ls, *kernel_args, **kwds)
@@ -274,8 +281,8 @@ class Kernel:
     def __call__(
             self,
             queue: Queue,
-            global_size: Union[int, Iterable[int]],
-            local_size: Union[int, Iterable[int], None],
+            global_size: Union[_SizeType, MultiDevice[_SizeType]],
+            local_size: Union[_SizeType, MultiDevice[_SizeType], None],
             *args,
             device_idxs: Optional[Iterable[int]]=None,
             **kwds):

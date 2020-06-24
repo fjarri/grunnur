@@ -49,7 +49,7 @@ class VirtualAllocator:
         self.manager = manager
         self.dependencies = dependencies
 
-    def __call__(self, size: int) -> VirtualBufferAdapter:
+    def __call__(self, size: int) -> Buffer:
         return self.manager._allocate_virtual(size, self.dependencies)
 
 
@@ -128,7 +128,7 @@ class VirtualManager:
         dependencies = extract_dependencies(dependencies)
         return VirtualAllocator(self, dependencies)
 
-    def _allocate_virtual(self, size: int, dependencies: Set[int]) -> VirtualBufferAdapter:
+    def _allocate_virtual(self, size: int, dependencies: Set[int]) -> Buffer:
 
         new_id = self._id_counter
         self._id_counter += 1

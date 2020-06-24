@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional, Iterable, List, Sequence
+
 from .api import API
 from .utils import string_matches_masks
 
@@ -34,8 +36,8 @@ class Platform:
     def all_by_masks(
             cls,
             api,
-            include_masks: Optional[Iterable[str]]=None,
-            exclude_masks: Optional[Iterable[str]]=None) -> List[Platform]:
+            include_masks: Optional[Sequence[str]]=None,
+            exclude_masks: Optional[Sequence[str]]=None) -> List[Platform]:
         """
         Returns a list of all platforms with names satisfying the given criteria.
 

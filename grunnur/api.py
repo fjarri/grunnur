@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Optional, Iterable, List
 
+from .adapter_base import APIID
 from .adapter_cuda import CuAPIAdapterFactory
 from .adapter_opencl import OclAPIAdapterFactory
 

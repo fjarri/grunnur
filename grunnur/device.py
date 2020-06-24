@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional, Iterable, List, Sequence
+
 from .api import API
 from .platform import Platform
 from .utils import string_matches_masks
@@ -32,8 +34,8 @@ class Device:
     def all_by_masks(
             cls,
             platform,
-            include_masks: Optional[Iterable[str]]=None,
-            exclude_masks: Optional[Iterable[str]]=None,
+            include_masks: Optional[Sequence[str]]=None,
+            exclude_masks: Optional[Sequence[str]]=None,
             unique_only: bool=False,
             include_pure_parallel_devices: bool=False) \
             -> List[Device]:

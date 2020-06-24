@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Tuple, List
+from typing import Optional, Iterable, Tuple, List, Sequence
 
 from .platform import Platform
 from .device import Device
@@ -7,10 +7,10 @@ from .device import Device
 def platforms_and_devices_by_mask(
         api,
         quantity: Optional[int]=1,
-        platform_include_masks: Optional[Iterable[str]]=None,
-        platform_exclude_masks: Optional[Iterable[str]]=None,
-        device_include_masks: Optional[Iterable[str]]=None,
-        device_exclude_masks: Optional[Iterable[str]]=None,
+        platform_include_masks: Optional[Sequence[str]]=None,
+        platform_exclude_masks: Optional[Sequence[str]]=None,
+        device_include_masks: Optional[Sequence[str]]=None,
+        device_exclude_masks: Optional[Sequence[str]]=None,
         unique_devices_only: bool=False,
         include_pure_parallel_devices: bool=False) \
         -> List[Tuple[Platform, List[Device]]]:

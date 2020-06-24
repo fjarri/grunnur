@@ -64,8 +64,8 @@ def prod(seq: Iterable):
 
 def string_matches_masks(
         s: str,
-        include_masks: Optional[Iterable[str]]=None,
-        exclude_masks: Optional[Iterable[str]]=None) -> bool:
+        include_masks: Optional[Sequence[str]]=None,
+        exclude_masks: Optional[Sequence[str]]=None) -> bool:
     """
     Returns ``True`` if:
     1) ``s`` matches with at least one of regexps from ``include_masks`` (if there are any), and
@@ -92,7 +92,7 @@ def string_matches_masks(
     return True
 
 
-_T = TypeVar('T')
+_T = TypeVar('_T')
 
 
 def normalize_object_sequence(objs, expected_cls: Type[_T]) -> Tuple[_T, ...]:

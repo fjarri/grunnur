@@ -283,7 +283,7 @@ class CuContextAdapter(ContextAdapter):
 
     @classmethod
     def from_pycuda_contexts(
-            cls, pycuda_contexts: Iterable[pycuda_driver.Context],
+            cls, pycuda_contexts: Sequence[pycuda_driver.Context],
             take_ownership: bool) -> CuContextAdapter:
         """
         Creates a context based on one or several (distinct) PyCuda ``Context`` objects.
@@ -296,7 +296,7 @@ class CuContextAdapter(ContextAdapter):
         return cls(pycuda_contexts, take_ownership)
 
     @classmethod
-    def from_device_adapters(cls, device_adapters: Iterable[CuDeviceAdapter]) -> CuContextAdapter:
+    def from_device_adapters(cls, device_adapters: Sequence[CuDeviceAdapter]) -> CuContextAdapter:
         """
         Creates a context based on one or several (distinct) :py:class:`CuDeviceAdapter` objects.
         """
@@ -515,14 +515,14 @@ class CuProgram(ProgramAdapter):
         return CuKernel(self, self._device_idx, pycuda_kernel)
 
     def set_constant_buffer(
-            self, queue: CuQueue, name: str, arr: Union[CuBufferAdapter, numpy.ndarray]):
+            self, queue_adapter: CuQueueAdapter, name: str, arr: Union[CuBufferAdapter, numpy.ndarray]):
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
         self.context_adapter.activate_device(self._device_idx)
         symbol, size = self._pycuda_program.get_global(name)
 
-        pycuda_stream = queue._pycuda_streams[self._device_idx]
+        pycuda_stream = queue_adapter._pycuda_streams[self._device_idx]
 
         if isinstance(arr, CuBufferAdapter):
             transfer_size = arr.size
