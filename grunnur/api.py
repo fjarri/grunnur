@@ -93,7 +93,12 @@ class API:
         return apis
 
     @classmethod
-    def from_api_id(cls, api_id):
+    def from_api_id(cls, api_id: APIID) -> API:
+        """
+        Creates an API object out of an identifier.
+
+        :param api_id: API identifier.
+        """
         api_adapter = _ALL_API_ADAPTER_FACTORIES[api_id].make_api_adapter()
         return cls(api_adapter)
 
