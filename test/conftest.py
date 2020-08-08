@@ -2,7 +2,7 @@ import io
 
 import pytest
 
-from grunnur import API, Context, CUDA_API_ID, OPENCL_API_ID
+from grunnur import API, Context, cuda_api_id, opencl_api_id
 from grunnur.api import all_api_ids
 from grunnur.virtual_alloc import TrivialManager, ZeroOffsetManager
 
@@ -47,9 +47,9 @@ class MockBackendFactory:
         return backend
 
     def mock(self, api_id, disable=False):
-        if api_id == CUDA_API_ID:
+        if api_id == cuda_api_id():
             return self.mock_pycuda(disable=disable)
-        elif api_id == OPENCL_API_ID:
+        elif api_id == opencl_api_id():
             return self.mock_pyopencl(disable=disable)
         else:
             raise ValueError(f"Unknown API ID: {api_id}")

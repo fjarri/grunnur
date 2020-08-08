@@ -3,7 +3,7 @@ import weakref
 
 import numpy
 
-from grunnur import OPENCL_API_ID
+from grunnur import opencl_api_id
 from grunnur.adapter_base import DeviceType
 
 from .mock_base import MockSource
@@ -18,7 +18,7 @@ class MockPyOpenCL:
 
     def __init__(self):
         self.pyopencl = Mock_pyopencl(self)
-        self.api_id = OPENCL_API_ID
+        self.api_id = opencl_api_id()
         self.platforms = []
 
     def add_platform(self, platform_name=None):

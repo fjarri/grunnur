@@ -4,7 +4,7 @@ import re
 import numpy
 import pytest
 
-from grunnur import CUDA_API_ID, OPENCL_API_ID, Program, Queue, Array, CompilationError, MultiDevice, StaticKernel
+from grunnur import cuda_api_id, opencl_api_id, Program, Queue, Array, CompilationError, MultiDevice, StaticKernel
 from grunnur.template import Template
 
 from ..mock_base import MockKernel, MockDefTemplate
@@ -41,7 +41,7 @@ def _test_compile(context, no_prelude, is_mocked):
         src = MockDefTemplate(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
     else:
         if no_prelude:
-            src = SRC_CUDA if context.api.id == CUDA_API_ID else SRC_OPENCL
+            src = SRC_CUDA if context.api.id == cuda_api_id() else SRC_OPENCL
         else:
             src = SRC_GENERIC
 
@@ -137,7 +137,7 @@ def _test_compile_multi_device(context, device_idxs, is_mocked):
         correct_result = (res == ref).all()
 
         expected_to_fail = (
-            context.api.id == OPENCL_API_ID and
+            context.api.id == opencl_api_id() and
             'Apple' in context.platform.name and
             any('GeForce' in name for name in device_names) and
             not all('GeForce' in name for name in device_names))
@@ -202,7 +202,7 @@ def _test_constant_memory(context, is_mocked, is_static):
     if is_mocked:
         kernel = MockKernel(
             'copy_from_cm',
-            [None] if context.api.id == CUDA_API_ID else [None, None, None, None],
+            [None] if context.api.id == cuda_api_id() else [None, None, None, None],
             max_total_local_sizes={0: 1024})
         src = MockDefTemplate(
             constant_mem={
@@ -220,7 +220,7 @@ def _test_constant_memory(context, is_mocked, is_static):
     cm3_dev = Array.from_host(queue, cm3)
     res_dev = Array.empty(queue, 16, numpy.int32)
 
-    if context.api.id == CUDA_API_ID:
+    if context.api.id == cuda_api_id():
 
         # Use different forms of constant array representation
         constant_arrays=dict(
@@ -310,9 +310,9 @@ def _test_keep(context, capsys, is_mocked):
     path = re.match(r'\*\*\* compiler output in (.*)', captured.out).group(1)
     assert os.path.isdir(path)
 
-    if context.api.id == OPENCL_API_ID:
+    if context.api.id == opencl_api_id():
         srcfile = os.path.join(path, 'kernel.cl')
-    elif context.api.id == CUDA_API_ID:
+    elif context.api.id == cuda_api_id():
         srcfile = os.path.join(path, 'kernel.cu')
 
     with open(srcfile) as f:

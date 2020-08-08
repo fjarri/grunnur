@@ -6,7 +6,7 @@ import weakref
 
 import numpy
 
-from grunnur import CUDA_API_ID
+from grunnur import cuda_api_id
 from grunnur.dtypes import normalize_type
 from grunnur.utils import prod, wrap_in_tuple
 
@@ -33,7 +33,7 @@ class MockPyCUDA:
         self._allocation_idx = 0
         self._allocations = {}
 
-        self.api_id = CUDA_API_ID
+        self.api_id = cuda_api_id()
 
     def add_devices(self, device_infos):
         assert len(self.device_infos) == 0

@@ -12,7 +12,7 @@ from .array import Array
 from .buffer import Buffer
 from .queue import Queue
 from .context import Context
-from .api import CUDA_API_ID
+from .api import cuda_api_id
 
 
 _T = TypeVar('_T')
@@ -166,7 +166,7 @@ class Program:
         else:
             device_idxs = sorted(device_idxs)
 
-        if context.api.id != CUDA_API_ID and len(constant_arrays) > 0:
+        if context.api.id != cuda_api_id() and len(constant_arrays) > 0:
             raise ValueError("Compile-time constant arrays are only supported by CUDA API")
 
         sd_programs = {}
@@ -204,7 +204,7 @@ class Program:
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
-        if self.context.api.id != CUDA_API_ID:
+        if self.context.api.id != cuda_api_id():
             raise ValueError("Constant arrays are only supported for CUDA API")
         for sd_program in self._sd_programs.values():
             sd_program.set_constant_array(queue, name, arr)

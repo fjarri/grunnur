@@ -1,4 +1,4 @@
-from .api import CUDA_API_ID
+from .api import cuda_api_id
 from .utils import prod
 from .vsize import VirtualSizes
 from .program import Program, SingleDeviceProgram, process_arg, MultiDevice, _call_kernels, _set_constant_array
@@ -17,7 +17,7 @@ class StaticKernel:
             self, context, src, name, global_size,
             local_size=None, device_idxs=None, render_globals={}, constant_arrays={}, **kwds):
 
-        if context.api.id != CUDA_API_ID and len(constant_arrays) > 0:
+        if context.api.id != cuda_api_id() and len(constant_arrays) > 0:
             raise ValueError("Compile-time constant arrays are only supported by CUDA API")
 
         self.context = context
@@ -102,7 +102,7 @@ class StaticKernel:
         Load a constant array (``arr`` can be either ``numpy`` array or a :py:class:`Array` object)
         corresponding to the symbol ``name`` to device.
         """
-        if self.context.api.id != CUDA_API_ID:
+        if self.context.api.id != cuda_api_id():
             raise ValueError("Constant arrays are only supported for CUDA API")
         for kernel_adapter in self._sd_kernel_adapters.values():
             _set_constant_array(queue, kernel_adapter.program_adapter, name, arr)

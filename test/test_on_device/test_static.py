@@ -2,7 +2,7 @@ import pytest
 import numpy
 
 from grunnur import StaticKernel, Queue, Array, MultiDevice
-from grunnur import CUDA_API_ID, OPENCL_API_ID
+from grunnur import cuda_api_id, opencl_api_id
 
 from ..mock_base import MockKernel, MockDefTemplate, MockDefTemplate
 from ..test_on_device.test_program import _test_constant_memory
@@ -97,7 +97,7 @@ def _test_compile_static_multi_device(context, is_mocked):
         correct_result = (res == ref).all()
         device_names = [device.name for device in queue.devices.values()]
         expected_to_fail = (
-            context.api.id == OPENCL_API_ID and
+            context.api.id == opencl_api_id() and
             'Apple' in context.platform.name and
             any('GeForce' in name for name in device_names) and
             not all('GeForce' in name for name in device_names))

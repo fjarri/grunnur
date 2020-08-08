@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import API, Platform, Device, Context, OPENCL_API_ID, CUDA_API_ID
+from grunnur import API, Platform, Device, Context
 
 
 def test_from_devices(mock_backend):

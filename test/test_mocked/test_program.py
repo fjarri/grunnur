@@ -1,7 +1,7 @@
 import numpy
 import pytest
 
-from grunnur import API, Context, Queue, Array, Program, CompilationError, CUDA_API_ID, StaticKernel
+from grunnur import API, Context, Queue, Array, Program, CompilationError, cuda_api_id, StaticKernel
 
 from ..mock_base import MockDefTemplate, MockKernel
 from ..test_on_device.test_program import (
@@ -69,7 +69,7 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
             constant_mem={'cm1': cm1.size * cm1.dtype.itemsize})
     queue = Queue.from_device_idxs(context)
 
-    if context.api.id == CUDA_API_ID:
+    if context.api.id == cuda_api_id():
         program = Program(context, src, constant_arrays=dict(cm1=cm1))
 
         with pytest.raises(

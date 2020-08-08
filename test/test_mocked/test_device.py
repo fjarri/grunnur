@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import API, Platform, Device, OPENCL_API_ID, CUDA_API_ID
+from grunnur import API, Platform, Device, opencl_api_id, cuda_api_id
 from grunnur.adapter_base import DeviceType
 
 from ..mock_pycuda import PyCUDADeviceInfo
@@ -38,9 +38,9 @@ def test_from_backend_device(mock_backend):
 
     api = API.from_api_id(mock_backend.api_id)
 
-    if api.id == OPENCL_API_ID:
+    if api.id == opencl_api_id():
         backend_device = mock_backend.pyopencl.get_platforms()[0].get_devices()[0]
-    elif api.id == CUDA_API_ID:
+    elif api.id == cuda_api_id():
         backend_device = mock_backend.pycuda_driver.Device(0)
     else:
         raise NotImplementedError
@@ -50,7 +50,7 @@ def test_from_backend_device(mock_backend):
 
     device = Device.from_backend_device(backend_device)
     assert device.platform.api == api
-    if api.id != CUDA_API_ID:
+    if api.id != cuda_api_id():
         assert device.platform.name == 'Platform0'
     assert device.name == 'Device1'
 

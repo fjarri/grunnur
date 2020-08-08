@@ -2,8 +2,8 @@ from .__version__ import __version__
 
 from .api import (
     API,
-    CUDA_API_ID,
-    OPENCL_API_ID,
+    cuda_api_id,
+    opencl_api_id,
     )
 from .program import Program, CompilationError, MultiDevice
 from .platform import Platform
@@ -17,9 +17,9 @@ from .static import StaticKernel
 
 def __getattr__(name):
     if name == 'cuda_api':
-        return API.from_api_id(CUDA_API_ID)
+        return API.from_api_id(cuda_api_id())
     elif name == 'opencl_api':
-        return API.from_api_id(OPENCL_API_ID)
+        return API.from_api_id(opencl_api_id())
     elif name == 'any_api':
         apis = API.all()
         if len(apis) == 0:

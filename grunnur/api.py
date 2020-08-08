@@ -7,10 +7,12 @@ from .adapter_cuda import CuAPIAdapterFactory
 from .adapter_opencl import OclAPIAdapterFactory
 
 
-CUDA_API_ID = CuAPIAdapterFactory().api_id
+def cuda_api_id() -> APIID:
+    return CuAPIAdapterFactory().api_id
 
 
-OPENCL_API_ID = OclAPIAdapterFactory().api_id
+def opencl_api_id() -> APIID:
+    return OclAPIAdapterFactory().api_id
 
 
 _ALL_API_ADAPTER_FACTORIES = {
