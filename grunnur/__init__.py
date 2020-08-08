@@ -26,5 +26,9 @@ def __getattr__(name):
             raise ImportError("No APIs are available. Please install either PyCUDA or PyOpenCL")
         else:
             return apis[0]
+    elif name == '__annotations__':
+        return {}
+    elif name == '__mro__':
+        return ()
     else:
         raise ImportError(f"Cannot import name '{name}' from '{__name__}'")
