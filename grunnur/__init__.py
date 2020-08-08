@@ -4,6 +4,7 @@ from .api import (
     API,
     cuda_api_id,
     opencl_api_id,
+    all_api_ids,
     )
 from .program import Program, CompilationError, MultiDevice
 from .platform import Platform

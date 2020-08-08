@@ -21,16 +21,14 @@ class DeviceType(Enum):
 
 class APIID:
     """
-    An ID of an :py:class:`API` object.
-
-    .. py:attribute:: shortcut
-
-        This API's shortcut.
-
-    .. py:attribute:: short_name
-
-        This API's short name.
+    An ID of an :py:class:`~grunnur.API` object.
     """
+
+    shortcut: str
+    """This API's shortcut."""
+
+    short_name: str
+    """This API's short name."""
 
     def __init__(self, shortcut):
         self.shortcut = shortcut

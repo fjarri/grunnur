@@ -1,219 +1,30 @@
 Public API
 ==========
 
+.. currentmodule:: grunnur
+
 
 GPGPU API discovery
 -------------------
 
-.. autofunction:: grunnur.available_apis
+In many applications it would be enough to use dynamic module attributes to get an :py:class:`API` object:
 
-.. autofunction:: grunnur.find_apis
+.. code::
 
+    from grunnur import cuda_api
+    from grunnur import opencl_api
+    from grunnur import any_api
 
+For a finer programmatic control one can use the methods of the :py:class:`API` class:
 
-Base classes
-------------
-
-.. autoclass:: grunnur.base_classes.APIID
+.. autoclass:: API()
     :members:
 
-.. autoclass:: grunnur.base_classes.PlatformID
+.. autoclass:: grunnur.adapter_base.APIID()
     :members:
 
-.. autoclass:: grunnur.base_classes.DeviceID
-    :members:
+.. autofunction:: cuda_api_id
 
-.. autoclass:: grunnur.base_classes.API
-    :members:
+.. autofunction:: opencl_api_id
 
-.. autoclass:: grunnur.base_classes.Platform
-    :members:
-
-.. autoclass:: grunnur.base_classes.Device
-    :members:
-
-.. autoclass:: grunnur.base_classes.DeviceParameters
-    :members:
-
-.. autoclass:: grunnur.base_classes.DeviceType
-    :members:
-
-.. autoclass:: grunnur.base_classes.Context
-    :members:
-
-.. autoclass:: grunnur.base_classes.Queue
-    :members:
-
-.. autoclass:: grunnur.base_classes.Program
-    :members:
-    :special-members: __getitem__
-
-.. autoclass:: grunnur.base_classes.SingleDeviceProgram
-    :members:
-    :special-members: __getitem__
-
-.. autoclass:: grunnur.base_classes.Kernel
-    :members:
-    :special-members: __call__
-
-.. autoclass:: grunnur.base_classes.SingleDeviceKernel
-    :members:
-    :special-members: __call__
-
-.. autoclass:: grunnur.base_classes.Buffer
-    :members:
-
-.. autoclass:: grunnur.base_classes.Array
-    :members:
-
-.. autoclass:: grunnur.base_classes.SingleDeviceFactory
-    :members:
-    :special-members: __getitem__
-
-
-Platform-specific API
----------------------
-
-CUDA
-~~~~
-
-.. autoclass:: grunnur.cuda.CuDevice
-    :show-inheritance:
-    :members: from_pycuda_device
-
-.. autoclass:: grunnur.cuda.CuContext
-    :show-inheritance:
-    :members: from_any_base, from_pycuda_devices, from_pycuda_contexts, from_devices, activate_device, deactivate
-
-.. autoclass:: grunnur.cuda.CuProgram
-    :show-inheritance:
-    :members: set_constant_array
-
-.. autoclass:: grunnur.cuda.CuSingleDeviceProgram
-    :show-inheritance:
-    :members: set_constant_array
-
-OpenCL
-~~~~~~
-
-.. autoclass:: grunnur.opencl.OclPlatform
-    :show-inheritance:
-    :members: from_pyopencl_platform
-
-.. autoclass:: grunnur.opencl.OclDevice
-    :show-inheritance:
-    :members: from_pyopencl_device
-
-.. autoclass:: grunnur.opencl.OclContext
-    :show-inheritance:
-    :members: from_any_base, from_pyopencl_devices, from_pyopencl_context, from_devices
-
-.. autoclass:: grunnur.opencl.OclQueue
-    :show-inheritance:
-    :members: from_pyopencl_commandqueues
-
-
-Utilities
----------
-
-.. autoclass:: grunnur.template.Template
-    :members:
-
-.. autoclass:: grunnur.template.DefTemplate
-    :members:
-
-.. autoclass:: grunnur.template.RenderError
-
-.. autoclass:: grunnur.modules.Snippet
-    :members:
-
-.. autoclass:: grunnur.modules.Module
-    :members:
-
-.. autofunction:: grunnur.modules.render_with_modules
-
-
-Data type utilities
--------------------
-
-.. module:: grunnur.dtypes
-
-C interop
-~~~~~~~~~
-
-.. autofunction:: ctype
-
-.. autofunction:: ctype_struct
-
-.. autofunction:: complex_ctr
-
-.. autofunction:: c_constant
-
-.. autofunction:: align
-
-
-Struct helpers
-~~~~~~~~~~~~~~
-
-.. autofunction:: c_path
-
-.. autofunction:: flatten_dtype
-
-.. autofunction:: extract_field
-
-
-Data type checks and conversions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autofunction:: normalize_type
-
-.. autofunction:: is_complex
-
-.. autofunction:: is_double
-
-.. autofunction:: is_integer
-
-.. autofunction:: is_real
-
-.. autofunction:: result_type
-
-.. autofunction:: min_scalar_type
-
-.. autofunction:: detect_type
-
-.. autofunction:: complex_for
-
-.. autofunction:: real_for
-
-.. autofunction:: cast
-
-
-Function modules
-----------------
-
-.. automodule :: grunnur.functions
-    :members:
-
-
-Virtual buffers
----------------
-
-Often one needs temporary buffers that are only used in one place in the code, but used many times.
-Allocating them each time they are used may involve too much overhead; allocating real buffers and storing them increases the program's memory requirements.
-A possible middle ground is using virtual allocations, where several of them can use the samy physical allocation.
-The virtual allocation manager will make sure that two virtual buffers that are used simultaneously (as declared by the user) will not share the same physical space.
-
-.. py:module:: grunnur.virtual_alloc
-
-.. autoclass:: VirtualManager
-    :members:
-
-.. autoclass:: TrivialManager
-
-.. autoclass:: ZeroOffsetManager
-
-.. autoclass:: VirtualAllocator
-
-.. autoclass:: VirtualBuffer
-
-.. autoclass:: VirtualAllocationStatistics
+.. autofunction:: all_api_ids

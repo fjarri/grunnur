@@ -8,10 +8,16 @@ from .adapter_opencl import OclAPIAdapterFactory
 
 
 def cuda_api_id() -> APIID:
+    """
+    Returns the identifier of CUDA API.
+    """
     return CuAPIAdapterFactory().api_id
 
 
 def opencl_api_id() -> APIID:
+    """
+    Returns the identifier of OpenCL API.
+    """
     return OclAPIAdapterFactory().api_id
 
 
@@ -24,30 +30,34 @@ _ALL_API_ADAPTER_FACTORIES = {
 
 
 def all_api_ids() -> List[APIID]:
+    """
+    Returns a list of identifiers for all APIs available.
+    """
     return list(_ALL_API_ADAPTER_FACTORIES.keys())
 
 
 class API:
     """
     A generalized GPGPU API.
+    """
 
-    .. py:attribute:: id
+    id: APIID
+    """This API's ID."""
 
-        This API's ID, an :py:class:`APIID` object.
+    short_name: str
+    """This API's short name."""
 
-    .. py:attribute:: short_name
-
-        This API's short name.
-
-    .. py:attribute:: shortcut
-
-        A shortcut for this API (to use in :py:func:`~grunnur.find_apis`).
+    shortcut: str
+    """
+    A shortcut for this API (to use in :py:meth:`all_by_shortcut`,
+    usually coming from some kind of a CLI).
+    Equal to ``id.shortcut``.
     """
 
     @classmethod
     def all(cls) -> List[API]:
         """
-        Returns a list of :py:class:`~grunnur.base_classes.API` objects
+        Returns a list of :py:class:`API` objects
         for which backends are available.
         """
         # TODO: rename to `all_available()`?
@@ -59,13 +69,12 @@ class API:
     @classmethod
     def all_by_shortcut(cls, shortcut: Optional[str]=None) -> List[API]:
         """
-        If ``shortcut`` is a string, returns a list of one :py:class:`~grunnur.base_classes.API` object
-        whose :py:attr:`~grunnur.base_classes.API.id` attribute has its
-        :py:attr:`~grunnur.base_classes.APIID.shortcut` attribute equal to it
+        If ``shortcut`` is a string, returns a list of one :py:class:`API` object
+        whose :py:attr:`~API.id` attribute has its
+        :py:attr:`~grunnur.adapter_base.APIID.shortcut` attribute equal to it
         (or raises an error if it was not found, or its backend is not available).
 
-        If ``shortcut`` is ``None``, returns a list of all available
-        py:class:`~grunnur.base_classes.API` objects.
+        If ``shortcut`` is ``None``, returns a list of all available :py:class:`API` objects.
 
         :param shortcut: an API shortcut to match.
         """
