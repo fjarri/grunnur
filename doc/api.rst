@@ -28,3 +28,13 @@ For a finer programmatic control one can use the methods of the :py:class:`API` 
 .. autofunction:: opencl_api_id
 
 .. autofunction:: all_api_ids
+
+
+Platforms
+---------
+
+A platform is an OpenCL term, but we use it for CUDA API as well for the sake of uniformity.
+Naturally, there will always be a single (dummy) platform in CUDA.
+
+.. autoclass:: Platform()
+    :members:

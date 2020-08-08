@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Optional, Iterable, List, Sequence
 
+from .adapter_base import PlatformAdapter
 from .api import API
 from .utils import string_matches_masks
 
@@ -9,24 +10,29 @@ from .utils import string_matches_masks
 class Platform:
     """
     A generalized GPGPU platform.
-
-    .. py:attribute:: api
-
-        The :py:class:`API` object this platform belongs to.
-
-    .. py:attribute:: id
-
-        This platform's ID, a :py:class:`PlatformID` object.
-
-    .. py:attribute:: short_name
-
-        This platform's short name.
     """
 
+    api: API
+    """The :py:class:`API` object this platform belongs to."""
+
+    name: str
+    """The platform's name."""
+
+    vendor: str
+    """The platform's vendor."""
+
+    version: str
+    """The platform's version."""
+
+    short_name: str
+    """This platform's short name."""
+
     @classmethod
-    def all(cls, api):
+    def all(cls, api: API) -> List[Platform]:
         """
-        Returns a list of platforms available for this API.
+        Returns a list of platforms available for the given API.
+
+        :param api: the API to search in.
         """
         return [
             Platform.from_index(api, platform_idx)
@@ -35,12 +41,13 @@ class Platform:
     @classmethod
     def all_by_masks(
             cls,
-            api,
+            api: API,
             include_masks: Optional[Sequence[str]]=None,
             exclude_masks: Optional[Sequence[str]]=None) -> List[Platform]:
         """
         Returns a list of all platforms with names satisfying the given criteria.
 
+        :param api: the API to search in.
         :param include_masks: a list of strings (treated as regexes),
             one of which must match with the platform name.
         :param exclude_masks: a list of strings (treated as regexes),
@@ -53,7 +60,10 @@ class Platform:
             ]
 
     @classmethod
-    def from_backend_platform(cls, obj):
+    def from_backend_platform(cls, obj) -> Platform:
+        """
+        Wraps a backend platform object into a Grunnur platform object.
+        """
         for api in API.all():
             if api._api_adapter.isa_backend_platform(obj):
                 platform_adapter = api._api_adapter.make_platform_adapter(obj)
@@ -62,11 +72,17 @@ class Platform:
         raise TypeError(f"{obj} was not recognized as a platform object by any available API")
 
     @classmethod
-    def from_index(cls, api, platform_idx):
+    def from_index(cls, api: API, platform_idx: int) -> Platform:
+        """
+        Creates a platform based on its index in the list returned by the API.
+
+        :param api: the API to search in.
+        :param platform_idx: the target platform's index.
+        """
         platform_adapter = api._api_adapter.get_platform_adapters()[platform_idx]
         return cls(platform_adapter)
 
-    def __init__(self, platform_adapter):
+    def __init__(self, platform_adapter: PlatformAdapter):
         self.api = API(platform_adapter.api_adapter)
         self._platform_adapter = platform_adapter
         self.name = self._platform_adapter.name
