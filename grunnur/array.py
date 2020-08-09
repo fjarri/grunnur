@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Optional, Callable, Tuple, Sequence
 
 import numpy
 
@@ -10,37 +10,42 @@ from .buffer import Buffer
 class Array:
     """
     Array on the device.
-
-    .. py:attribute:: shape: Tuple[int]
-
-        Array shape.
-
-    .. py:attribute:: dtype: numpy.dtype
-
-        Array item data type.
-
-    .. py:attribute:: strides: Tuple[int]
-
-        Array strides.
-
-    .. py:attribute:: first_element_offset: int
-
-        Offset of the first element of the array.
-
-    .. py:attribute:: buffer_size: int
-
-        The total memory taken by the array in the buffer.
     """
 
+    shape: Tuple[int]
+    """Array shape."""
+
+    dtype: numpy.dtype
+    """Array item data type."""
+
+    strides: Tuple[int]
+    """Array strides."""
+
     @classmethod
-    def from_host(cls, queue, host_arr):
+    def from_host(cls, queue: Queue, host_arr: numpy.ndarray) -> 'Array':
+        """
+        Creates an array object from a host array.
+
+        :param queue: the queue to use for the transfer.
+        :param host_arr: the source array.
+        """
         metadata = ArrayMetadata.from_arraylike(host_arr)
         array = cls(queue, metadata)
         array.set(host_arr)
         return array
 
     @classmethod
-    def empty(cls, queue, shape, dtype, allocator=None):
+    def empty(
+            cls, queue: Queue, shape: Sequence[int],
+            dtype: numpy.dtype, allocator: Callable[[int], Buffer]=None) -> 'Array':
+        """
+        Creates an empty array.
+
+        :param queue: the queue to use for the transfer.
+        :param shape: array shape.
+        :param dtype: array data type.
+        :param allocator: an optional callable returning a :py:class:`Buffer` object.
+        """
         metadata = ArrayMetadata(shape, dtype)
         return cls(queue, metadata, allocator=allocator)
 
@@ -71,7 +76,7 @@ class Array:
 
         self.data = data
 
-    def single_device_view(self, device_idx: int):
+    def single_device_view(self, device_idx: int) -> 'SingleDeviceFactory':
         """
         Returns a subscriptable object that produces sub-arrays based on the device ``device_idx``.
         """
@@ -93,17 +98,19 @@ class Array:
 
     def set(self, array: numpy.ndarray, no_async: bool=False):
         """
-        Sets the data in this array from a CPU array.
-        If ``async_`` is ``True``, this call blocks.
+        Copy the contents of the host array to the array.
+
+        :param array: the source array.
+        :param no_async: if `True`, the transfer blocks until completion.
         """
         self.data.set(self._queue, array, no_async=no_async)
 
     def get(self, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
         """
-        Gets the data from this array to a CPU array.
-        If ``dest`` is ``None``, the target array is created.
-        If ``async_`` is ``True``, this call blocks.
-        Returns the created CPU array, or ``dest`` if it was provided.
+        Copy the contents of the array to the host array and return it.
+
+        :param dest: the destination array. If ``None``, the target array is created.
+        :param async_: if `True`, the transfer is performed asynchronously.
         """
         # TODO: check if the array is contiguous
         if dest is None:
@@ -124,6 +131,6 @@ class SingleDeviceFactory:
     def __getitem__(self, slices) -> Array:
         """
         Return a view of the parent array bound to the device this factory was created for
-        (see :py:meth:`Array.single_device_view`).
+        (see :py:meth:`~grunnur.Array.single_device_view`).
         """
         return self._array._view(slices, self._device_idx)

@@ -81,5 +81,9 @@ Buffers and arrays
 .. autoclass:: Buffer()
     :members:
 
-.. autoclass:: Array
+.. autoclass:: Array()
     :members:
+
+.. autoclass:: grunnur.array.SingleDeviceFactory()
+    :members:
+    :special-members: __getitem__
