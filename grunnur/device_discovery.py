@@ -20,12 +20,12 @@ def platforms_and_devices_by_mask(
 
     :param quantity: the number of devices to find. If ``None``,
         find all matching devices belonging to a single platform.
-    :param platform_include_masks: passed to :py:meth:`find_platforms`.
-    :param platform_exclude_masks: passed to :py:meth:`find_platforms`.
-    :param device_include_masks: passed to :py:meth:`Platform.find_devices`.
-    :param device_exclude_masks: passed to :py:meth:`Platform.find_devices`.
-    :param unique_devices_only: passed to :py:meth:`Platform.find_devices`.
-    :param include_pure_parallel_devices: passed to :py:meth:`Platform.find_devices`.
+    :param platform_include_masks: passed to :py:meth:`Platform.all_by_masks`.
+    :param platform_exclude_masks: passed to :py:meth:`Platform.all_by_masks`.
+    :param device_include_masks: passed to :py:meth:`Device.all_by_masks`.
+    :param device_exclude_masks: passed to :py:meth:`Device.all_by_masks`.
+    :param unique_devices_only: passed to :py:meth:`Device.all_by_masks`.
+    :param include_pure_parallel_devices: passed to :py:meth:`Device.all_by_masks`.
     """
 
     results = []
@@ -96,14 +96,14 @@ def select_devices(
         api, interactive: bool=False, quantity: Optional[int]=1,
         **device_filters) -> List[Device]:
     """
-    Using the results from :py:meth:`find_devices`, either lets the user
+    Using the results from :py:func:`platforms_and_devices_by_mask`, either lets the user
     select the devices (from the ones matching the criteria) interactively,
     or takes the first matching list of ``quantity`` devices.
 
     :param interactive: if ``True``, shows a dialog to select the devices.
         If ``False``, selects the first matching ones.
-    :param quantity: passed to :py:meth:`find_devices`.
-    :param device_filters: passed to :py:meth:`find_devices`.
+    :param quantity: passed to :py:func:`platforms_and_devices_by_mask`.
+    :param device_filters: passed to :py:func:`platforms_and_devices_by_mask`.
     """
     suitable_pds = platforms_and_devices_by_mask(api, quantity, **device_filters)
 

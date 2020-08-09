@@ -9,6 +9,10 @@ from .api import (
 from .program import Program, CompilationError, MultiDevice
 from .platform import Platform
 from .device import Device
+from .device_discovery import (
+    platforms_and_devices_by_mask,
+    select_devices,
+    )
 from .queue import Queue
 from .array import Array
 from .context import Context
