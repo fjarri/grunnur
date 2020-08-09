@@ -13,7 +13,7 @@ class Queue:
     context: Context
     """This queue's context."""
 
-    device_idxs: Tuple[int]
+    device_idxs: Tuple[int, ...]
     """Device indices (in the context) this queue operates on."""
 
     @classmethod
@@ -35,7 +35,7 @@ class Queue:
         queue_adapter = context._context_adapter.make_queue_adapter(device_idxs)
         return cls(context, queue_adapter, device_idxs)
 
-    def __init__(self, context: Context, queue_adapter: QueueAdapter, device_idxs: Tuple[int]):
+    def __init__(self, context: Context, queue_adapter: QueueAdapter, device_idxs: Tuple[int, ...]):
         self.context = context
         self._queue_adapter = queue_adapter
         self.default_device_idx = device_idxs[0]

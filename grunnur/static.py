@@ -1,4 +1,13 @@
+from typing import Callable, Optional, Iterable, Union, Dict, Mapping, Tuple
+
+import numpy
+
 from .api import cuda_api_id
+from .template import DefTemplate
+from .modules import Snippet
+from .context import Context
+from .queue import Queue
+from .array import Array
 from .utils import prod
 from .vsize import VirtualSizes
 from .program import Program, SingleDeviceProgram, process_arg, MultiDevice, _call_kernels, _set_constant_array
@@ -7,15 +16,38 @@ from .program import Program, SingleDeviceProgram, process_arg, MultiDevice, _ca
 class StaticKernel:
     """
     An object containing a GPU kernel with fixed call sizes.
-
-    .. py:attribute:: source
-
-        Contains the source code of the program.
     """
 
+    context: Context
+    """The context this program was compiled for."""
+
     def __init__(
-            self, context, src, name, global_size,
-            local_size=None, device_idxs=None, render_globals={}, constant_arrays={}, **kwds):
+            self,
+            context: Context,
+            template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
+            name: str,
+            global_size: Union[int, Iterable[int]],
+            local_size: Union[int, Iterable[int], None]=None,
+            device_idxs: Optional[Iterable[int]]=None,
+            render_globals: Dict={},
+            constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={},
+            **kwds):
+        """
+        :param context: context to compile the kernel on.
+        :param template_src: a string with the source code, or a Mako template source to render.
+        :param name: the kernel's name.
+        :param global_size: the total number of threads (CUDA)/work items (OpenCL) in each dimension
+            (column-major). Note that there may be a maximum size in each dimension as well
+            as the maximum number of dimensions. See :py:class:`DeviceParameters` for details.
+        :param local_size: the number of threads in a block (CUDA)/work items in a
+            work group (OpenCL) in each dimension (column-major).
+            If ``None``, it will be chosen automatically.
+        :param device_idxs: a list of device numbers to compile on.
+            If ``None``, compile on all context's devices.
+        :param render_globals: a dictionary of globals to pass to the template.
+        :param constant_arrays: (**CUDA only**) a dictionary ``name: (size, dtype)``
+            of global constant arrays to be declared in the program.
+        """
 
         if context.api.id != cuda_api_id() and len(constant_arrays) > 0:
             raise ValueError("Compile-time constant arrays are only supported by CUDA API")
@@ -58,7 +90,7 @@ class StaticKernel:
 
                 # Try to compile the kernel with the corresponding virtual size functions
                 program = SingleDeviceProgram(
-                    context, device_idx, src, render_globals=new_render_globals,
+                    context, device_idx, template_src, render_globals=new_render_globals,
                     constant_arrays=constant_arrays, **kwds)
                 kernel_adapter = program.get_kernel_adapter(name)
 
@@ -87,20 +119,26 @@ class StaticKernel:
         self._global_sizes = MultiDevice(*[vs.real_global_size for vs in self._vs_metadata])
         self._local_sizes = MultiDevice(*[vs.real_local_size for vs in self._vs_metadata])
 
-    def __call__(self, queue, *args):
+    def __call__(self, queue: Queue, *args):
         """
         Execute the kernel.
-        :py:class:`Array` objects are allowed as arguments.
         In case of the OpenCL backend, returns a ``pyopencl.Event`` object.
+
+        :param queue: the multi-device queue to use.
+        :param args: kernel arguments. Can be: :py:class:`~grunnur.Array` objects,
+            :py:class:`~grunnur.Buffer` objects, ``numpy`` scalars.
         """
         return _call_kernels(
             queue, self._sd_kernel_adapters, self._global_sizes, self._local_sizes, *args,
             device_idxs=self._device_idxs)
 
-    def set_constant_array(self, queue, name, arr):
+    def set_constant_array(self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
         """
-        Load a constant array (``arr`` can be either ``numpy`` array or a :py:class:`Array` object)
-        corresponding to the symbol ``name`` to device.
+        Uploads a constant array to the context's devices (**CUDA only**).
+
+        :param queue: the queue to use for the transfer.
+        :param name: the name of the constant array symbol in the code.
+        :param arr: either a device or a host array.
         """
         if self.context.api.id != cuda_api_id():
             raise ValueError("Constant arrays are only supported for CUDA API")

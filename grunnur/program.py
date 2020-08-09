@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from math import log10
-from typing import NamedTuple, Tuple, Union, List, Dict, Optional, Iterable, Mapping, Generic, TypeVar
+from typing import NamedTuple, Tuple, Union, List, Dict, Optional, Iterable, Mapping, Generic, TypeVar, Callable
 
 import numpy
 
@@ -13,12 +13,17 @@ from .buffer import Buffer
 from .queue import Queue
 from .context import Context
 from .api import cuda_api_id
+from .template import DefTemplate
+from .modules import Snippet
 
 
 _T = TypeVar('_T')
 
 
 class MultiDevice(Generic[_T]):
+    """
+    A wrapper for a sequence of arguments where each should be passed to a separate device.
+    """
     def __init__(self, *args: _T):
         self.values: Tuple[_T, ...] = args
 
@@ -71,7 +76,7 @@ class SingleDeviceProgram:
             self,
             context: Context,
             device_idx: int,
-            template_src: str,
+            template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
             no_prelude: bool=False,
             fast_math: bool=False,
             render_args: Union[Tuple, List]=[],
@@ -133,11 +138,20 @@ class SingleDeviceProgram:
 
 
 class Program:
+    """
+    A compiled program on device(s).
+    """
+
+    context: Context
+    """The context this program was compiled for."""
+
+    sources: Dict[int, str]
+    """Source files used for each device."""
 
     def __init__(
             self,
             context: Context,
-            template_src: str,
+            template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
             device_idxs: Optional[Iterable[int]]=None,
             no_prelude: bool=False,
             fast_math: bool=False,
@@ -147,11 +161,10 @@ class Program:
             keep: bool=False,
             constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={}):
         """
-        Compiles the given source on multiple devices.
-
-        :param context:
+        :param context: context to compile the program on.
         :param template_src: a string with the source code, or a Mako template source to render.
         :param device_idxs: a list of device numbers to compile on.
+            If ``None``, compile on all context's devices.
         :param no_prelude: do not add prelude to the rendered source.
         :param fast_math: compile using fast (but less accurate) math functions.
         :param render_args: a list of positional args to pass to the template.
@@ -191,7 +204,7 @@ class Program:
 
     def __getattr__(self, kernel_name: str) -> Kernel:
         """
-        Returns a :py:class:`Kernel` object for a function (CUDA)/kernel (OpenCL)
+        Returns a :py:class:`~grunnur.program.Kernel` object for a function (CUDA)/kernel (OpenCL)
         with the name ``kernel_name``.
         """
         sd_kernel_adapters = {
@@ -202,7 +215,11 @@ class Program:
     def set_constant_array(
             self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
         """
-        Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
+        Uploads a constant array to the context's devices (**CUDA only**).
+
+        :param queue: the queue to use for the transfer.
+        :param name: the name of the constant array symbol in the code.
+        :param arr: either a device or a host array.
         """
         if self.context.api.id != cuda_api_id():
             raise ValueError("Constant arrays are only supported for CUDA API")
@@ -219,14 +236,11 @@ def process_arg(arg):
         return arg
 
 
-_SizeType = TypeVar('_SizeType', bound=Union[int, Iterable[int]])
-
-
 def _call_kernels(
             queue: Queue,
             sd_kernel_adapters,
-            global_size: Union[_SizeType, MultiDevice[_SizeType]],
-            local_size: Union[_SizeType, MultiDevice[_SizeType], None],
+            global_size: Union[int, Iterable[int], MultiDevice[Union[int, Iterable[int]]]],
+            local_size: Union[int, Iterable[int], MultiDevice[Union[int, Iterable[int]]], None],
             *args,
             device_idxs: Optional[Iterable[int]]=None,
             **kwds):
@@ -281,8 +295,8 @@ class Kernel:
     def __call__(
             self,
             queue: Queue,
-            global_size: Union[_SizeType, MultiDevice[_SizeType]],
-            local_size: Union[_SizeType, MultiDevice[_SizeType], None],
+            global_size: Union[int, Iterable[int], MultiDevice[Union[int, Iterable[int]]]],
+            local_size: Union[int, Iterable[int], MultiDevice[Union[int, Iterable[int]]], None],
             *args,
             device_idxs: Optional[Iterable[int]]=None,
             **kwds):
@@ -296,12 +310,12 @@ class Kernel:
         :param local_size: the number of threads in a block (CUDA)/work items in a
             work group (OpenCL) in each dimension (column-major).
             If ``None``, it will be chosen automatically.
-        :param args: kernel arguments. Can be: :py:class:`Array` objects,
-            :py:class:`Buffer` objects, ``numpy`` scalars.
+        :param args: kernel arguments. Can be: :py:class:`~grunnur.Array` objects,
+            :py:class:`~grunnur.Buffer` objects, ``numpy`` scalars.
         :param device_idxs: the devices to enqueue the kernel on
             (*in the context, not in the queue*). Must be a subset of the devices of the ``queue``.
             If ``None``, all the ``queue``'s devices are used.
-            Note that the used devices must be among the ones the parent :py:class:`Program`
+            Note that the used devices must be among the ones the parent :py:class:`~grunnur.Program`
             was compiled for.
         :param kwds: backend-specific keyword parameters.
         """

@@ -182,8 +182,8 @@ def _group_dimensions(
 
 
 def group_dimensions(
-        virtual_shape: Tuple[int],
-        available_shape: Tuple[int]) -> Tuple[List[Tuple[int, ...]], List[Tuple[int, ...]]]:
+        virtual_shape: Tuple[int, ...],
+        available_shape: Tuple[int, ...]) -> Tuple[List[Tuple[int, ...]], List[Tuple[int, ...]]]:
     """
     Determines which available dimensions the virtual dimensions can be embedded into.
     Prefers using the maximum number of available dimensions, since in that case

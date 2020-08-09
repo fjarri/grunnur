@@ -185,7 +185,7 @@ class DeviceParameters(ABC):
 
     @property
     @abstractmethod
-    def max_local_sizes(self) -> Tuple[int]:
+    def max_local_sizes(self) -> Tuple[int, ...]:
         """
         The maximum number of threads in one block (CUDA),
         or work items in one work group (OpenCL) for each of the available dimensions.
@@ -203,7 +203,7 @@ class DeviceParameters(ABC):
 
     @property
     @abstractmethod
-    def max_num_groups(self) -> Tuple[int]:
+    def max_num_groups(self) -> Tuple[int, ...]:
         """
         The maximum number of blocks (CUDA)/work groups (OpenCL)
         for each of the available dimensions.

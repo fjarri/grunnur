@@ -17,6 +17,7 @@ from .queue import Queue
 from .array import Array
 from .context import Context
 from .buffer import Buffer
+from .program import Program, MultiDevice
 from .static import StaticKernel
 
 

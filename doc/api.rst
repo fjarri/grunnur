@@ -87,3 +87,21 @@ Buffers and arrays
 .. autoclass:: grunnur.array.SingleDeviceFactory()
     :members:
     :special-members: __getitem__
+
+
+Programs and kernels
+--------------------
+
+.. autoclass:: Program
+    :members:
+    :special-members: __getattr__
+
+.. autoclass:: grunnur.program.Kernel()
+    :members:
+    :special-members: __call__
+
+.. autoclass:: StaticKernel
+    :members:
+    :special-members: __call__
+
+.. autoclass:: MultiDevice

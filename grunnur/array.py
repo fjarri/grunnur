@@ -12,13 +12,13 @@ class Array:
     Array on the device.
     """
 
-    shape: Tuple[int]
+    shape: Tuple[int, ...]
     """Array shape."""
 
     dtype: numpy.dtype
     """Array item data type."""
 
-    strides: Tuple[int]
+    strides: Tuple[int, ...]
     """Array strides."""
 
     @classmethod

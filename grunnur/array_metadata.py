@@ -14,6 +14,15 @@ class ArrayMetadata:
     without actual data attached to it.
     """
 
+    shape: Tuple[int, ...]
+    """Array shape."""
+
+    dtype: numpy.dtype
+    """Array item data type."""
+
+    strides: Tuple[int, ...]
+    """Array strides."""
+
     @classmethod
     def from_arraylike(cls, array):
         return cls(
