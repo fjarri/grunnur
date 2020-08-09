@@ -59,3 +59,10 @@ Device discovery
 .. autofunction:: platforms_and_devices_by_mask
 
 .. autofunction:: select_devices
+
+
+Contexts
+--------
+
+.. autoclass:: Context
+    :members:

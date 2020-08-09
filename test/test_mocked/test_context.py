@@ -12,7 +12,7 @@ def test_from_devices(mock_backend):
     devices = platform[:]
     context = Context.from_devices(devices)
     assert context.platform == platform
-    assert context.devices == devices
+    assert context.devices == tuple(devices)
 
 
 def test_from_devices_different_platforms(mock_backend_pyopencl):
