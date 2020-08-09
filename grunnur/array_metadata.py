@@ -41,6 +41,8 @@ class ArrayMetadata:
 
         if strides is None:
             strides = get_strides(shape, dtype.itemsize)
+        else:
+            strides = tuple(strides)
 
         min_offset, max_offset = get_range(shape, dtype.itemsize, strides)
         if buffer_size is None:

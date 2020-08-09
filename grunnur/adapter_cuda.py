@@ -486,19 +486,27 @@ def normalize_constant_arrays(constant_arrays):
 class CuQueueAdapter(QueueAdapter):
 
     def __init__(self, context_adapter: CuContextAdapter, device_adapters, pycuda_streams):
-        self.context_adapter = context_adapter
-        self.device_adapters = device_adapters
+        self._context_adapter = context_adapter
+        self._device_adapters = device_adapters
         self._pycuda_streams = pycuda_streams
+
+    @property
+    def context_adapter(self):
+        return self._context_adapter
+
+    @property
+    def device_adapters(self):
+        return self._device_adapters
 
     def synchronize(self):
         for device_idx, pycuda_streams in self._pycuda_streams.items():
-            self.context_adapter.activate_device(device_idx)
+            self._context_adapter.activate_device(device_idx)
             self._pycuda_streams[device_idx].synchronize()
 
     def _synchronize_other_streams(self, skip_device_idx):
         for device_idx, pycuda_streams in self._pycuda_streams.items():
             if device_idx != skip_device_idx:
-                self.context_adapter.activate_device(device_idx)
+                self._context_adapter.activate_device(device_idx)
                 self._pycuda_streams[device_idx].synchronize()
 
 
@@ -554,9 +562,13 @@ class CuProgram(ProgramAdapter):
 class CuKernel(KernelAdapter):
 
     def __init__(self, program_adapter, device_idx, pycuda_function):
-        self.program_adapter = program_adapter
+        self._program_adapter = program_adapter
         self._device_idx = device_idx
         self._pycuda_function = pycuda_function
+
+    @property
+    def program_adapter(self):
+        return self._program_adapter
 
     @property
     def max_total_local_size(self):
@@ -577,7 +589,7 @@ class CuKernel(KernelAdapter):
         block = block + (1,) * (max_dims - len(block))
         grid = grid + (1,) * (max_dims - len(grid))
 
-        self.program_adapter.context_adapter.activate_device(self._device_idx)
+        self._program_adapter.context_adapter.activate_device(self._device_idx)
         self._pycuda_function(
             *args, grid=grid, block=block, stream=queue_adapter._pycuda_streams[self._device_idx],
             shared=local_mem)

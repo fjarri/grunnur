@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Tuple, Type, Mapping, Iterable
+from typing import Tuple, Type, Mapping, Iterable, Dict
 
 import numpy
 
@@ -240,7 +240,7 @@ class ContextAdapter(ABC):
 
     @classmethod
     @abstractmethod
-    def from_device_adapters(cls, device_adapters: Iterable[DeviceAdapter]) -> ContextAdapter:
+    def from_device_adapters(cls, device_adapters) -> ContextAdapter:
         """
         Creates a context based on one or several (distinct) :py:class:`OclDeviceAdapter` objects.
         """
@@ -328,7 +328,7 @@ class BufferAdapter(ABC):
         pass
 
     @abstractmethod
-    def set(self, queue_adapter, device_idx, host_array, async_=False):
+    def set(self, queue_adapter, device_idx, host_array, no_async=False):
         pass
 
     @abstractmethod
@@ -341,6 +341,16 @@ class BufferAdapter(ABC):
 
 
 class QueueAdapter(ABC):
+
+    @property
+    @abstractmethod
+    def context_adapter(self) -> ContextAdapter:
+        pass
+
+    @property
+    @abstractmethod
+    def device_adapters(self) -> Dict[int, DeviceAdapter]:
+        pass
 
     @abstractmethod
     def synchronize(self):
@@ -367,6 +377,11 @@ class KernelAdapter(ABC):
     @property
     @abstractmethod
     def max_total_local_size(self):
+        pass
+
+    @property
+    @abstractmethod
+    def program_adapter(self):
         pass
 
     @abstractmethod

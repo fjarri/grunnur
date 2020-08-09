@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from tempfile import mkdtemp
-from typing import Iterable, List, Tuple, Optional, Sequence
+from typing import Iterable, List, Tuple, Optional, Sequence, TypeVar
 
 import numpy
 
@@ -419,9 +419,17 @@ class OclBufferAdapter(BufferAdapter):
 class OclQueueAdapter(QueueAdapter):
 
     def __init__(self, context_adapter, device_adapters, pyopencl_queues):
-        self.context_adapter = context_adapter
-        self.device_adapters = device_adapters
+        self._context_adapter = context_adapter
+        self._device_adapters = device_adapters
         self._pyopencl_queues = pyopencl_queues
+
+    @property
+    def context_adapter(self):
+        return self._context_adapter
+
+    @property
+    def device_adapters(self):
+        return self._device_adapters
 
     def _other_device_events(self, skip_device_idx):
         return [
@@ -450,15 +458,19 @@ class OclProgram(ProgramAdapter):
 class OclKernel(KernelAdapter):
 
     def __init__(self, program_adapter, device_idx, pyopencl_kernel):
-        self.program_adapter = program_adapter
+        self._program_adapter = program_adapter
         self._device_idx = device_idx
         self._pyopencl_kernel = pyopencl_kernel
+
+    @property
+    def program_adapter(self):
+        return self._program_adapter
 
     @property
     def max_total_local_size(self):
         return self._pyopencl_kernel.get_work_group_info(
             pyopencl.kernel_work_group_info.WORK_GROUP_SIZE,
-            self.program_adapter.context_adapter.device_adapters[self._device_idx].pyopencl_device)
+            self._program_adapter.context_adapter.device_adapters[self._device_idx].pyopencl_device)
 
     def __call__(self, queue_adapter, global_size, local_size, *args):
         return self._pyopencl_kernel(

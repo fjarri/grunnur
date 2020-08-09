@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Iterable, Union, Dict, Mapping, Tuple
+from typing import Callable, Optional, Iterable, Union, Dict, Mapping, Tuple, Sequence
 
 import numpy
 
@@ -8,7 +8,7 @@ from .modules import Snippet
 from .context import Context
 from .queue import Queue
 from .array import Array
-from .utils import prod
+from .utils import prod, wrap_in_tuple
 from .vsize import VirtualSizes
 from .program import Program, SingleDeviceProgram, process_arg, MultiDevice, _call_kernels, _set_constant_array
 
@@ -26,9 +26,9 @@ class StaticKernel:
             context: Context,
             template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
             name: str,
-            global_size: Union[int, Iterable[int]],
-            local_size: Union[int, Iterable[int], None]=None,
-            device_idxs: Optional[Iterable[int]]=None,
+            global_size: Union[int, Sequence[int]],
+            local_size: Union[int, Sequence[int], None]=None,
+            device_idxs: Optional[Sequence[int]]=None,
             render_globals: Dict={},
             constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={},
             **kwds):
@@ -59,6 +59,9 @@ class StaticKernel:
         else:
             device_idxs = sorted(device_idxs)
 
+        kernel_ls = wrap_in_tuple(local_size) if local_size is not None else local_size
+        kernel_gs = wrap_in_tuple(global_size)
+
         kernel_adapters = {}
         vs_metadata = []
         for device_idx in device_idxs:
@@ -81,8 +84,8 @@ class StaticKernel:
                     max_local_sizes=device_params.max_local_sizes,
                     max_num_groups=device_params.max_num_groups,
                     local_size_multiple=device_params.warp_size,
-                    virtual_global_size=global_size,
-                    virtual_local_size=local_size)
+                    virtual_global_size=kernel_gs,
+                    virtual_local_size=kernel_ls)
 
                 # TODO: check that there are no name clashes with virtual size functions
                 new_render_globals = dict(render_globals)

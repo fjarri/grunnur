@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from math import log10
-from typing import NamedTuple, Tuple, Union, List, Dict, Optional, Iterable, Mapping, Generic, TypeVar, Callable
+from typing import (
+    NamedTuple, Tuple, Union, List, Dict, Optional, Iterable,
+    Mapping, Generic, TypeVar, Callable, Sequence)
 
 import numpy
 
-from .adapter_base import AdapterCompilationError, KernelAdapter
+from .adapter_base import AdapterCompilationError, KernelAdapter, BufferAdapter
 from .modules import render_with_modules
 from .utils import wrap_in_tuple
 from .array import Array
@@ -17,7 +19,7 @@ from .template import DefTemplate
 from .modules import Snippet
 
 
-_T = TypeVar('_T')
+_T = TypeVar('_T', covariant=True)
 
 
 class MultiDevice(Generic[_T]):
@@ -53,6 +55,8 @@ def _set_constant_array(
     if device_idx not in queue.devices:
         raise ValueError(
             f"The provided queue must include the device this program uses ({device_idx})")
+
+    constant_data: Union[BufferAdapter, numpy.ndarray]
 
     if isinstance(arr, Array):
         constant_data = arr.data._buffer_adapter
@@ -152,7 +156,7 @@ class Program:
             self,
             context: Context,
             template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
-            device_idxs: Optional[Iterable[int]]=None,
+            device_idxs: Optional[Sequence[int]]=None,
             no_prelude: bool=False,
             fast_math: bool=False,
             render_args: Union[List, Tuple]=[],
@@ -239,10 +243,10 @@ def process_arg(arg):
 def _call_kernels(
             queue: Queue,
             sd_kernel_adapters,
-            global_size: Union[int, Iterable[int], MultiDevice[Union[int, Iterable[int]]]],
-            local_size: Union[int, Iterable[int], MultiDevice[Union[int, Iterable[int]]], None],
+            global_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]]],
+            local_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None],
             *args,
-            device_idxs: Optional[Iterable[int]]=None,
+            device_idxs: Optional[Sequence[int]]=None,
             **kwds):
 
     if device_idxs is None:
@@ -295,10 +299,10 @@ class Kernel:
     def __call__(
             self,
             queue: Queue,
-            global_size: Union[int, Iterable[int], MultiDevice[Union[int, Iterable[int]]]],
-            local_size: Union[int, Iterable[int], MultiDevice[Union[int, Iterable[int]]], None],
+            global_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]]],
+            local_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None],
             *args,
-            device_idxs: Optional[Iterable[int]]=None,
+            device_idxs: Optional[Sequence[int]]=None,
             **kwds):
         """
         Enqueues the kernel on the chosen devices.
