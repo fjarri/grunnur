@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Tuple, Iterable, Optional, Sequence, Union
+from typing import Tuple, Optional, Sequence, Union
 
 import numpy
 

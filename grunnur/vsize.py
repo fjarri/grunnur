@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from collections import defaultdict, Counter
+from collections import Counter
 import itertools
 from math import floor, ceil, sqrt
 from typing import List, Dict, Iterable, Optional, Tuple, Generator, Sequence
-
-import numpy
 
 from .template import Template
 from .modules import Module, Snippet

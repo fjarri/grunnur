@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from math import log10
 from typing import (
-    NamedTuple, Tuple, Union, List, Dict, Optional, Iterable,
+    Tuple, Union, List, Dict, Optional, Iterable,
     Mapping, Generic, TypeVar, Callable, Sequence)
 
 import numpy

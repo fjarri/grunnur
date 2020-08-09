@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import os
 from tempfile import mkdtemp
-from typing import Iterable, List, Tuple, Optional, Sequence, TypeVar
-
-import numpy
+from typing import Iterable, Tuple
 
 # Skipping coverage count - can't test properly
 try: # pragma: no cover
@@ -12,7 +10,7 @@ try: # pragma: no cover
 except ImportError: # pragma: no cover
     pyopencl = None
 
-from .utils import all_same, all_different, wrap_in_tuple, normalize_object_sequence
+from .utils import normalize_object_sequence
 from .template import Template
 from . import dtypes
 from .adapter_base import (

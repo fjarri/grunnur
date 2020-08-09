@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from tempfile import mkdtemp
-from typing import Iterable, Union, Optional, Tuple, List, Sequence, cast
+from typing import Iterable, Union, Tuple, Sequence
 
 import numpy
 
@@ -14,7 +14,7 @@ except ImportError: # pragma: no cover
     pycuda_driver = None
     pycuda_compiler = None
 
-from .utils import all_same, all_different, wrap_in_tuple, prod, normalize_object_sequence, get_launch_size
+from .utils import wrap_in_tuple, prod, normalize_object_sequence, get_launch_size
 from .template import Template
 from . import dtypes
 from .adapter_base import (

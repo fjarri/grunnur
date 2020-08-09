@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Tuple, Type, Mapping, Iterable, Dict
+from typing import Tuple, Mapping, Iterable, Dict
 
 import numpy
 

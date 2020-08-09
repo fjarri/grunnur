@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Tuple, List, Sequence
+from typing import Optional, Tuple, List, Sequence
 
 from .platform import Platform
 from .device import Device

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Iterable, List, Sequence
+from typing import Optional, List, Sequence
 
 from .api import API
 from .adapter_base import DeviceParameters

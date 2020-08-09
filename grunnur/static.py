@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Iterable, Union, Dict, Mapping, Tuple, Sequence
+from typing import Callable, Optional, Union, Dict, Mapping, Tuple, Sequence
 
 import numpy
 
@@ -10,7 +10,7 @@ from .queue import Queue
 from .array import Array
 from .utils import prod, wrap_in_tuple
 from .vsize import VirtualSizes
-from .program import Program, SingleDeviceProgram, process_arg, MultiDevice, _call_kernels, _set_constant_array
+from .program import SingleDeviceProgram, MultiDevice, _call_kernels, _set_constant_array
 
 
 class StaticKernel:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from abc import abstractmethod
 from collections import namedtuple, Counter
 from collections.abc import Iterable
@@ -13,7 +12,6 @@ from .adapter_base import BufferAdapter
 from .buffer import Buffer
 from .array import Array
 from .queue import Queue
-from .context import Context
 
 
 def extract_dependencies(dependencies) -> Set[int]:

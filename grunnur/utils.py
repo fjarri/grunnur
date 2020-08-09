@@ -1,6 +1,5 @@
 import collections
 from functools import reduce
-import os.path
 from typing import Tuple, Iterable, Optional, Tuple, TypeVar, Type, Sequence
 import re
 
