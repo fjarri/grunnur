@@ -66,3 +66,10 @@ Contexts
 
 .. autoclass:: Context
     :members:
+
+
+Queue
+-----
+
+.. autoclass:: Queue
+    :members:

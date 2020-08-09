@@ -1,3 +1,7 @@
+from typing import Optional, Iterable, Tuple
+
+from .adapter_base import QueueAdapter
+from .context import Context
 from .device import Device
 
 
@@ -6,8 +10,21 @@ class Queue:
     A queue on multiple devices.
     """
 
+    context: Context
+    """This queue's context."""
+
+    device_idxs: Tuple[int]
+    """Device indices (in the context) this queue operates on."""
+
     @classmethod
-    def from_device_idxs(cls, context, device_idxs=None):
+    def from_device_idxs(cls, context: Context, device_idxs: Optional[Iterable[int]]=None) -> 'Queue':
+        """
+        Creates a queue from provided device indexes (in the context).
+
+        :param context: the context to create a queue in.
+        :param device_idxs: the indices of devices (in the context) to use.
+        """
+
         # TODO: need a better method name for the case of device_idxs=None
 
         if device_idxs is None:
@@ -18,7 +35,7 @@ class Queue:
         queue_adapter = context._context_adapter.make_queue_adapter(device_idxs)
         return cls(context, queue_adapter, device_idxs)
 
-    def __init__(self, context, queue_adapter, device_idxs):
+    def __init__(self, context: Context, queue_adapter: QueueAdapter, device_idxs: Tuple[int]):
         self.context = context
         self._queue_adapter = queue_adapter
         self.default_device_idx = device_idxs[0]
