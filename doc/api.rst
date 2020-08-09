@@ -64,12 +64,22 @@ Device discovery
 Contexts
 --------
 
-.. autoclass:: Context
+.. autoclass:: Context()
     :members:
 
 
-Queue
------
+Queues
+------
 
-.. autoclass:: Queue
+.. autoclass:: Queue()
+    :members:
+
+
+Buffers and arrays
+------------------
+
+.. autoclass:: Buffer()
+    :members:
+
+.. autoclass:: Array
     :members:
