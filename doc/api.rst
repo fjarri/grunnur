@@ -38,3 +38,16 @@ Naturally, there will always be a single (dummy) platform in CUDA.
 
 .. autoclass:: Platform()
     :members:
+
+
+Devices
+-------
+
+.. autoclass:: Device()
+    :members:
+
+.. autoclass:: grunnur.adapter_base.DeviceParameters()
+    :members:
+
+.. autoclass:: grunnur.adapter_base.DeviceType()
+    :members:

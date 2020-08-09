@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional, Iterable, List, Sequence
 
 from .api import API
+from .adapter_base import DeviceParameters
 from .platform import Platform
 from .utils import string_matches_masks
 
@@ -10,22 +11,24 @@ from .utils import string_matches_masks
 class Device:
     """
     A generalized GPGPU device.
-
-    .. py:attribute:: platform
-
-        The :py:class:`Platform` object this device belongs to.
-
-    .. py:attribute:: id
-
-        This device's ID, a :py:class:`DeviceID` object.
-
-    .. py:attribute:: short_name
-
-        This device's short name.
     """
 
+    platform: Platform
+    """The :py:class:`Platform` object this device belongs to."""
+
+    name: str
+    """This device's name."""
+
+    short_name: str
+    """This device's short name."""
+
     @classmethod
-    def all(cls, platform):
+    def all(cls, platform: Platform) -> List[Device]:
+        """
+        Returns a list of devices available for the given platform.
+
+        :param platform: the platform to search in.
+        """
         return [
             Device.from_index(platform, device_idx)
             for device_idx in range(platform._platform_adapter.device_count)]
@@ -33,7 +36,7 @@ class Device:
     @classmethod
     def all_by_masks(
             cls,
-            platform,
+            platform: Platform,
             include_masks: Optional[Sequence[str]]=None,
             exclude_masks: Optional[Sequence[str]]=None,
             unique_only: bool=False,
@@ -42,6 +45,7 @@ class Device:
         """
         Returns a list of all devices satisfying the given criteria.
 
+        :param platform: the platform to search in.
         :param include_masks: a list of strings (treated as regexes),
             one of which must match with the device name.
         :param exclude_masks: a list of strings (treated as regexes),
@@ -71,7 +75,10 @@ class Device:
         return devices
 
     @classmethod
-    def from_backend_device(cls, obj):
+    def from_backend_device(cls, obj) -> Device:
+        """
+        Wraps a backend device object into a Grunnur device object.
+        """
         for api in API.all():
             if api._api_adapter.isa_backend_device(obj):
                 device_adapter = api._api_adapter.make_device_adapter(obj)
@@ -80,7 +87,13 @@ class Device:
         raise TypeError(f"{obj} was not recognized as a device object by any available API")
 
     @classmethod
-    def from_index(cls, platform, device_idx):
+    def from_index(cls, platform: Platform, device_idx: int) -> Device:
+        """
+        Creates a device based on its index in the list returned by the API.
+
+        :param platform: the API to search in.
+        :param device_idx: the target device's index.
+        """
         device_adapter = platform._platform_adapter.get_device_adapters()[device_idx]
         return cls(device_adapter)
 
@@ -101,6 +114,9 @@ class Device:
         return hash((type(self), self._device_adapter))
 
     @property
-    def params(self):
+    def params(self) -> DeviceParameters:
+        """
+        Returns a :py:class:`~grunnur.DeviceParameters` object associated with this device.
+        """
         # Already cached in the adapters
         return self._device_adapter.params
