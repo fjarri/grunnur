@@ -18,23 +18,19 @@ _TEMPLATE_OPTIONS = dict(
 class RenderError(Exception):
     """
     A custom wrapper for Mako template render errors, to facilitate debugging.
-
-    .. py:attribute:: exception: Exception
-
-        The original exception thrown by Mako's `render()`.
-
-    .. py:attribute:: args: tuple
-
-        The arguments used to render the template.
-
-    .. py:attribute:: globals: dict
-
-        The globals used to render the template.
-
-    .. py:attribute:: source: str
-
-        The source of the template.
     """
+
+    exception: Exception
+    """The original exception thrown by Mako's `render()`."""
+
+    args: tuple
+    """The arguments used to render the template."""
+
+    globals: dict
+    """The globals used to render the template."""
+
+    source: str
+    """The source of the template."""
 
     def __init__(self, exception: Exception, args: tuple, globals_: dict, source: str):
         super().__init__()
@@ -93,6 +89,9 @@ class Template:
         self._mako_template = mako_template
 
     def get_def(self, name: str) -> DefTemplate:
+        """
+        Returns the template def with the name ``name``.
+        """
         def_source = _extract_def_source(self._mako_template.source, name)
         return DefTemplate(name, self._mako_template.get_def(name), def_source)
 
@@ -141,6 +140,9 @@ class DefTemplate:
         self.source = source
 
     def render(self, *args, **globals_) -> str:
+        """
+        Renders the template def with given arguments and globals.
+        """
         try:
             return self._mako_def_template.render(*args, **globals_)
         except RenderError as e:

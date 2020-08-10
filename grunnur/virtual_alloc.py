@@ -39,7 +39,7 @@ def extract_dependencies(dependencies) -> Set[int]:
 class VirtualAllocator:
     """
     A helper callable object to use as an allocator
-    for :py:class:`~grunnur.base_classes.Array` creation.
+    for :py:class:`~grunnur.Array` creation.
     Encapsulates the dependencies (as identifiers, doesn't hold references for actual objects).
     """
 
@@ -95,7 +95,7 @@ class VirtualManager:
     """
     Base class for a manager of virtual allocations.
 
-    :param queue: an instance of :py:class:`~grunnur.base_classes.Queue`.
+    :param queue: an instance of :py:class:`~grunnur.Queue`.
     :param pack_on_alloc: whether to repack allocations when a new allocation is requested.
     :param pack_on_free: whether to repack allocations when an allocation is freed.
 
@@ -113,11 +113,9 @@ class VirtualManager:
 
     def allocator(self, dependencies=None) -> VirtualAllocator:
         """
-        Create a callable to use for :py:class:`~grunnur.base_classes.Array` creation.
-        The returned object takes a buffer size (in bytes)
-        and returns a :py:class:`VirtualBufferAdapter` object.
+        Create a callable to use for :py:class:`~grunnur.Array` creation.
 
-        :param dependencies: can be a :py:class:`~grunnur.base_classes.Array` instance
+        :param dependencies: can be a :py:class:`~grunnur.Array` instance
             (the ones containing persistent allocations will be ignored),
             an iterable with valid values,
             or an object with the attribute ``__virtual_allocations__`` which is a valid value
@@ -206,31 +204,25 @@ class VirtualManager:
 class VirtualAllocationStatistics:
     """
     Virtual allocation details.
-
-    .. attribute:: real_size_total: int
-
-        The total size of physical allocations (in bytes).
-
-    .. attribute:: real_num: int
-
-        The number of physical allocations.
-
-    .. attribute:: real_sizes: Dict[int, int]
-
-        A dictionary ``size: count`` with the counts for physical allocations of each size.
-
-    .. attribute:: virtual_size_total: int
-
-        The total size of virtual allocations (in bytes).
-
-    .. attribute:: virtual_num: int
-
-        The number of virtual allocations.
-
-    .. attribute:: virtual_sizes: Dict[int, int]
-
-        A dictionary ``size: count`` with the counts for virtual allocations of each size.
     """
+
+    real_size_total: int
+    """The total size of physical allocations (in bytes)."""
+
+    real_num: int
+    """The number of physical allocations."""
+
+    real_sizes: Dict[int, int]
+    """A dictionary ``size: count`` with the counts for physical allocations of each size."""
+
+    virtual_size_total: int
+    """The total size of virtual allocations (in bytes)."""
+
+    virtual_num: int
+    """The number of virtual allocations."""
+
+    virtual_sizes: Dict[int, int]
+    """A dictionary ``size: count`` with the counts for virtual allocations of each size."""
 
     def __init__(
             self, real_buffers: Iterable[Buffer], virtual_buffers: Iterable[VirtualBufferAdapter]):

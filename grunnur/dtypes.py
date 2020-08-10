@@ -40,7 +40,7 @@ def ctype_builtin(dtype: numpy.dtype) -> str:
 
 def ctype(dtype: numpy.dtype) -> Union[str, Module]:
     """
-    Returns an object that can be passed to :py:meth:`~grunnur.base_classes.Context.compile`
+    Returns an object that can be passed as a global to :py:meth:`~grunnur.Program`
     and used to render a C equivalent of the given ``numpy`` dtype.
     If there is a built-in C equivalent, the object is just a string with the type name;
     otherwise it is a :py:class:`~grunnur.modules.Module` object containing

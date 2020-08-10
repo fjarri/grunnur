@@ -116,6 +116,9 @@ class Module:
 
 
 class RenderableModule:
+    """
+    A module with processed dependencies and ready to be rendered.
+    """
 
     def __init__(
             self, collector: SourceCollector, module_id: int,
@@ -204,7 +207,8 @@ def render_with_modules(
     and whatever globals needs to be passed to the template, must be included in the
     :py:class:`Snippet` object itself.
 
-    If any of the nested templates fails to render, a :py:class:`RenderError` is propagated
+    If any of the nested templates fails to render,
+    a :py:class:`~grunnur.template.RenderError` is propagated
     from that place to this function, and raised here.
 
     :param src: the textual source, template or a snippet to render.
