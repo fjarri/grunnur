@@ -29,11 +29,11 @@ def extract_dependencies(dependencies) -> Set[int]:
         for dep in dependencies:
             results.update(extract_dependencies(dep))
         return results
-    elif hasattr(dependencies, '__virtual_allocations__'):
+    if hasattr(dependencies, '__virtual_allocations__'):
         # a hook for exposing nested virtual allocations in arbitrary classes
         return extract_dependencies(dependencies.__virtual_allocations__)
-    else:
-        return set()
+
+    return set()
 
 
 class VirtualAllocator:
@@ -257,8 +257,10 @@ class VirtualAllocationStatistics:
             )
 
     def __str__(self):
-        real_buffers = ", ".join(f"{num}x{size}b" for size, num in sorted(self.real_sizes.items()))
-        virtual_buffers = ", ".join(f"{num}x{size}b" for size, num in sorted(self.virtual_sizes.items()))
+        real_buffers = ", ".join(
+            f"{num}x{size}b" for size, num in sorted(self.real_sizes.items()))
+        virtual_buffers = ", ".join(
+            f"{num}x{size}b" for size, num in sorted(self.virtual_sizes.items()))
         return (
             f"VirtualAllocationStatistics("
             f"real: {self.real_num} allocs, "

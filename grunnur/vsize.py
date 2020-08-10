@@ -472,7 +472,8 @@ class VirtualSizes:
                 # A sanity check - it would be very strange if a device had a local size multiple
                 # so big you can't actually launch that many threads.
                 assert max_total_local_size >= local_size_multiple
-                flat_local_size = local_size_multiple * (max_total_local_size // local_size_multiple)
+                flat_local_size = (
+                    local_size_multiple * (max_total_local_size // local_size_multiple))
 
             # product(virtual_local_size) == flat_local_size <= max_total_local_size
             # Note: it's ok if local size elements are greater

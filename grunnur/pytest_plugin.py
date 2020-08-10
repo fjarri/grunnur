@@ -98,15 +98,13 @@ def get_multi_device_sets(config):
 @pytest.fixture(scope='function')
 def context(request):
     device = request.param
-    context = Context.from_devices(device)
-    yield context
+    yield Context.from_devices(device)
 
 
 @pytest.fixture(scope='function')
 def multi_device_context(request):
     devices = request.param
-    context = Context.from_devices(devices)
-    yield context
+    yield Context.from_devices(devices)
 
 
 def pytest_generate_tests(metafunc):

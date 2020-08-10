@@ -35,8 +35,7 @@ def ctype_builtin(dtype: numpy.dtype) -> str:
     dtype = normalize_type(dtype)
     if dtype in _DTYPE_TO_BUILTIN_CTYPE:
         return _DTYPE_TO_BUILTIN_CTYPE[dtype]
-    else:
-        raise ValueError(f"{dtype} is not a built-in data type")
+    raise ValueError(f"{dtype} is not a built-in data type")
 
 
 def ctype(dtype: numpy.dtype) -> Union[str, Module]:
@@ -157,8 +156,7 @@ def detect_type(val) -> numpy.dtype:
     """
     if hasattr(val, 'dtype'):
         return _promote_type(val.dtype)
-    else:
-        return min_scalar_type(val)
+    return min_scalar_type(val)
 
 
 def complex_for(dtype: numpy.dtype) -> numpy.dtype:
@@ -170,10 +168,9 @@ def complex_for(dtype: numpy.dtype) -> numpy.dtype:
     dtype = normalize_type(dtype)
     if dtype == numpy.float32:
         return numpy.dtype('complex64')
-    elif dtype == numpy.float64:
+    if dtype == numpy.float64:
         return numpy.dtype('complex128')
-    else:
-        raise ValueError(f"{dtype} does not have a corresponding complex type")
+    raise ValueError(f"{dtype} does not have a corresponding complex type")
 
 
 def real_for(dtype: numpy.dtype) -> numpy.dtype:
@@ -185,10 +182,9 @@ def real_for(dtype: numpy.dtype) -> numpy.dtype:
     dtype = normalize_type(dtype)
     if dtype == numpy.complex64:
         return numpy.dtype('float32')
-    elif dtype == numpy.complex128:
+    if dtype == numpy.complex128:
         return numpy.dtype('float64')
-    else:
-        raise ValueError(f"{dtype} does not have a corresponding real type")
+    raise ValueError(f"{dtype} does not have a corresponding real type")
 
 
 def complex_ctr(dtype: numpy.dtype) -> str:
@@ -212,18 +208,17 @@ def cast(dtype: numpy.dtype) -> Callable[[Any], Any]:
         if not hasattr(val, 'dtype'):
             # A non-numpy scalar
             return numpy.array([val], dtype)[0]
-        elif val.dtype != dtype:
+        if val.dtype != dtype:
             return numpy.cast[dtype](val)
-        else:
-            return val
+        return val
+
     return _cast
 
 
 def _c_constant_arr(val, shape: Sequence[int]) -> str:
     if len(shape) == 0:
         return c_constant(val)
-    else:
-        return "{" + ", ".join(_c_constant_arr(val[i], shape[1:]) for i in range(shape[0])) + "}"
+    return "{" + ", ".join(_c_constant_arr(val[i], shape[1:]) for i in range(shape[0])) + "}"
 
 
 def c_constant(val, dtype: Optional[numpy.dtype]=None) -> str:
@@ -244,20 +239,21 @@ def c_constant(val, dtype: Optional[numpy.dtype]=None) -> str:
 
     if len(val.shape) > 0:
         return _c_constant_arr(val, val.shape)
-    elif dtype.names is not None:
+    if dtype.names is not None:
         return "{" + ", ".join([c_constant(val[name]) for name in dtype.names]) + "}"
 
     if is_complex(dtype):
         return "COMPLEX_CTR(" + ctype_builtin(dtype) + ")(" + \
             c_constant(val.real) + ", " + c_constant(val.imag) + ")"
-    elif is_integer(dtype):
+
+    if is_integer(dtype):
         if dtype.itemsize > 4:
             postfix = "L" if numpy.issubdtype(dtype, numpy.signedinteger) else "UL"
         else:
             postfix = ""
         return str(val) + postfix
-    else:
-        return repr(float(val)) + ("f" if dtype.itemsize <= 4 else "")
+
+    return repr(float(val)) + ("f" if dtype.itemsize <= 4 else "")
 
 
 def _struct_alignment(alignments: Iterable[int]) -> int:
@@ -457,17 +453,15 @@ def _lcm(*nums: int) -> int:
     """
     if len(nums) == 1:
         return nums[0]
-    elif len(nums) == 2:
+    if len(nums) == 2:
         return nums[0] * nums[1] // gcd(nums[0], nums[1])
-    else:
-        return _lcm(nums[0], _lcm(*nums[1:]))
+    return _lcm(nums[0], _lcm(*nums[1:]))
 
 
 def _alignment_str(alignment: Optional[int]) -> str:
     if alignment is not None:
         return "ALIGN(" + str(alignment) + ")"
-    else:
-        return ""
+    return ""
 
 
 def _get_struct_module(dtype: numpy.dtype, ignore_alignment: bool=False) -> Module:
@@ -495,7 +489,7 @@ def _get_struct_module(dtype: numpy.dtype, ignore_alignment: bool=False) -> Modu
     lines = ["typedef struct ${prefix}_ {"]
     kwds: Dict[str, Union[str, Module]] = {}
     for name in dtype_names:
-        elem_dtype, elem_offset = dtype_fields[name]
+        elem_dtype, _ = dtype_fields[name]
 
         base_elem_dtype = elem_dtype.base
         elem_dtype_shape = elem_dtype.shape
@@ -557,17 +551,17 @@ def ctype_struct(dtype: Union[Type, numpy.dtype], ignore_alignment: bool=False) 
 
     if len(dtype.shape) > 0:
         raise ValueError("The data type cannot be an array")
-    elif dtype.names is None:
+    if dtype.names is None:
         raise ValueError("The data type must be a structure")
-    else:
-        # Note that numpy's ``isalignedstruct`` relies on hidden padding fields,
-        # and may not mean that the returned C representation actually corresponds to the
-        # ``numpy`` dtype.
-        # There will be more checking in ``_align()`` which will fail in that case.
-        if not ignore_alignment and not dtype.isalignedstruct:
-            raise ValueError("The data type must be an aligned struct")
 
-        return _get_struct_module(dtype, ignore_alignment=ignore_alignment)
+    # Note that numpy's ``isalignedstruct`` relies on hidden padding fields,
+    # and may not mean that the returned C representation actually corresponds to the
+    # ``numpy`` dtype.
+    # There will be more checking in ``_align()`` which will fail in that case.
+    if not ignore_alignment and not dtype.isalignedstruct:
+        raise ValueError("The data type must be an aligned struct")
+
+    return _get_struct_module(dtype, ignore_alignment=ignore_alignment)
 
 
 def _flatten_dtype(
@@ -576,28 +570,28 @@ def _flatten_dtype(
 
     if dtype.names is None:
         return [(prefix, dtype)]
-    else:
-        # `dtype.names` is not `None` at this point, restricting types
-        dtype_fields = typing_cast(Mapping[str, Tuple[numpy.dtype, int]], dtype.fields)
 
-        result: List[Tuple[List[Union[str, int]], numpy.dtype]] = []
-        for name in dtype.names:
-            elem_dtype, _ = dtype_fields[name]
+    # `dtype.names` is not `None` at this point, restricting types
+    dtype_fields = typing_cast(Mapping[str, Tuple[numpy.dtype, int]], dtype.fields)
 
-            elem_dtype_shape: Tuple[int, ...]
-            if len(elem_dtype.shape) == 0:
-                base_elem_dtype = elem_dtype
-                elem_dtype_shape = tuple()
-            else:
-                base_elem_dtype = elem_dtype.base
-                elem_dtype_shape = elem_dtype.shape
+    result: List[Tuple[List[Union[str, int]], numpy.dtype]] = []
+    for name in dtype.names:
+        elem_dtype, _ = dtype_fields[name]
 
-            if len(elem_dtype_shape) == 0:
-                result += _flatten_dtype(base_elem_dtype, prefix=prefix + [name])
-            else:
-                for idxs in itertools.product(*[range(dim) for dim in elem_dtype_shape]):
-                    result += _flatten_dtype(base_elem_dtype, prefix=prefix + [name] + list(idxs))
-        return result
+        elem_dtype_shape: Tuple[int, ...]
+        if len(elem_dtype.shape) == 0:
+            base_elem_dtype = elem_dtype
+            elem_dtype_shape = tuple()
+        else:
+            base_elem_dtype = elem_dtype.base
+            elem_dtype_shape = elem_dtype.shape
+
+        if len(elem_dtype_shape) == 0:
+            result += _flatten_dtype(base_elem_dtype, prefix=prefix + [name])
+        else:
+            for idxs in itertools.product(*[range(dim) for dim in elem_dtype_shape]):
+                result += _flatten_dtype(base_elem_dtype, prefix=prefix + [name] + list(idxs))
+    return result
 
 
 def flatten_dtype(dtype: numpy.dtype) -> List[Tuple[List[Union[str, int]], numpy.dtype]]:
@@ -635,16 +629,16 @@ def _extract_field(arr: numpy.ndarray, path: List[Union[str, int]], array_idxs: 
     if len(path) == 0:
         if len(array_idxs) == 0:
             return arr
-        else:
-            numpy_array_indices: List[Union[slice, int]] = (
-                [slice(None, None, None)] * (len(arr.shape) - len(array_idxs)))
-            struct_array_indices: List[Union[slice, int]] = list(array_idxs)
-            slices = tuple(numpy_array_indices + struct_array_indices)
-            return arr[slices]
-    elif isinstance(path[0], str):
+        numpy_array_indices: List[Union[slice, int]] = (
+            [slice(None, None, None)] * (len(arr.shape) - len(array_idxs)))
+        struct_array_indices: List[Union[slice, int]] = list(array_idxs)
+        slices = tuple(numpy_array_indices + struct_array_indices)
+        return arr[slices]
+
+    if isinstance(path[0], str):
         return _extract_field(arr[path[0]], path[1:], array_idxs)
-    else:
-        return _extract_field(arr, path[1:], array_idxs + [path[0]])
+
+    return _extract_field(arr, path[1:], array_idxs + [path[0]])
 
 
 def extract_field(arr: numpy.ndarray, path: List[Union[str, int]]) -> numpy.ndarray:

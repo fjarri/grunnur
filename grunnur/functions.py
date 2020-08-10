@@ -19,7 +19,8 @@ TEMPLATE = Template.from_associated_file(__file__)
 
 def check_information_loss(out_dtype: numpy.dtype, expected_dtype: numpy.dtype):
     if dtypes.is_complex(expected_dtype) and not dtypes.is_complex(out_dtype):
-        warn("Imaginary part ignored during the downcast from " +
+        warn(
+            "Imaginary part ignored during the downcast from " +
             str(expected_dtype) + " to " + str(out_dtype),
             numpy.ComplexWarning)
 

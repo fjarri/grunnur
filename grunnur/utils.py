@@ -1,6 +1,6 @@
 import collections
 from functools import reduce
-from typing import Tuple, Iterable, Optional, Tuple, TypeVar, Type, Sequence
+from typing import Iterable, Optional, Tuple, TypeVar, Type, Sequence
 import re
 
 
@@ -22,10 +22,9 @@ def wrap_in_tuple(seq_or_elem) -> Tuple:
     """
     if seq_or_elem is None:
         raise ValueError("The argument must not be None")
-    elif isinstance(seq_or_elem, collections.abc.Iterable):
+    if isinstance(seq_or_elem, collections.abc.Iterable):
         return tuple(seq_or_elem)
-    else:
-        return (seq_or_elem,)
+    return (seq_or_elem,)
 
 
 def min_blocks(length: int, block: int) -> int:
@@ -52,8 +51,7 @@ def bounding_power_of_2(num: int) -> int:
     """
     if num == 1:
         return 1
-    else:
-        return 2 ** (log2(num - 1) + 1)
+    return 2 ** (log2(num - 1) + 1)
 
 
 def prod(seq: Iterable):

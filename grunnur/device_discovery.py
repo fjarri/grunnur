@@ -115,6 +115,6 @@ def select_devices(
 
     if interactive:
         return _select_devices_interactive(suitable_pds, quantity=quantity)
-    else:
-        _, devices = suitable_pds[0]
-        return devices if quantity is None else devices[:quantity]
+
+    _, devices = suitable_pds[0]
+    return devices if quantity is None else devices[:quantity]

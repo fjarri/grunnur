@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Iterable, List
+from typing import Optional, List
 
 from .adapter_base import APIID
 from .adapter_cuda import CuAPIAdapterFactory

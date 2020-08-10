@@ -17,24 +17,22 @@ from .queue import Queue
 from .array import Array
 from .context import Context
 from .buffer import Buffer
-from .program import Program, MultiDevice
 from .static import StaticKernel
 
 
 def __getattr__(name):
     if name == 'cuda_api':
         return API.from_api_id(cuda_api_id())
-    elif name == 'opencl_api':
+    if name == 'opencl_api':
         return API.from_api_id(opencl_api_id())
-    elif name == 'any_api':
+    if name == 'any_api':
         apis = API.all()
         if len(apis) == 0:
             raise ImportError("No APIs are available. Please install either PyCUDA or PyOpenCL")
-        else:
-            return apis[0]
-    elif name == '__annotations__':
+        return apis[0]
+    if name == '__annotations__':
         return {}
-    elif name == '__mro__':
+    if name == '__mro__':
         return ()
-    else:
-        raise ImportError(f"Cannot import name '{name}' from '{__name__}'")
+
+    raise ImportError(f"Cannot import name '{name}' from '{__name__}'")

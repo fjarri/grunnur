@@ -17,7 +17,8 @@ class Queue:
     """Device indices (in the context) this queue operates on."""
 
     @classmethod
-    def from_device_idxs(cls, context: Context, device_idxs: Optional[Iterable[int]]=None) -> 'Queue':
+    def from_device_idxs(
+            cls, context: Context, device_idxs: Optional[Iterable[int]]=None) -> 'Queue':
         """
         Creates a queue from provided device indexes (in the context).
 

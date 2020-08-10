@@ -216,7 +216,6 @@ def render_with_modules(
     render_args = process(render_args, collector)
 
     if isinstance(src, str):
-        name = "_main_"
         if len(render_args) > 0:
             raise ValueError("A textual source cannot have `render_args` set.")
         snippet = Snippet.from_string(src, name="_main_", render_globals=render_globals)

@@ -68,7 +68,8 @@ class StaticKernel:
 
             device_params = context.devices[device_idx].params
 
-            # Since virtual size function require some registers, they affect the maximum local size.
+            # Since virtual size function require some registers,
+            # they affect the maximum local size.
             # Start from the device's max local size as the first approximation
             # and recompile kernels with smaller local sizes until convergence.
 

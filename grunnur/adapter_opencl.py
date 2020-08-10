@@ -95,7 +95,8 @@ class OclPlatformAdapter(PlatformAdapter):
                 return cls(api_adapter, pyopencl_platform, platform_idx)
 
         # Sanity check, should not be reachable as long as `pyopencl` is consistent.
-        raise RuntimeError(f"{pyopencl_platform} was not found among OpenCL platforms") # pragma: no cover
+        raise RuntimeError(
+            f"{pyopencl_platform} was not found among OpenCL platforms") # pragma: no cover
 
     def __init__(self, api_adapter, pyopencl_platform, platform_idx):
         self._api_adapter = api_adapter
@@ -151,7 +152,8 @@ class OclDeviceAdapter(DeviceAdapter):
                 return cls(platform_adapter, pyopencl_device, device_idx)
 
         # Sanity check, should not be reachable as long as `pyopencl` is consistent.
-        raise RuntimeError(f"{pyopencl_device} was not found among OpenCL devices") # pragma: no cover
+        raise RuntimeError(
+            f"{pyopencl_device} was not found among OpenCL devices") # pragma: no cover
 
     def __init__(self, platform_adapter, pyopencl_device, device_idx):
         self._platform_adapter = platform_adapter
@@ -188,7 +190,8 @@ class OclDeviceParameters(DeviceParameters):
 
     def __init__(self, pyopencl_device):
         # TODO: support other device types
-        self._type = DeviceType.CPU if pyopencl_device.type == pyopencl.device_type.CPU else DeviceType.GPU
+        self._type = (
+            DeviceType.CPU if pyopencl_device.type == pyopencl.device_type.CPU else DeviceType.GPU)
 
         if (pyopencl_device.platform.name == 'Apple' and
                 pyopencl_device.type == pyopencl.device_type.CPU):
@@ -269,7 +272,8 @@ class OclDeviceParameters(DeviceParameters):
 class OclContextAdapter(ContextAdapter):
 
     @classmethod
-    def from_pyopencl_devices(cls, pyopencl_devices: Iterable[pyopencl.Device]) -> OclContextAdapter:
+    def from_pyopencl_devices(
+            cls, pyopencl_devices: Iterable[pyopencl.Device]) -> OclContextAdapter:
         """
         Creates a context based on one or several (distinct) PyOpenCL ``Device`` objects.
         """
@@ -296,9 +300,9 @@ class OclContextAdapter(ContextAdapter):
         if pyopencl_devices is None:
             pyopencl_devices = pyopencl_context.devices
 
-        # Not checking here that all the `pyopencl_devices` are actually present in `pyopencl_context`,
-        # since the constructor should only be called from the trusted classmethods,
-        # which already ensure that.
+        # Not checking here that all the `pyopencl_devices` are actually present
+        # in `pyopencl_context`, since the constructor should only be called
+        # from the trusted classmethods, which already ensure that.
 
         self._pyopencl_context = pyopencl_context
         self._pyopencl_devices = pyopencl_devices
@@ -348,7 +352,9 @@ class OclContextAdapter(ContextAdapter):
         else:
             temp_dir = None
 
-        options = compiler_options + (["-cl-mad-enable", "-cl-fast-relaxed-math"] if fast_math else [])
+        options = (
+            compiler_options +
+            (["-cl-mad-enable", "-cl-fast-relaxed-math"] if fast_math else []))
         full_src = prelude + src
 
         pyopencl_program = pyopencl.Program(self._pyopencl_context, full_src)
@@ -407,7 +413,8 @@ class OclBufferAdapter(BufferAdapter):
             wait_for=wait_for, is_blocking=not async_)
 
     def get_sub_region(self, origin, size):
-        return OclBufferAdapter(self._context_adapter, self.pyopencl_buffer.get_sub_region(origin, size))
+        return OclBufferAdapter(
+            self._context_adapter, self.pyopencl_buffer.get_sub_region(origin, size))
 
     def migrate(self, queue_adapter, device_idx):
         pyopencl.enqueue_migrate_mem_objects(

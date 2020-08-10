@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Iterable, List, Sequence
+from typing import Optional, List, Sequence
 
 from .adapter_base import PlatformAdapter
 from .api import API

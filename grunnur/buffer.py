@@ -35,7 +35,8 @@ class Buffer:
     @property
     def offset(self) -> int:
         """
-        Offset of this buffer (in bytes) from the beginning of the physical allocation it resides in.
+        Offset of this buffer (in bytes) from the beginning
+        of the physical allocation it resides in.
         """
         return self._buffer_adapter.offset
 
@@ -56,7 +57,8 @@ class Buffer:
         """
         if self._device_idx is None:
             raise RuntimeError("This buffer has not been bound to any device yet")
-        self._buffer_adapter.set(queue._queue_adapter, self._device_idx, host_array, no_async=no_async)
+        self._buffer_adapter.set(
+            queue._queue_adapter, self._device_idx, host_array, no_async=no_async)
         self.migrate(queue)
 
     def get(self, queue: Queue, host_array: numpy.ndarray, async_: bool=False):
@@ -83,7 +85,8 @@ class Buffer:
     def bind(self, device_idx: int):
         if device_idx >= len(self.context.devices):
             max_idx = len(self.context.devices) - 1
-            raise ValueError(f"Device index {device_idx} out of available range for this context (0-{max_idx})")
+            raise ValueError(
+                f"Device index {device_idx} out of available range for this context (0-{max_idx})")
 
         if self._device_idx is None:
             self._device_idx = device_idx
@@ -92,7 +95,8 @@ class Buffer:
 
     def migrate(self, queue: Queue):
         # Normally, a buffer will migrate automatically to the device,
-        # but on some platforms the lack of explicit migration might lead to performance degradation.
+        # but on some platforms the lack of explicit migration might lead
+        # to performance degradation.
         # (e.g. `examples/multi_device_comparison.py` on a multi-Tesla AWS instance).
         if self._device_idx is None:
             raise RuntimeError("This buffer has not been bound to any device yet")

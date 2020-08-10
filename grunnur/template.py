@@ -57,11 +57,11 @@ def _extract_def_source(source, name):
     """
     match = re.search(
         r"(<%def\s+name\s*=\s*[\"']" + name + r"\(.*?>.*?</%def>)", source, flags=re.DOTALL)
-    if match:
-        return match.group(1)
-    else:
+    if not match:
         warnings.warn(f"Could not find the template definition '{name}'", SyntaxWarning)
         return source
+
+    return match.group(1)
 
 
 class Template:

@@ -74,7 +74,7 @@ class CuAPIAdapter(APIAdapter):
     def isa_backend_device(self, obj):
         return isinstance(obj, pycuda_driver.Device)
 
-    def isa_backend_platform(self, obj):
+    def isa_backend_platform(self, _):
         return False # CUDA backend doesn't have platforms
 
     def isa_backend_context(self, obj):
@@ -269,7 +269,8 @@ class CuContextAdapter(ContextAdapter):
     """
 
     @classmethod
-    def from_pycuda_devices(cls, pycuda_devices: Iterable[pycuda_driver.Device]) -> CuContextAdapter:
+    def from_pycuda_devices(
+            cls, pycuda_devices: Iterable[pycuda_driver.Device]) -> CuContextAdapter:
         """
         Creates a context based on one or several (distinct) PyCuda ``Device`` objects.
         """
@@ -499,15 +500,15 @@ class CuQueueAdapter(QueueAdapter):
         return self._device_adapters
 
     def synchronize(self):
-        for device_idx, pycuda_streams in self._pycuda_streams.items():
+        for device_idx, pycuda_stream in self._pycuda_streams.items():
             self._context_adapter.activate_device(device_idx)
-            self._pycuda_streams[device_idx].synchronize()
+            pycuda_stream.synchronize()
 
     def _synchronize_other_streams(self, skip_device_idx):
-        for device_idx, pycuda_streams in self._pycuda_streams.items():
+        for device_idx, pycuda_stream in self._pycuda_streams.items():
             if device_idx != skip_device_idx:
                 self._context_adapter.activate_device(device_idx)
-                self._pycuda_streams[device_idx].synchronize()
+                pycuda_stream.synchronize()
 
 
 class CuProgram(ProgramAdapter):
@@ -523,7 +524,8 @@ class CuProgram(ProgramAdapter):
         return CuKernel(self, self._device_idx, pycuda_kernel)
 
     def set_constant_buffer(
-            self, queue_adapter: CuQueueAdapter, name: str, arr: Union[CuBufferAdapter, numpy.ndarray]):
+            self, queue_adapter: CuQueueAdapter,
+            name: str, arr: Union[CuBufferAdapter, numpy.ndarray]):
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
@@ -575,7 +577,9 @@ class CuKernel(KernelAdapter):
         return self._pycuda_function.get_attribute(
             pycuda_driver.function_attribute.MAX_THREADS_PER_BLOCK)
 
-    def __call__(self, queue_adapter, global_size: Tuple[int, ...], local_size: Tuple[int, ...], *args, local_mem=0):
+    def __call__(
+            self, queue_adapter, global_size: Tuple[int, ...],
+            local_size: Tuple[int, ...], *args, local_mem=0):
 
         device_adapter = queue_adapter.device_adapters[self._device_idx]
 

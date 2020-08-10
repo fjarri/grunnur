@@ -234,20 +234,19 @@ class Program:
 def process_arg(arg):
     if isinstance(arg, Array):
         return arg.data.kernel_arg
-    elif isinstance(arg, Buffer):
+    if isinstance(arg, Buffer):
         return arg.kernel_arg
-    else:
-        return arg
+    return arg
 
 
 def _call_kernels(
-            queue: Queue,
-            sd_kernel_adapters,
-            global_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]]],
-            local_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None],
-            *args,
-            device_idxs: Optional[Sequence[int]]=None,
-            **kwds):
+        queue: Queue,
+        sd_kernel_adapters,
+        global_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]]],
+        local_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None],
+        *args,
+        device_idxs: Optional[Sequence[int]]=None,
+        **kwds):
 
     if device_idxs is None:
         device_idxs = queue.device_idxs
@@ -319,8 +318,8 @@ class Kernel:
         :param device_idxs: the devices to enqueue the kernel on
             (*in the context, not in the queue*). Must be a subset of the devices of the ``queue``.
             If ``None``, all the ``queue``'s devices are used.
-            Note that the used devices must be among the ones the parent :py:class:`~grunnur.Program`
-            was compiled for.
+            Note that the used devices must be among the ones the parent
+            :py:class:`~grunnur.Program` was compiled for.
         :param kwds: backend-specific keyword parameters.
         """
         return _call_kernels(
