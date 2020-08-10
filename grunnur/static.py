@@ -147,4 +147,4 @@ class StaticKernel:
         if self.context.api.id != cuda_api_id():
             raise ValueError("Constant arrays are only supported for CUDA API")
         for kernel_adapter in self._sd_kernel_adapters.values():
-            _set_constant_array(queue, kernel_adapter.program_adapter, name, arr)
+            _set_constant_array(queue, kernel_adapter._program_adapter, name, arr)

@@ -344,11 +344,6 @@ class QueueAdapter(ABC):
 
     @property
     @abstractmethod
-    def context_adapter(self) -> ContextAdapter:
-        pass
-
-    @property
-    @abstractmethod
     def device_adapters(self) -> Dict[int, DeviceAdapter]:
         pass
 
@@ -377,11 +372,6 @@ class KernelAdapter(ABC):
     @property
     @abstractmethod
     def max_total_local_size(self):
-        pass
-
-    @property
-    @abstractmethod
-    def program_adapter(self):
         pass
 
     @abstractmethod

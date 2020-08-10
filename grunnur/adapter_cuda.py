@@ -492,10 +492,6 @@ class CuQueueAdapter(QueueAdapter):
         self._pycuda_streams = pycuda_streams
 
     @property
-    def context_adapter(self):
-        return self._context_adapter
-
-    @property
     def device_adapters(self):
         return self._device_adapters
 
@@ -514,7 +510,7 @@ class CuQueueAdapter(QueueAdapter):
 class CuProgram(ProgramAdapter):
 
     def __init__(self, context_adapter, device_idx, pycuda_program, source):
-        self.context_adapter = context_adapter
+        self._context_adapter = context_adapter
         self._device_idx = device_idx
         self._pycuda_program = pycuda_program
         self.source = source
@@ -529,7 +525,7 @@ class CuProgram(ProgramAdapter):
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
-        self.context_adapter.activate_device(self._device_idx)
+        self._context_adapter.activate_device(self._device_idx)
         symbol, size = self._pycuda_program.get_global(name)
 
         pycuda_stream = queue_adapter._pycuda_streams[self._device_idx]
@@ -569,10 +565,6 @@ class CuKernel(KernelAdapter):
         self._pycuda_function = pycuda_function
 
     @property
-    def program_adapter(self):
-        return self._program_adapter
-
-    @property
     def max_total_local_size(self):
         return self._pycuda_function.get_attribute(
             pycuda_driver.function_attribute.MAX_THREADS_PER_BLOCK)
@@ -593,7 +585,7 @@ class CuKernel(KernelAdapter):
         block = block + (1,) * (max_dims - len(block))
         grid = grid + (1,) * (max_dims - len(grid))
 
-        self._program_adapter.context_adapter.activate_device(self._device_idx)
+        self._program_adapter._context_adapter.activate_device(self._device_idx)
         self._pycuda_function(
             *args, grid=grid, block=block, stream=queue_adapter._pycuda_streams[self._device_idx],
             shared=local_mem)

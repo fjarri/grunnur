@@ -429,10 +429,6 @@ class OclQueueAdapter(QueueAdapter):
         self._pyopencl_queues = pyopencl_queues
 
     @property
-    def context_adapter(self):
-        return self._context_adapter
-
-    @property
     def device_adapters(self):
         return self._device_adapters
 
@@ -450,7 +446,7 @@ class OclQueueAdapter(QueueAdapter):
 class OclProgram(ProgramAdapter):
 
     def __init__(self, context_adapter, device_idx, pyopencl_program, source):
-        self.context_adapter = context_adapter
+        self._context_adapter = context_adapter
         self._device_idx = device_idx
         self._pyopencl_program = pyopencl_program
         self.source = source
@@ -468,14 +464,10 @@ class OclKernel(KernelAdapter):
         self._pyopencl_kernel = pyopencl_kernel
 
     @property
-    def program_adapter(self):
-        return self._program_adapter
-
-    @property
     def max_total_local_size(self):
         return self._pyopencl_kernel.get_work_group_info(
             pyopencl.kernel_work_group_info.WORK_GROUP_SIZE,
-            self._program_adapter.context_adapter.device_adapters[self._device_idx].pyopencl_device)
+            self._program_adapter._context_adapter.device_adapters[self._device_idx].pyopencl_device)
 
     def __call__(self, queue_adapter, global_size, local_size, *args):
         return self._pyopencl_kernel(

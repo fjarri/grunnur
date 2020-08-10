@@ -7,7 +7,7 @@ from typing import (
 
 import numpy
 
-from .adapter_base import AdapterCompilationError, KernelAdapter, BufferAdapter
+from .adapter_base import AdapterCompilationError, KernelAdapter, BufferAdapter, ProgramAdapter
 from .modules import render_with_modules
 from .utils import wrap_in_tuple
 from .array import Array
@@ -38,7 +38,7 @@ class CompilationError(RuntimeError):
 
 
 def _set_constant_array(
-        queue: Queue, program_adapter, name: str, arr: Union[Array, Buffer, numpy.ndarray]):
+        queue: Queue, program_adapter: ProgramAdapter, name: str, arr: Union[Array, Buffer, numpy.ndarray]):
     """
     Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
     """
@@ -49,7 +49,7 @@ def _set_constant_array(
         # TODO: temporary check; arrays shouldn't have built-in queues
         assert queue is arr._queue
 
-    if queue_adapter.context_adapter is not program_adapter.context_adapter:
+    if queue_adapter._context_adapter is not program_adapter._context_adapter:
         raise ValueError(
             "The provided queue must belong to the same context as this program uses")
     if device_idx not in queue.devices:
