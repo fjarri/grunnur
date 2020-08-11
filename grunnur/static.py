@@ -16,6 +16,10 @@ from .program import SingleDeviceProgram, MultiDevice, _call_kernels, _set_const
 class StaticKernel:
     """
     An object containing a GPU kernel with fixed call sizes.
+
+    The globals for the source template will contain an object with the name ``static``
+    of the type :py:class:`~grunnur.vsize.VsizeModules` containing the id/size functions
+    to be used instead of regular ones.
     """
 
     context: Context

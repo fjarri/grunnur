@@ -302,6 +302,63 @@ class ShapeGroups:
 
 
 class VsizeModules:
+    """
+    A collection of modules passed to :py:class:`grunnur.StaticKernel`.
+    Should be used instead of regular group/thread id functions.
+    """
+
+    local_id: Module
+    """
+    Provides the function ``VSIZE_T ${local_id}(int dim)``
+    returning the local id of the current thread.
+    """
+
+    local_size: Module
+    """
+    Provides the function ``VSIZE_T ${local_size}(int dim)``
+    returning the size of the current group.
+    """
+
+    group_id: Module
+    """
+    Provides the function ``VSIZE_T ${group_id}(int dim)``
+    returning the group id of the current thread.
+    """
+
+    num_groups: Module
+    """
+    Provides the function ``VSIZE_T ${num_groups}(int dim)``
+    returning the number of groups in dimension  ``dim``.
+    """
+
+    global_id: Module
+    """
+    Provides the function ``VSIZE_T ${global_id}(int dim)``
+    returning the global id of the current thread.
+    """
+
+    global_size: Module
+    """
+    Provides the function ``VSIZE_T ${global_size}(int dim)``
+    returning the global size along dimension ``dim``."""
+
+    global_flat_id: Module
+    """
+    Provides the function ``VSIZE_T ${global_flat_id}()``
+    returning the global id of the current thread with all dimensions flattened.
+    """
+
+    global_flat_size: Module
+    """
+    Provides the function ``VSIZE_T ${global_flat_size}()``.
+    returning the global size of with all dimensions flattened.
+    """
+
+    begin: Module
+    """
+    Provides the statement ``${begin}`` that should be used
+    at the start of a static kernel function.
+    """
 
     def __init__(
             self,
