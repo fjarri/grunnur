@@ -11,6 +11,7 @@ Grunnur, a generalized API for CUDA and OpenCL
    :caption: Contents:
 
    manual
+   modules
    api
    history
 

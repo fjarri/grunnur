@@ -43,7 +43,7 @@ def ctype(dtype: numpy.dtype) -> Union[str, Module]:
     Returns an object that can be passed as a global to :py:meth:`~grunnur.Program`
     and used to render a C equivalent of the given ``numpy`` dtype.
     If there is a built-in C equivalent, the object is just a string with the type name;
-    otherwise it is a :py:class:`~grunnur.modules.Module` object containing
+    otherwise it is a :py:class:`~grunnur.Module` object containing
     the corresponding ``struct`` declaration.
 
     .. note::
@@ -513,7 +513,7 @@ def _get_struct_module(dtype: numpy.dtype, ignore_alignment: bool=False) -> Modu
 
 def ctype_struct(dtype: Union[Type, numpy.dtype], ignore_alignment: bool=False) -> Module:
     """
-    For a struct type, returns a :py:class:`~grunnur.modules.Module` object
+    For a struct type, returns a :py:class:`~grunnur.Module` object
     with the ``typedef`` of a struct corresponding to the given ``dtype``
     (with its name set to the module prefix).
 

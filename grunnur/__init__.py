@@ -18,6 +18,8 @@ from .array import Array
 from .context import Context
 from .buffer import Buffer
 from .static import StaticKernel
+from .template import Template, DefTemplate, RenderError
+from .modules import Module, Snippet
 
 
 def __getattr__(name):

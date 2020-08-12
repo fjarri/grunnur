@@ -12,6 +12,12 @@ class Snippet:
     or :py:class:`Module` objects.
     """
     def __init__(self, template: DefTemplate, render_globals: Mapping={}):
+        """
+        Creates a snippet out of a prepared template.
+
+        :param template:
+        :param render_globals:
+        """
         self.name = template.name
         self.template = template
         self.render_globals = render_globals
@@ -43,7 +49,7 @@ class Snippet:
         :param name: the snippet's name (will simplify debugging)
         :param render_globals: a dictionary of "globals" to be used when rendering the template.
         """
-        template = DefTemplate.from_string(name, source)
+        template = DefTemplate.from_string(name, [], source)
         return cls(template, render_globals=render_globals)
 
     def __process_modules__(self, process: Callable) -> RenderableSnippet:
@@ -102,10 +108,16 @@ class Module:
         :param name: the module's name (will simplify debugging)
         :param render_globals: a dictionary of "globals" to be used when rendering the template.
         """
-        template = DefTemplate.from_string(name, source, argnames=['prefix'])
+        template = DefTemplate.from_string(name, ['prefix'], source)
         return cls(template, render_globals=render_globals)
 
     def __init__(self, template: DefTemplate, render_globals: Mapping={}):
+        """
+        Creates a module out of a prepared template.
+
+        :param template:
+        :param render_globals:
+        """
         self.name = template.name
         self.template = template
         self.render_globals = render_globals

@@ -1,11 +1,14 @@
+.. _api-reference:
+
 Public API
 ==========
 
 .. currentmodule:: grunnur
 
+.. _api-discovery:
 
-GPGPU API discovery
--------------------
+API discovery
+-------------
 
 In many applications it would be enough to use dynamic module attributes to get an :py:class:`API` object:
 
@@ -117,23 +120,20 @@ Static kernels
 Utilities
 ---------
 
-.. autoclass:: grunnur.template.Template
+.. autoclass:: grunnur.Template
     :members:
 
-.. autoclass:: grunnur.template.DefTemplate
+.. autoclass:: grunnur.DefTemplate
     :members:
 
-.. autoclass:: grunnur.template.RenderError
+.. autoclass:: grunnur.RenderError
     :members:
 
-.. autoclass:: grunnur.modules.Snippet
+.. autoclass:: grunnur.Snippet
     :members:
 
-.. autoclass:: grunnur.modules.Module
+.. autoclass:: grunnur.Module
     :members:
-
-.. autofunction:: grunnur.modules.render_with_modules
-
 
 
 Data type utilities
@@ -221,7 +221,7 @@ The virtual allocation manager will make sure that two virtual buffers that are 
     :members:
 
 
-.. _cluda-kernel-toolbox:
+.. _kernel-toolbox:
 
 Kernel toolbox
 --------------

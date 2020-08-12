@@ -1,5 +1,5 @@
 """
-This module contains :py:class:`~grunnur.modules.Module` factories
+This module contains :py:class:`~grunnur.Module` factories
 which are used to compensate for the lack of complex number operations in OpenCL,
 and the lack of C++ synthax which would allow one to write them.
 """
@@ -36,7 +36,7 @@ def derive_out_dtype(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=N
 
 def cast(in_dtype: numpy.dtype, out_dtype: numpy.dtype) -> Module:
     """
-    Returns a :py:class:`~grunnur.modules.Module` with a function of one argument
+    Returns a :py:class:`~grunnur.Module` with a function of one argument
     that casts values of ``in_dtype`` to ``out_dtype``.
 
     :param in_dtype:
@@ -49,7 +49,7 @@ def cast(in_dtype: numpy.dtype, out_dtype: numpy.dtype) -> Module:
 
 def add(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> Module:
     """
-    Returns a :py:class:`~grunnur.modules.Module`  with a function of
+    Returns a :py:class:`~grunnur.Module`  with a function of
     ``len(in_dtypes)`` arguments that adds values of types ``in_dtypes``.
     If ``out_dtype`` is given, it will be set as a return type for this function.
 
@@ -68,7 +68,7 @@ def add(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> Modul
 
 def mul(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> Module:
     """
-    Returns a :py:class:`~grunnur.modules.Module`  with a function of
+    Returns a :py:class:`~grunnur.Module`  with a function of
     ``len(in_dtypes)`` arguments that multiplies values of types ``in_dtypes``.
     If ``out_dtype`` is given, it will be set as a return type for this function.
 
@@ -85,7 +85,7 @@ def div(
         dividend_dtype: numpy.dtype, divisor_dtype: numpy.dtype,
         out_dtype: Optional[numpy.dtype]=None) -> Module:
     """
-    Returns a :py:class:`~grunnur.modules.Module` with a function of two arguments
+    Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that divides a value of type ``dividend_dtype`` by a value of type ``divisor_dtype``.
     If ``out_dtype`` is given, it will be set as a return type for this function.
 
@@ -103,7 +103,7 @@ def div(
 
 def conj(dtype: numpy.dtype) -> Module:
     """
-    Returns a :py:class:`~grunnur.modules.Module` with a function of one argument
+    Returns a :py:class:`~grunnur.Module` with a function of one argument
     that conjugates the value of type ``dtype``
     (if it is not a complex data type, the value will not be modified).
 
@@ -116,7 +116,7 @@ def conj(dtype: numpy.dtype) -> Module:
 
 def polar_unit(dtype: numpy.dtype) -> Module:
     """
-    Returns a :py:class:`~grunnur.modules.Module` with a function of one argument
+    Returns a :py:class:`~grunnur.Module` with a function of one argument
     that returns a complex number ``exp(i * theta) == (cos(theta), sin(theta))``
     for a value ``theta`` of type ``dtype`` (must be a real data type).
 
@@ -132,7 +132,7 @@ def polar_unit(dtype: numpy.dtype) -> Module:
 
 def norm(dtype: numpy.dtype) -> Module:
     """
-    Returns a :py:class:`~grunnur.modules.Module` with a function of one argument
+    Returns a :py:class:`~grunnur.Module` with a function of one argument
     that returns the 2-norm of the value of type ``dtype``
     (product by the complex conjugate if the value is complex, square otherwise).
 
@@ -145,7 +145,7 @@ def norm(dtype: numpy.dtype) -> Module:
 
 def exp(dtype: numpy.dtype) -> Module:
     """
-    Returns a :py:class:`~grunnur.modules.Module` with a function of one argument
+    Returns a :py:class:`~grunnur.Module` with a function of one argument
     that exponentiates the value of type ``dtype``
     (must be a real or a complex data type).
 
@@ -168,7 +168,7 @@ def pow(
         base_dtype: numpy.dtype, exponent_dtype: Optional[numpy.dtype]=None,
         out_dtype: Optional[numpy.dtype]=None) -> Module:
     """
-    Returns a :py:class:`~grunnur.modules.Module` with a function of two arguments
+    Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that raises the first argument of type ``base_dtype``
     to the power of the second argument of type ``exponent_dtype``
     (an integer or real data type).
@@ -217,7 +217,7 @@ def pow(
 
 def polar(dtype: numpy.dtype) -> Module:
     """
-    Returns a :py:class:`~grunnur.modules.Module` with a function of two arguments
+    Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that returns the complex-valued ``rho * exp(i * theta)``
     for values ``rho, theta`` of type ``dtype`` (must be a real data type).
 

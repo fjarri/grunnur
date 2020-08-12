@@ -117,7 +117,7 @@ class DefTemplate:
         return cls._from_signature_and_body(name, signature, callable_obj(*args))
 
     @classmethod
-    def from_string(cls, name: str, source: str, argnames: Iterable[str]=[]) -> DefTemplate:
+    def from_string(cls, name: str, argnames: Iterable[str], source: str) -> DefTemplate:
         """
         Creates a template def from a string with its body and a list of argument names.
         """
