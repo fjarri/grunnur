@@ -8,7 +8,7 @@ def test_all(mock_backend_factory):
     api_id = all_api_ids()[0]
     mock_backend_factory.mock(api_id)
 
-    apis = API.all()
+    apis = API.all_available()
     assert len(apis) == 1
     assert apis[0].id == api_id
 

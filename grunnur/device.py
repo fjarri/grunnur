@@ -79,7 +79,7 @@ class Device:
         """
         Wraps a backend device object into a Grunnur device object.
         """
-        for api in API.all():
+        for api in API.all_available():
             if api._api_adapter.isa_backend_device(obj):
                 device_adapter = api._api_adapter.make_device_adapter(obj)
                 return cls(device_adapter)

@@ -64,7 +64,7 @@ class Platform:
         """
         Wraps a backend platform object into a Grunnur platform object.
         """
-        for api in API.all():
+        for api in API.all_available():
             if api._api_adapter.isa_backend_platform(obj):
                 platform_adapter = api._api_adapter.make_platform_adapter(obj)
                 return cls(platform_adapter)

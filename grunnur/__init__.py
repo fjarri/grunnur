@@ -28,7 +28,7 @@ def __getattr__(name):
     if name == 'opencl_api':
         return API.from_api_id(opencl_api_id())
     if name == 'any_api':
-        apis = API.all()
+        apis = API.all_available()
         if len(apis) == 0:
             raise ImportError("No APIs are available. Please install either PyCUDA or PyOpenCL")
         return apis[0]

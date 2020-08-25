@@ -55,12 +55,11 @@ class API:
     """
 
     @classmethod
-    def all(cls) -> List[API]:
+    def all_available(cls) -> List[API]:
         """
         Returns a list of :py:class:`API` objects
         for which backends are available.
         """
-        # TODO: rename to `all_available()`?
         return [
             cls.from_api_id(api_id)
             for api_id, api_factory in _ALL_API_ADAPTER_FACTORIES.items()
@@ -79,7 +78,7 @@ class API:
         :param shortcut: an API shortcut to match.
         """
         if shortcut is None:
-            apis = cls.all()
+            apis = cls.all_available()
         else:
             for api_id, api_factory in _ALL_API_ADAPTER_FACTORIES.items():
                 if shortcut == api_id.shortcut:
