@@ -326,7 +326,8 @@ class OclContextAdapter(ContextAdapter):
     def deactivate(self):
         pass
 
-    def render_prelude(self, fast_math=False):
+    @staticmethod
+    def render_prelude(fast_math=False):
         return _PRELUDE.render(
             fast_math=fast_math,
             dtypes=dtypes)

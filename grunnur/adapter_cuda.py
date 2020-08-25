@@ -334,7 +334,8 @@ class CuContextAdapter(ContextAdapter):
     def deactivate(self):
         self._context_stack.deactivate()
 
-    def render_prelude(self, fast_math=False, constant_arrays=None):
+    @staticmethod
+    def render_prelude(fast_math=False, constant_arrays=None):
         return _PRELUDE.render(
             fast_math=fast_math,
             dtypes=dtypes,

@@ -262,15 +262,15 @@ class ContextAdapter(ABC):
     def deactivate(self):
         pass
 
+    @staticmethod
     @abstractmethod
-    def render_prelude(self, fast_math: bool=False) -> str:
+    def render_prelude(fast_math: bool=False) -> str:
         """
         Renders the prelude allowing one to write kernels compiling
         both in CUDA and OpenCL.
 
         :param fast_math: whether the compilation with fast math is requested.
         """
-        # TODO: it doesn't really need the context object, move to API and make a class method?
         pass
 
     @abstractmethod
