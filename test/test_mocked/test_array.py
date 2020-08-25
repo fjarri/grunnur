@@ -19,14 +19,14 @@ def test_from_host(mock_context):
     context = mock_context
     arr = numpy.arange(100)
 
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     arr_dev = Array.from_host(queue, arr)
     assert (arr_dev.get() == arr).all()
 
 
 def test_empty(mock_context):
     context = mock_context
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     arr_dev = Array.empty(queue, 100, numpy.int32)
     arr = arr_dev.get()
     assert arr.shape == (100,)
@@ -35,7 +35,7 @@ def test_empty(mock_context):
 
 def test_custom_allocator(mock_context):
     context = mock_context
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     allocated = []
     def allocator(size):
         allocated.append(size)
@@ -49,7 +49,7 @@ def test_custom_allocator(mock_context):
 
 def test_custom_buffer(mock_context):
     context = mock_context
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
 
     arr = numpy.arange(100).astype(numpy.int32)
     metadata = ArrayMetadata.from_arraylike(arr)

@@ -19,7 +19,7 @@ def _test_allocate(context):
     # Hard to actually check it without running a kernel
     assert buf.kernel_arg is not None
 
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     buf.set(queue, arr)
 
     # Read the whole buffer
@@ -72,8 +72,8 @@ def _test_migrate(context):
     assert buf.size == size
     assert buf.offset == 0
 
-    queue0 = Queue.from_device_idxs(context, [0])
-    queue1 = Queue.from_device_idxs(context, [1])
+    queue0 = Queue.on_device_idxs(context, [0])
+    queue1 = Queue.on_device_idxs(context, [1])
 
     res = numpy.empty_like(arr)
 

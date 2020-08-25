@@ -41,7 +41,7 @@ def test_wrong_device_idxs(mock_4_device_context):
 
     context = mock_4_device_context
     program = Program(context, src, device_idxs=[0, 1])
-    queue = Queue.from_device_idxs(context, device_idxs=[2, 1])
+    queue = Queue.on_device_idxs(context, device_idxs=[2, 1])
     res_dev = Array.empty(queue, 16, numpy.int32)
 
     # Using all the queue's devices (1, 2)
@@ -59,7 +59,7 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
 
     api = API.from_api_id(mock_backend.api_id)
     other_context = Context.from_criteria(api)
-    other_queue = Queue.from_device_idxs(other_context)
+    other_queue = Queue.on_all_devices(other_context)
     other_context.deactivate()
 
     cm1 = numpy.arange(16).astype(numpy.int32)
@@ -67,7 +67,7 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
         MockKernel(
             'kernel', [], max_total_local_sizes={0: 1024, 1: 1024, 2: 1024, 3: 1024})],
             constant_mem={'cm1': cm1.size * cm1.dtype.itemsize})
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
 
     if context.api.id == cuda_api_id():
         program = Program(context, src, constant_arrays=dict(cm1=cm1))
@@ -87,7 +87,7 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
             program = Program(context, src, constant_arrays=dict(cm1=1), device_idxs=[0, 1, 2])
 
         program = Program(context, src, constant_arrays=dict(cm1=cm1), device_idxs=[0, 1, 2])
-        queue3 = Queue.from_device_idxs(context, device_idxs=[3])
+        queue3 = Queue.on_device_idxs(context, device_idxs=[3])
 
         with pytest.raises(
                 ValueError,

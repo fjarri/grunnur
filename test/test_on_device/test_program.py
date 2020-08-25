@@ -57,7 +57,7 @@ def _test_compile(context, no_prelude, is_mocked):
     c = numpy.int32(3)
     ref = a * b + c
 
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
@@ -102,7 +102,7 @@ def _test_compile_multi_device(context, device_idxs, is_mocked):
     c = numpy.int32(3)
     ref = a * b + c
 
-    queue = Queue.from_device_idxs(context, device_idxs=device_idxs)
+    queue = Queue.on_device_idxs(context, device_idxs=device_idxs)
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
@@ -213,7 +213,7 @@ def _test_constant_memory(context, is_mocked, is_static):
     else:
         src = SRC_CONSTANT_MEM_STATIC if is_static else SRC_CONSTANT_MEM
 
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
 
     cm1_dev = Array.from_host(queue, cm1)
     cm2_dev = Array.from_host(queue, cm2)

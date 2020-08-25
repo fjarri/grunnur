@@ -15,7 +15,7 @@ Consider the following example, which is very similar to the one from the index 
     N = 256
 
     context = Context.from_devices([any_api[0][0]])
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
 
     program = Program(
         context,
@@ -65,7 +65,7 @@ The template engine of choice in ``grunnur`` is `Mako <http://www.makotemplates.
     from grunnur import any_api, Context, Queue, Program, Array
 
     context = Context.from_devices([any_api[0][0]])
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
 
     N = 256
     dtype = numpy.complex64

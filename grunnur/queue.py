@@ -17,22 +17,18 @@ class Queue:
     """Device indices (in the context) this queue operates on."""
 
     @classmethod
-    def from_device_idxs(
-            cls, context: Context, device_idxs: Optional[Iterable[int]]=None) -> 'Queue':
+    def on_all_devices(cls, context: Context) -> 'Queue':
+        return cls.on_device_idxs(context, list(range(len(context.devices))))
+
+    @classmethod
+    def on_device_idxs(cls, context: Context, device_idxs: Iterable[int]) -> 'Queue':
         """
         Creates a queue from provided device indexes (in the context).
 
         :param context: the context to create a queue in.
         :param device_idxs: the indices of devices (in the context) to use.
         """
-
-        # TODO: need a better method name for the case of device_idxs=None
-
-        if device_idxs is None:
-            device_idxs = tuple(range(len(context.devices)))
-        else:
-            device_idxs = tuple(sorted(device_idxs))
-
+        device_idxs = tuple(sorted(device_idxs))
         queue_adapter = context._context_adapter.make_queue_adapter(device_idxs)
         return cls(context, queue_adapter, device_idxs)
 

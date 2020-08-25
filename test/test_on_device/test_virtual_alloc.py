@@ -29,7 +29,7 @@ def test_contract(context, valloc_cls, pack):
         render_globals=dict(ctype=dtypes.ctype(dtype)))
     fill = program.fill
 
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     virtual_alloc = valloc_cls(queue)
 
     buffers_metadata, arrays = allocate_test_set(

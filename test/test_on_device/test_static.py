@@ -32,7 +32,7 @@ def _test_compile_static(context, is_mocked):
     b = numpy.arange(15).astype(numpy.int32)
     ref = numpy.outer(a, b)
 
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
@@ -65,7 +65,7 @@ def _test_compile_static_multi_device(context, is_mocked):
     b = numpy.arange(15).astype(numpy.int32)
     ref = numpy.outer(a, b)
 
-    queue = Queue.from_device_idxs(context, device_idxs=[0, 1])
+    queue = Queue.on_device_idxs(context, device_idxs=[0, 1])
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)

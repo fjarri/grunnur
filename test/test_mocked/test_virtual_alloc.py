@@ -22,7 +22,7 @@ def mock_get(buf):
 
 def test_extract_dependencies(mock_context):
 
-    queue = Queue.from_device_idxs(mock_context)
+    queue = Queue.on_all_devices(mock_context)
     virtual_alloc = TrivialManager(queue).allocator()
 
     vbuf = virtual_alloc(100)
@@ -72,7 +72,7 @@ def test_contract(mock_backend_pycuda, mock_context_pycuda, valloc_cls, pack):
     # Using PyCUDA backend here because it tracks the allocations.
 
     context = mock_context_pycuda
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     virtual_alloc = valloc_cls(queue)
 
     buffers_metadata, buffers = allocate_test_set(
@@ -119,7 +119,7 @@ def check_statistics(buffers_metadata, stats):
 def test_statistics(mock_context, valloc_cls):
 
     context = mock_context
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     virtual_alloc = valloc_cls(queue)
 
     buffers_metadata, buffers = allocate_test_set(
@@ -142,7 +142,7 @@ def test_statistics(mock_context, valloc_cls):
 
 def test_non_existent_dependencies(mock_context, valloc_cls):
     context = mock_context
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     virtual_alloc = valloc_cls(queue)
     with pytest.raises(ValueError, match="12345"):
         virtual_alloc._allocate_virtual(100, {12345})
@@ -153,7 +153,7 @@ def test_virtual_buffer(mock_4_device_context_pyopencl):
     # Using an OpenCL mock context here because it keeps track of buffer migrations
 
     context = mock_4_device_context_pyopencl
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     virtual_alloc = TrivialManager(queue)
 
     allocator = virtual_alloc.allocator()
@@ -182,7 +182,7 @@ def test_virtual_buffer(mock_4_device_context_pyopencl):
 
 def test_continuous_pack(mock_context, valloc_cls):
     context = mock_context
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     virtual_alloc_ref = valloc_cls(queue, pack_on_alloc=False, pack_on_free=False)
     virtual_alloc = valloc_cls(queue, pack_on_alloc=True, pack_on_free=True)
 

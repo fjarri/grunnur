@@ -6,7 +6,7 @@ from grunnur import Array, Buffer, Queue
 
 def _test_single_device(context):
     arr = numpy.arange(100)
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     arr_dev = Array.from_host(queue, arr)
 
     # get to a new array
@@ -34,7 +34,7 @@ def test_single_device(context):
 
 def _test_multi_device(context):
     arr = numpy.arange(100)
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     arr_dev = Array.from_host(queue, arr)
 
     with pytest.raises(ValueError, match="The device number must be one of those present in the queue"):

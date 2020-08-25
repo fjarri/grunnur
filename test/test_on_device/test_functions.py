@@ -73,7 +73,7 @@ def check_func(context, func_module, reference_func, out_dtype, in_dtypes, atol=
     test = program.test
 
 
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
 
     arrays = [get_test_array(N, dt, no_zeros=True, high=8) for dt in in_dtypes]
     arrays_dev = [Array.from_host(queue, array) for array in arrays]
@@ -189,7 +189,7 @@ def test_pow_zero_base(context, out_code, in_codes):
     program = Program(context, full_src)
     test = program.test
 
-    queue = Queue.from_device_idxs(context)
+    queue = Queue.on_all_devices(context)
     bases = Array.from_host(queue, numpy.zeros(N, in_dtypes[0]))
 
     # zero exponents
