@@ -67,7 +67,6 @@ class CuAPIAdapter(APIAdapter):
     def platform_count(self):
         return 1
 
-    # TODO: have instead get_platform(platform_idx)?
     def get_platform_adapters(self):
         return [CuPlatformAdapter(self)]
 

@@ -73,7 +73,6 @@ class APIAdapter(ABC):
     def platform_count(self):
         pass
 
-    # TODO: have instead get_platform(platform_idx)?
     @abstractmethod
     def get_platform_adapters(self):
         pass
