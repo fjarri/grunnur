@@ -46,7 +46,6 @@ def _set_constant_array(
     queue_adapter = queue._queue_adapter
 
     if isinstance(arr, Array):
-        # TODO: temporary check; arrays shouldn't have built-in queues
         assert queue is arr._queue
 
     if queue_adapter._context_adapter is not program_adapter._context_adapter:

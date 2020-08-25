@@ -112,7 +112,6 @@ class Array:
         :param dest: the destination array. If ``None``, the target array is created.
         :param async_: if `True`, the transfer is performed asynchronously.
         """
-        # TODO: check if the array is contiguous
         if dest is None:
             dest = numpy.empty(self.shape, self.dtype)
         self.data.get(self._queue, dest, async_=async_)

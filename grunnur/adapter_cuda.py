@@ -429,9 +429,6 @@ class CuBufferAdapter(BufferAdapter):
             offset=self._offset + origin, ptr=new_ptr, base_buffer=base_buffer)
 
     def set(self, queue_adapter, device_idx, host_array, no_async=False):
-        # TODO: is there a way to keep the whole thing async, but still wait until
-        # all current tasks on other devices finish, like with events in OpenCL?
-
         queue_adapter._synchronize_other_streams(device_idx)
 
         self._context_adapter.activate_device(device_idx)

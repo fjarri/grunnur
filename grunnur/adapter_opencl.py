@@ -189,7 +189,6 @@ class OclDeviceAdapter(DeviceAdapter):
 class OclDeviceParameters(DeviceParameters):
 
     def __init__(self, pyopencl_device):
-        # TODO: support other device types
         self._type = (
             DeviceType.CPU if pyopencl_device.type == pyopencl.device_type.CPU else DeviceType.GPU)
 
