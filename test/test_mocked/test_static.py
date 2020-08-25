@@ -1,3 +1,5 @@
+import pytest
+
 from grunnur import StaticKernel
 
 from ..mock_base import MockKernel, MockDefTemplate, MockDefTemplate
@@ -26,3 +28,10 @@ def test_compile_static_multi_device(mock_4_device_context):
 
 def test_constant_memory(mock_context):
     _test_constant_memory(context=mock_context, is_mocked=True, is_static=True)
+
+
+def test_reserved_names(mock_context):
+    kernel = MockKernel('test', [None])
+    src = MockDefTemplate(kernels=[kernel])
+    with pytest.raises(ValueError, match="The global name 'static' is reserved in static kernels"):
+        multiply = StaticKernel(mock_context, src, 'test', (1024,), render_globals=dict(static=1))

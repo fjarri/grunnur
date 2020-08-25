@@ -13,6 +13,10 @@ from .vsize import VirtualSizes
 from .program import SingleDeviceProgram, MultiDevice, _call_kernels, _set_constant_array
 
 
+# the name of the global in the template containing static kernel modules
+_STATIC_MODULES_GLOBAL = 'static'
+
+
 class StaticKernel:
     """
     An object containing a GPU kernel with fixed call sizes.
@@ -92,9 +96,12 @@ class StaticKernel:
                     virtual_global_size=kernel_gs,
                     virtual_local_size=kernel_ls)
 
-                # TODO: check that there are no name clashes with virtual size functions
+                if _STATIC_MODULES_GLOBAL in render_globals:
+                    raise ValueError(
+                        f"The global name '{_STATIC_MODULES_GLOBAL}' is reserved in static kernels")
+
                 new_render_globals = dict(render_globals)
-                new_render_globals['static'] = vs.vsize_modules
+                new_render_globals[_STATIC_MODULES_GLOBAL] = vs.vsize_modules
 
                 # Try to compile the kernel with the corresponding virtual size functions
                 program = SingleDeviceProgram(
