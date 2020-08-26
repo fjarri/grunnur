@@ -9,7 +9,7 @@ from .context import Context
 from .queue import Queue
 from .array import Array
 from .utils import prod, wrap_in_tuple
-from .vsize import VirtualSizes
+from .vsize import VirtualSizes, VirtualSizeError
 from .program import SingleDeviceProgram, MultiDevice, _call_kernels, _set_constant_array
 
 
@@ -86,7 +86,7 @@ class StaticKernel:
             while True:
 
                 # Try to find kernel launch parameters for the requested local size.
-                # May raise OutOfResourcesError if it's not possible,
+                # May raise VirtualSizeError if it's not possible,
                 # just let it pass to the caller.
                 vs = VirtualSizes(
                     max_total_local_size=max_total_local_size,
@@ -121,7 +121,15 @@ class StaticKernel:
                 # to be smaller than the previous one.
                 max_total_local_size = kernel_adapter.max_total_local_size
 
-                # TODO: prevent this being an endless loop
+                # In most cases the iteration should stop at `max_total_local_size == 1`,
+                # where the virtual size is trivial and always possible.
+                # But occasionally we may get a kernel that cannot be executed at all
+                # (e.g. it requests too much local memory),
+                # and some platforms may return 0, which `VirtualSizes` will not like.
+                # So we'll have a sanity check here.
+                if max_total_local_size == 0:
+                    raise VirtualSizeError(
+                        "The kernel requires too much resourses to be executed with any local size")
 
             kernel_adapters[device_idx] = kernel_adapter
             vs_metadata.append(vs)

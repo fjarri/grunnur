@@ -3,7 +3,7 @@ import pytest
 from grunnur.utils import prod, min_blocks
 from grunnur.vsize import (
     factorize, PrimeFactors, get_decompositions, find_local_size_decomposition, group_dimensions,
-    find_bounding_shape, ShapeGroups, VirtualSizes)
+    find_bounding_shape, ShapeGroups, VirtualSizes, VirtualSizeError)
 
 
 def test_factorize():
@@ -168,7 +168,7 @@ def test_vsize_errors():
             virtual_global_size=(8, 16, 32, 60),
             virtual_local_size=(4, 4, 4))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(VirtualSizeError):
         VirtualSizes(
             max_total_local_size=1024,
             max_local_sizes=(1024, 1024, 64),
@@ -178,7 +178,7 @@ def test_vsize_errors():
             # Requested total local size >= max_total_local_size
             virtual_local_size=(8, 8, 8, 8))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(VirtualSizeError):
         VirtualSizes(
             max_total_local_size=1024,
             max_local_sizes=(1024, 1024, 64),

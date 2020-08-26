@@ -147,7 +147,7 @@ def _group_dimensions(
     vdim_group = 1 # number of currently grouped virtual dimensions
     adim_group = 1 # number of currently grouped available dimensions
 
-    while 1:
+    while True:
         # If we have more elements in the virtual group than there is in the available group,
         # extend the available group by one dimension.
         if prod(virtual_shape[:vdim_group]) > prod(available_shape[:adim_group]):
@@ -487,6 +487,13 @@ class VsizeModules:
             begin=begin_static_kernel)
 
 
+class VirtualSizeError(Exception):
+    """
+    Raised when a virtual size cannot be found due to device limitations.
+    """
+    pass
+
+
 class VirtualSizes:
 
     def __init__(
@@ -539,7 +546,7 @@ class VirtualSizes:
             virtual_local_size = find_local_size_decomposition(virtual_global_size, flat_local_size)
         else:
             if prod(virtual_local_size) > max_total_local_size:
-                raise ValueError(
+                raise VirtualSizeError(
                     f"Requested local size is greater than the maximum {max_total_local_size}")
 
         # Global and local sizes supported by CUDA or OpenCL restricted number of dimensions,
@@ -551,7 +558,10 @@ class VirtualSizes:
             grs * ls for grs, ls in zip(virtual_grid_size, virtual_local_size))
 
         if prod(virtual_grid_size) > prod(max_num_groups):
-            raise ValueError(f"Bounding global size {bounding_global_size} is too large")
+            # Report the bounding size in reversed form so that it matches the provided
+            # virtual global size.
+            raise VirtualSizeError(
+                f"Bounding global size {tuple(reversed(bounding_global_size))} is too large")
 
         local_groups = ShapeGroups(virtual_local_size, max_local_sizes)
         grid_groups = ShapeGroups(virtual_grid_size, max_num_groups)

@@ -20,6 +20,7 @@ from .buffer import Buffer
 from .static import StaticKernel
 from .template import Template, DefTemplate, RenderError
 from .modules import Module, Snippet
+from .vsize import VirtualSizeError
 
 
 def __getattr__(name):
