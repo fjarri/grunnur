@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Iterable, Mapping, Callable, Union, Tuple, List, Dict
 
 from .template import DefTemplate, RenderError
+from .utils import update_dict
 
 
 class Snippet:
@@ -21,6 +22,12 @@ class Snippet:
         self.name = template.name
         self.template = template
         self.render_globals = render_globals
+
+    def with_added_globals(self, add_globals: Mapping={}) -> Snippet:
+        new_globals = update_dict(
+            self.render_globals, add_globals,
+            error_msg="Cannot add a global '{name}' - it already exists")
+        return Snippet(self.template, new_globals)
 
     @classmethod
     def from_callable(
@@ -215,9 +222,8 @@ def render_with_modules(
     If ``src`` is a string, a callable or a :py:class:`DefTemplate`,
     a :py:class:`Snippet` is created with a corresponding classmethod or the constructor.
 
-    If ``src`` is a :py:class:`Snippet`, ``render_globals`` must be empty,
-    and whatever globals needs to be passed to the template, must be included in the
-    :py:class:`Snippet` object itself.
+    If ``src`` is a :py:class:`Snippet`, ``render_globals`` will be added to its render globals
+    (a ``ValueError`` will be thrown if there is a name clash).
 
     If any of the nested templates fails to render,
     a :py:class:`~grunnur.template.RenderError` is propagated
@@ -238,11 +244,7 @@ def render_with_modules(
     elif isinstance(src, DefTemplate):
         snippet = Snippet(src, render_globals=render_globals)
     elif isinstance(src, Snippet):
-        snippet = src
-        if len(render_globals) > 0:
-            raise ValueError(
-                "If a Snippet object is given, its own render_globals are used, "
-                "and the ones given to render_with_modules() must be empty.")
+        snippet = src.with_added_globals(render_globals)
     elif callable(src):
         snippet = Snippet.from_callable(src, name="_main_", render_globals=render_globals)
     else:

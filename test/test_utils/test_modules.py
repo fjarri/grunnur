@@ -39,9 +39,11 @@ def test_render_snippet():
 
 
 def test_render_snippet_with_render_globals():
-    snippet = Snippet.from_callable(lambda x, y: "${x} + ${y}")
-    with pytest.raises(ValueError):
-        render_with_modules(snippet, render_globals=dict(z=3))
+    # Check that provided render globals are added to those of the snippet
+    snippet = Snippet.from_callable(lambda x, y: "${x} + ${y} + ${z} + ${q}", render_globals=dict(z=3))
+    assert render_with_modules(snippet, render_args=[1, 2], render_globals=dict(q=4)).strip() == "1 + 2 + 3 + 4"
+    with pytest.raises(ValueError, match="Cannot add a global 'z' - it already exists"):
+        render_with_modules(snippet, render_args=[1, 2], render_globals=dict(z=5, q=4))
 
 
 def test_render_string():

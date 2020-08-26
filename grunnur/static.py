@@ -8,7 +8,7 @@ from .modules import Snippet
 from .context import Context
 from .queue import Queue
 from .array import Array
-from .utils import prod, wrap_in_tuple
+from .utils import prod, wrap_in_tuple, update_dict
 from .vsize import VirtualSizes, VirtualSizeError
 from .program import SingleDeviceProgram, MultiDevice, _call_kernels, _set_constant_array
 
@@ -96,12 +96,9 @@ class StaticKernel:
                     virtual_global_size=kernel_gs,
                     virtual_local_size=kernel_ls)
 
-                if _STATIC_MODULES_GLOBAL in render_globals:
-                    raise ValueError(
-                        f"The global name '{_STATIC_MODULES_GLOBAL}' is reserved in static kernels")
-
-                new_render_globals = dict(render_globals)
-                new_render_globals[_STATIC_MODULES_GLOBAL] = vs.vsize_modules
+                new_render_globals = update_dict(
+                    render_globals, {_STATIC_MODULES_GLOBAL: vs.vsize_modules},
+                    error_msg=f"The global name '{_STATIC_MODULES_GLOBAL}' is reserved in static kernels")
 
                 # Try to compile the kernel with the corresponding virtual size functions
                 program = SingleDeviceProgram(

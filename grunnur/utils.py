@@ -1,6 +1,6 @@
 import collections
 from functools import reduce
-from typing import Iterable, Optional, Tuple, TypeVar, Type, Sequence
+from typing import Iterable, Optional, Tuple, TypeVar, Type, Sequence, Mapping
 import re
 
 
@@ -179,3 +179,14 @@ def get_launch_size(
 
     grid_size = tuple(gs // ls for gs, ls in zip(global_size, local_size))
     return grid_size, local_size
+
+
+_UPDATE_ERROR_TEMPLATE = "Cannot add an item '{name}' - it already exists in the old dictionary"
+
+def update_dict(d: Mapping, new_d: Mapping, error_msg: str=_UPDATE_ERROR_TEMPLATE) -> dict:
+    res = dict(d)
+    for name, value in new_d.items():
+        if name in d:
+            raise ValueError(error_msg.format(name=name))
+        res[name] = value
+    return res

@@ -2,7 +2,8 @@ import pytest
 
 from grunnur.utils import (
     all_same, all_different, wrap_in_tuple, min_blocks, log2, bounding_power_of_2, prod,
-    string_matches_masks, normalize_object_sequence, max_factor, find_local_size, get_launch_size)
+    string_matches_masks, normalize_object_sequence, max_factor, find_local_size, get_launch_size,
+    update_dict)
 
 
 def test_all_same():
@@ -103,3 +104,11 @@ def test_get_launch_size():
 
     assert get_launch_size((64, 64, 32), 64, (10 * 127, 3 * 127, 300)) == ((127, 127, 150), (10, 3, 2))
     assert get_launch_size((64, 64, 32), 64, (100, 200, 300), (5, 10, 1)) == ((20, 20, 300), (5, 10, 1))
+
+
+def test_update_dict():
+    assert update_dict({1: 2, 2: 3}, {3: 4}) == {1: 2, 2: 3, 3: 4}
+    with pytest.raises(ValueError, match="Cannot add an item '2' - it already exists in the old dictionary"):
+        update_dict({1: 2, 2: 3}, {2: 4})
+    with pytest.raises(ValueError, match="Custom error message for '2'"):
+        update_dict({1: 2, 2: 3}, {2: 4}, error_msg="Custom error message for '{name}'")
