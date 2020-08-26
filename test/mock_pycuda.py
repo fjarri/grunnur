@@ -471,15 +471,19 @@ def make_function_class(backend):
                 else:
                     raise TypeError(f"Incorrect argument type: {type(arg)}")
 
+            device = current_context.get_device()
+            max_grid = [device.max_grid_dim_x, device.max_grid_dim_y, device.max_grid_dim_z]
+            max_block = [device.max_block_dim_x, device.max_block_dim_y, device.max_block_dim_z]
+
             assert isinstance(grid, tuple)
             assert len(grid) == 3
             assert all(isinstance(x, int) for x in grid)
+            assert all(g <= max_g for g, max_g in zip(grid, max_grid))
 
             assert isinstance(block, tuple)
             assert len(block) == 3
             assert all(isinstance(x, int) for x in block)
-
-            # TODO: check that every element is smaller than the corresponding maximum for the device
+            assert all(b <= max_b for b, max_b in zip(block, max_block))
 
         def get_attribute(self, attribute):
             if attribute == FunctionAttribute.MAX_THREADS_PER_BLOCK:
