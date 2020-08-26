@@ -115,8 +115,6 @@ def pytest_generate_tests(metafunc):
 
     api_ids = [api.id for api in apis]
 
-    idgen = lambda val: val.short_name
-
     fixtures = [
         ('api', apis),
         ('platform', platforms),
@@ -125,7 +123,7 @@ def pytest_generate_tests(metafunc):
 
     for name, vals in fixtures:
         if name in metafunc.fixturenames:
-            metafunc.parametrize(name, vals, ids=['no_' + name] if len(vals) == 0 else idgen)
+            metafunc.parametrize(name, vals, ids=['no_' + name] if len(vals) == 0 else str)
 
     if 'context' in metafunc.fixturenames:
         metafunc.parametrize(
@@ -149,6 +147,6 @@ def pytest_report_header(config):
         print("No GPGPU devices available")
     else:
         print("Running tests on:")
-        for device in sorted(devices, key=lambda device: device.short_name):
+        for device in sorted(devices, key=lambda device: str(device)):
             platform = device.platform
-            print(f"  {device.short_name}: {platform.name}, {device.name}")
+            print(f"  {device}: {platform.name}, {device.name}")

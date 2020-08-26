@@ -116,7 +116,7 @@ def test_attributes(mock_backend):
     assert p.api == api
     assert p.name == {cuda_api_id(): 'nVidia CUDA', opencl_api_id(): 'Platform0'}[api.id]
     assert p.shortcut == api.shortcut + ',0'
-    assert p.short_name == 'platform(' + p.shortcut + ')'
+    assert str(p) == 'platform(' + p.shortcut + ')'
     assert p.vendor == {cuda_api_id(): 'nVidia', opencl_api_id(): 'Mock Platforms'}[api.id]
     assert p.version == {cuda_api_id(): "CUDA 10.0.0", opencl_api_id(): 'OpenCL 1.2'}[api.id]
 

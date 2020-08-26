@@ -24,9 +24,6 @@ class Platform:
     version: str
     """The platform's version."""
 
-    short_name: str
-    """This platform's short name."""
-
     @classmethod
     def all(cls, api: API) -> List[Platform]:
         """
@@ -88,7 +85,6 @@ class Platform:
         self.name = self._platform_adapter.name
 
         self.shortcut = f"{self.api.shortcut},{platform_adapter.platform_idx}"
-        self.short_name = f"platform({self.shortcut})"
 
         self.vendor = platform_adapter.vendor
         self.version = platform_adapter.version
@@ -102,3 +98,6 @@ class Platform:
     def __getitem__(self, idx):
         from .device import Device # avoiding circular imports
         return Device.all(self)[idx]
+
+    def __str__(self):
+        return f"platform({self.shortcut})"

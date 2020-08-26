@@ -27,18 +27,17 @@ class APIID:
     shortcut: str
     """This API's shortcut."""
 
-    short_name: str
-    """This API's short name."""
-
     def __init__(self, shortcut):
         self.shortcut = shortcut
-        self.short_name = f"id({self.shortcut})"
 
     def __eq__(self, other):
         return self.shortcut == other.shortcut
 
     def __hash__(self):
         return hash((type(self), self.shortcut))
+
+    def __str__(self):
+        return f"id({self.shortcut})"
 
 
 class APIAdapterFactory(ABC):

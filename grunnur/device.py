@@ -19,9 +19,6 @@ class Device:
     name: str
     """This device's name."""
 
-    short_name: str
-    """This device's short name."""
-
     @classmethod
     def all(cls, platform: Platform) -> List[Device]:
         """
@@ -103,7 +100,6 @@ class Device:
         self.name = self._device_adapter.name
 
         self.shortcut = f"{self.platform.shortcut},{device_adapter.device_idx}"
-        self.short_name = f"device({self.shortcut})"
 
         self._params = None
 
@@ -120,3 +116,6 @@ class Device:
         """
         # Already cached in the adapters
         return self._device_adapter.params
+
+    def __str__(self):
+        return f"device({self.shortcut})"

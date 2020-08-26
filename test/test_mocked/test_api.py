@@ -97,6 +97,7 @@ def test_getitem(mock_backend_pyopencl):
 
 def test_attributes(mock_backend):
     api = API.from_api_id(mock_backend.api_id)
+    assert str(mock_backend.api_id) == 'id(' + api.shortcut + ')'
     assert api.id == mock_backend.api_id
     assert api.shortcut == mock_backend.api_id.shortcut
-    assert api.short_name == 'api(' + api.shortcut + ')'
+    assert str(api) == 'api(' + api.shortcut + ')'

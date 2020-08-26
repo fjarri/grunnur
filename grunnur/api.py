@@ -44,9 +44,6 @@ class API:
     id: APIID
     """This API's ID."""
 
-    short_name: str
-    """This API's short name."""
-
     shortcut: str
     """
     A shortcut for this API (to use in :py:meth:`all_by_shortcut`,
@@ -105,7 +102,6 @@ class API:
         self._api_adapter = api_adapter
         self.id = api_adapter.id
         self.shortcut = self.id.shortcut
-        self.short_name = f"api({self.shortcut})"
 
     def __eq__(self, other):
         return isinstance(other, API) and self._api_adapter == other._api_adapter
@@ -116,3 +112,6 @@ class API:
     def __getitem__(self, idx):
         from .platform import Platform # avoiding circular imports
         return Platform.all(self)[idx]
+
+    def __str__(self):
+        return f"api({self.shortcut})"

@@ -109,7 +109,7 @@ def test_attributes(mock_backend):
     assert d.platform == p
     assert d.name == 'Device1'
     assert d.shortcut == p.shortcut + ',0'
-    assert d.short_name == 'device(' + d.shortcut + ')'
+    assert str(d) == 'device(' + d.shortcut + ')'
 
 
 def test_device_parameters_opencl(mock_backend_pyopencl):
