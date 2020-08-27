@@ -155,7 +155,7 @@ def test_builtin_globals(mock_backend_pycuda):
         """)
 
     api = API.from_api_id(mock_backend_pycuda.api_id)
-    context = Context.from_devices([api[0][0], api[0][1]])
+    context = Context.from_devices([api.platforms[0].devices[0], api.platforms[0].devices[1]])
 
     src = MockDefTemplate(kernels=[MockKernel('test', [None])], source_template=source_template)
 

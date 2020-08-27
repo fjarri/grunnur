@@ -91,8 +91,8 @@ def test_getitem(mock_backend_pyopencl):
     mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1'])
 
     api = API.from_api_id(api_id)
-    assert api[0].name == 'Platform0'
-    assert api[1].name == 'Platform1'
+    assert api.platforms[0].name == 'Platform0'
+    assert api.platforms[1].name == 'Platform1'
 
 
 def test_attributes(mock_backend):

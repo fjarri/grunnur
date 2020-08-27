@@ -104,8 +104,8 @@ def test_getitem(mock_backend_pyopencl):
 
     p1 = Platform.from_index(api, 1)
 
-    assert p1[0].name == 'Device1'
-    assert p1[1].name == 'Device2'
+    assert p1.devices[0].name == 'Device1'
+    assert p1.devices[1].name == 'Device2'
 
 
 def test_attributes(mock_backend):

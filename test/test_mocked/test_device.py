@@ -123,7 +123,7 @@ def test_device_parameters_opencl(mock_backend_pyopencl):
 
     mock_backend_pyopencl.add_devices([device_info])
     api = API.from_api_id(mock_backend_pyopencl.api_id)
-    d = api[0][0]
+    d = api.platforms[0].devices[0]
 
     assert d.params.type == device_info.type
     assert d.params.max_total_local_size == device_info.max_work_group_size
@@ -143,7 +143,7 @@ def test_device_parameters_opencl_apple_cpu(mock_backend_pyopencl):
 
     mock_backend_pyopencl.add_platform_with_devices('Apple', [device_info])
     api = API.from_api_id(mock_backend_pyopencl.api_id)
-    d = api[0][0]
+    d = api.platforms[0].devices[0]
 
     assert d.params.max_total_local_size == 1
     assert d.params.max_local_sizes == (1, 1, 1)
@@ -155,7 +155,7 @@ def test_device_parameters_opencl_cpu(mock_backend_pyopencl):
 
     mock_backend_pyopencl.add_devices([device_info])
     api = API.from_api_id(mock_backend_pyopencl.api_id)
-    d = api[0][0]
+    d = api.platforms[0].devices[0]
 
     assert d.params.local_mem_banks == 1
     assert d.params.warp_size == 1
@@ -172,7 +172,7 @@ def test_device_parameters_opencl_cuda1(mock_backend_pyopencl):
 
     mock_backend_pyopencl.add_devices([device_info])
     api = API.from_api_id(mock_backend_pyopencl.api_id)
-    d = api[0][0]
+    d = api.platforms[0].devices[0]
 
     assert d.params.local_mem_banks == 16
     assert d.params.warp_size == device_info.warp_size_nv
@@ -189,7 +189,7 @@ def test_device_parameters_opencl_cuda2(mock_backend_pyopencl):
 
     mock_backend_pyopencl.add_devices([device_info])
     api = API.from_api_id(mock_backend_pyopencl.api_id)
-    d = api[0][0]
+    d = api.platforms[0].devices[0]
 
     assert d.params.local_mem_banks == 32
     assert d.params.warp_size == device_info.warp_size_nv
@@ -204,7 +204,7 @@ def test_device_parameters_opencl_unknown_nv(mock_backend_pyopencl):
 
     mock_backend_pyopencl.add_devices([device_info])
     api = API.from_api_id(mock_backend_pyopencl.api_id)
-    d = api[0][0]
+    d = api.platforms[0].devices[0]
 
     assert d.params.local_mem_banks == 32
     assert d.params.warp_size == 32
@@ -226,7 +226,7 @@ def test_device_parameters_cuda(mock_backend_pycuda):
 
     mock_backend_pycuda.add_devices([device_info])
     api = API.from_api_id(mock_backend_pycuda.api_id)
-    d = api[0][0]
+    d = api.platforms[0].devices[0]
 
     assert d.params.type == DeviceType.GPU
     assert d.params.max_total_local_size == device_info.max_threads_per_block
@@ -253,6 +253,6 @@ def test_device_parameters_cuda_1(mock_backend_pycuda):
 
     mock_backend_pycuda.add_devices([device_info])
     api = API.from_api_id(mock_backend_pycuda.api_id)
-    d = api[0][0]
+    d = api.platforms[0].devices[0]
 
     assert d.params.local_mem_banks == 16

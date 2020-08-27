@@ -8,8 +8,8 @@ def test_from_devices(mock_backend):
 
     api = API.from_api_id(mock_backend.api_id)
 
-    platform = api[0]
-    devices = platform[:]
+    platform = api.platforms[0]
+    devices = platform.devices[:]
     context = Context.from_devices(devices)
     assert context.platform == platform
     assert context.devices == tuple(devices)
@@ -22,7 +22,7 @@ def test_from_devices_different_platforms(mock_backend_pyopencl):
     api = API.from_api_id(mock_backend_pyopencl.api_id)
 
     with pytest.raises(ValueError, match="All devices must belong to the same platform"):
-        Context.from_devices([api[0][0], api[1][0]])
+        Context.from_devices([api.platforms[0].devices[0], api.platforms[1].devices[0]])
 
 
 def test_from_backend_devices_opencl(mock_backend_pyopencl):

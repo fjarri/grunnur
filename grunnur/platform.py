@@ -89,15 +89,19 @@ class Platform:
         self.vendor = platform_adapter.vendor
         self.version = platform_adapter.version
 
+    @property
+    def devices(self):
+        """
+        A list of this device's :py:class:`Device` objects.
+        """
+        from .device import Device # avoiding circular imports
+        return Device.all(self)
+
     def __eq__(self, other):
         return isinstance(other, Platform) and self._platform_adapter == other._platform_adapter
 
     def __hash__(self):
         return hash((type(self), self._platform_adapter))
-
-    def __getitem__(self, idx):
-        from .device import Device # avoiding circular imports
-        return Device.all(self)[idx]
 
     def __str__(self):
         return f"platform({self.shortcut})"

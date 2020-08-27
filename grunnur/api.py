@@ -103,15 +103,19 @@ class API:
         self.id = api_adapter.id
         self.shortcut = self.id.shortcut
 
+    @property
+    def platforms(self):
+        """
+        A list of this API's :py:class:`Platform` objects.
+        """
+        from .platform import Platform # avoiding circular imports
+        return Platform.all(self)
+
     def __eq__(self, other):
         return isinstance(other, API) and self._api_adapter == other._api_adapter
 
     def __hash__(self):
         return hash((type(self), self._api_adapter))
-
-    def __getitem__(self, idx):
-        from .platform import Platform # avoiding circular imports
-        return Platform.all(self)[idx]
 
     def __str__(self):
         return f"api({self.shortcut})"

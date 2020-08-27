@@ -66,7 +66,7 @@ def test_virtual_sizes_error_propagated(mock_backend_pycuda):
 
     mock_backend_pycuda.add_devices([device_info])
     api = API.from_api_id(mock_backend_pycuda.api_id)
-    device = api[0][0]
+    device = api.platforms[0].devices[0]
     context = Context.from_devices([device])
     kernel = MockKernel('test', [None], max_total_local_sizes={0: 16})
     src = MockDefTemplate(kernels=[kernel])
@@ -97,7 +97,7 @@ def test_builtin_globals(mock_backend_pycuda):
         """)
 
     api = API.from_api_id(mock_backend_pycuda.api_id)
-    context = Context.from_devices([api[0][0], api[0][1]])
+    context = Context.from_devices([api.platforms[0].devices[0], api.platforms[0].devices[1]])
 
     src = MockDefTemplate(
         kernels=[MockKernel('test', [None], max_total_local_sizes={0: 1024, 1: 512})],
