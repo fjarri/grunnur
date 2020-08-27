@@ -2,6 +2,7 @@ import numpy
 import pytest
 
 from grunnur import API, Context, Queue, Array, Program, CompilationError, cuda_api_id, StaticKernel
+from grunnur.template import DefTemplate
 
 from ..mock_base import MockDefTemplate, MockKernel
 from ..test_on_device.test_program import (
@@ -11,6 +12,7 @@ from ..test_on_device.test_program import (
     _test_compile_multi_device,
     _test_keep,
     )
+from ..mock_pycuda import PyCUDADeviceInfo
 
 
 @pytest.mark.parametrize('no_prelude', [False, True], ids=["with-prelude", "no-prelude"])
@@ -128,3 +130,36 @@ def test_max_total_local_sizes(mock_backend):
 
 def test_keep(mock_context, capsys):
     _test_keep(context=mock_context, capsys=capsys, is_mocked=True)
+
+
+def test_cannot_override_builtin_globals(mock_context):
+    with pytest.raises(ValueError, match="'device_params' is a reserved global name and cannot be used"):
+        Program(
+            mock_context,
+            MockDefTemplate(kernels=[MockKernel('test', [None])]),
+            render_globals=dict(device_params=None))
+
+
+def test_builtin_globals(mock_backend_pycuda):
+    mock_backend_pycuda.add_devices([
+        PyCUDADeviceInfo(max_threads_per_block=1024),
+        PyCUDADeviceInfo(max_threads_per_block=512)])
+
+    source_template = DefTemplate.from_string(
+        'mock_source', [],
+        """
+        KERNEL void test()
+        {
+            int max_total_local_size = ${device_params.max_total_local_size};
+        }
+        """)
+
+    api = API.from_api_id(mock_backend_pycuda.api_id)
+    context = Context.from_devices([api[0][0], api[0][1]])
+
+    src = MockDefTemplate(kernels=[MockKernel('test', [None])], source_template=source_template)
+
+    program = Program(context, src)
+
+    assert 'max_total_local_size = 1024' in program.sources[0].source
+    assert 'max_total_local_size = 512' in program.sources[1].source

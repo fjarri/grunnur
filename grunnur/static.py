@@ -29,6 +29,9 @@ class StaticKernel:
     context: Context
     """The context this program was compiled for."""
 
+    sources: Dict[int, str]
+    """Source files used for each device."""
+
     def __init__(
             self,
             context: Context,
@@ -71,6 +74,7 @@ class StaticKernel:
         kernel_gs = wrap_in_tuple(global_size)
 
         kernel_adapters = {}
+        sources = {}
         vs_metadata = []
         for device_idx in device_idxs:
 
@@ -129,9 +133,11 @@ class StaticKernel:
                         "The kernel requires too much resourses to be executed with any local size")
 
             kernel_adapters[device_idx] = kernel_adapter
+            sources[device_idx] = program.source
             vs_metadata.append(vs)
 
         self.context = context
+        self.sources = sources
         self._vs_metadata = vs_metadata
         self._sd_kernel_adapters = kernel_adapters
         self._device_idxs = device_idxs

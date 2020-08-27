@@ -1,6 +1,7 @@
 import pytest
 
 from grunnur import StaticKernel, VirtualSizeError, API, Context
+from grunnur.template import DefTemplate
 
 from ..mock_base import MockKernel, MockDefTemplate, MockDefTemplate
 from ..test_on_device.test_static import (
@@ -79,3 +80,30 @@ def test_virtual_sizes_error_propagated(mock_backend_pycuda):
             VirtualSizeError,
             match="Bounding global size \\(16384, 2048, 256\\) is too large"):
         multiply = StaticKernel(context, src, 'test', (2**14, 2**11, 2**8), (2**4, 1, 1))
+
+
+def test_builtin_globals(mock_backend_pycuda):
+    mock_backend_pycuda.add_devices([
+        PyCUDADeviceInfo(max_threads_per_block=1024),
+        PyCUDADeviceInfo(max_threads_per_block=512)])
+
+    source_template = DefTemplate.from_string(
+        'mock_source', [],
+        """
+        KERNEL void test()
+        {
+            int max_total_local_size = ${device_params.max_total_local_size};
+        }
+        """)
+
+    api = API.from_api_id(mock_backend_pycuda.api_id)
+    context = Context.from_devices([api[0][0], api[0][1]])
+
+    src = MockDefTemplate(
+        kernels=[MockKernel('test', [None], max_total_local_sizes={0: 1024, 1: 512})],
+        source_template=source_template)
+
+    kernel = StaticKernel(context, src, 'test', (1024,))
+
+    assert 'max_total_local_size = 1024' in kernel.sources[0].source
+    assert 'max_total_local_size = 512' in kernel.sources[1].source

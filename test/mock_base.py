@@ -12,12 +12,17 @@ class MockKernel:
 
 class MockSource:
 
-    def __init__(self, kernels=[], prelude="", should_fail=False, constant_mem={}):
+    def __init__(self, kernels=[], prelude="", should_fail=False, constant_mem={}, source=None, source_template=None):
         self.name = "mock_source"
         self.kernels = kernels
         self.prelude = prelude
         self.should_fail = should_fail
         self.constant_mem = constant_mem
+
+        assert source is None or source_template is None
+
+        self.source = source
+        self.source_template = source_template
 
     def __radd__(self, other):
         assert isinstance(other, str)
@@ -25,13 +30,26 @@ class MockSource:
             kernels=self.kernels,
             prelude=other + self.prelude,
             should_fail=self.should_fail,
-            constant_mem=self.constant_mem)
+            constant_mem=self.constant_mem,
+            source=self.source,
+            source_template=self.source_template)
 
     def split(self, delim):
         return self.prelude.split(delim) + ["<<< mock source >>>"]
 
     def __str__(self):
         return self.name
+
+    def render(self, *args, **kwds):
+        if self.source_template is None:
+            return self
+        else:
+            return MockSource(
+                kernels=self.kernels,
+                prelude=self.prelude,
+                should_fail=self.should_fail,
+                constant_mem=self.constant_mem,
+                source=self.source_template.render(*args, **kwds))
 
 
 class MockDefTemplate(DefTemplate):
@@ -41,7 +59,7 @@ class MockDefTemplate(DefTemplate):
         self._mock_source = MockSource(*args, **kwds)
 
     def render(self, *args, **kwds):
-        return self._mock_source
+        return self._mock_source.render(*args, **kwds)
 
     def __str__(self):
         return str(self._mock_source)

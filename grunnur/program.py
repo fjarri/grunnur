@@ -9,7 +9,7 @@ import numpy
 
 from .adapter_base import AdapterCompilationError, KernelAdapter, BufferAdapter, ProgramAdapter
 from .modules import render_with_modules
-from .utils import wrap_in_tuple
+from .utils import wrap_in_tuple, update_dict
 from .array import Array
 from .buffer import Buffer
 from .queue import Queue
@@ -99,6 +99,10 @@ class SingleDeviceProgram:
         """
         self.context = context
         self._device_idx = device_idx
+
+        render_globals = update_dict(
+            render_globals, dict(device_params=context.devices[device_idx].params),
+            error_msg="'device_params' is a reserved global name and cannot be used")
 
         src = render_with_modules(
             template_src, render_args=render_args, render_globals=render_globals)
