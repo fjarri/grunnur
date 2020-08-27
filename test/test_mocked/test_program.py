@@ -48,11 +48,11 @@ def test_wrong_device_idxs(mock_4_device_context):
 
     # Using all the queue's devices (1, 2)
     with pytest.raises(ValueError, match="This kernel's program was not compiled for devices"):
-        program.multiply(queue, 8, None, res_dev)
+        program.kernel.multiply(queue, 8, None, res_dev)
 
     # Explicit device_idxs
     with pytest.raises(ValueError, match="This kernel's program was not compiled for devices"):
-        program.multiply(queue, 8, None, res_dev, device_idxs=[0, 2])
+        program.kernel.multiply(queue, 8, None, res_dev, device_idxs=[0, 2])
 
 
 def test_set_constant_array_errors(mock_4_device_context, mock_backend):
@@ -119,13 +119,13 @@ def test_max_total_local_sizes(mock_backend):
 
     # Providing max_total_local_sizes for all possible devices to make sure
     # only the ones corresponding to the context will get picked up
-    kernel = MockKernel('kernel', max_total_local_sizes={0: 64, 1: 1024, 2: 512, 3: 128})
+    kernel = MockKernel('test', max_total_local_sizes={0: 64, 1: 1024, 2: 512, 3: 128})
 
     src = MockDefTemplate(kernels=[kernel])
     program = Program(context, src)
 
     # The indices here correspond to the devices in the context, not in the platform
-    assert program.kernel.max_total_local_sizes == {0: 1024, 1: 512}
+    assert program.kernel.test.max_total_local_sizes == {0: 1024, 1: 512}
 
 
 def test_keep(mock_context, capsys):

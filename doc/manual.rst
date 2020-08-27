@@ -30,7 +30,7 @@ Consider the following example, which is very similar to the one from the index 
         }
         """)
 
-    multiply_them = program.multiply_them
+    multiply_them = program.kernel.multiply_them
 
     a = numpy.random.randn(N).astype(numpy.float32)
     b = numpy.random.randn(N).astype(numpy.float32)
@@ -85,7 +85,7 @@ The template engine of choice in ``grunnur`` is `Mako <http://www.makotemplates.
             ctype=dtypes.ctype(dtype),
             mul=functions.mul(dtype, dtype)))
 
-    multiply_them = program.multiply_them
+    multiply_them = program.kernel.multiply_them
 
     r1 = numpy.random.randn(N).astype(numpy.float32)
     r2 = numpy.random.randn(N).astype(numpy.float32)

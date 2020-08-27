@@ -31,7 +31,7 @@ def check_struct_fill(context, dtype):
             dtypes=dtypes,
             dtype=dtype))
 
-    test = program.test
+    test = program.kernel.test
     queue = Queue.on_all_devices(context)
 
     a_dev = Array.empty(queue, 128, dtype)

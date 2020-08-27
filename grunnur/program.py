@@ -4,6 +4,7 @@ from math import log10
 from typing import (
     Tuple, Union, List, Dict, Optional, Iterable,
     Mapping, Generic, TypeVar, Callable, Sequence)
+import weakref
 
 import numpy
 
@@ -155,6 +156,9 @@ class Program:
     sources: Dict[int, str]
     """Source files used for each device."""
 
+    kernel: KernelHub
+    """An object whose attributes are :py:class:`~grunnur.program.Kernel` objects with the corresponding names."""
+
     def __init__(
             self,
             context: Context,
@@ -209,15 +213,7 @@ class Program:
         self.sources = sources
         self.context = context
 
-    def __getattr__(self, kernel_name: str) -> Kernel:
-        """
-        Returns a :py:class:`~grunnur.program.Kernel` object for a function (CUDA)/kernel (OpenCL)
-        with the name ``kernel_name``.
-        """
-        sd_kernel_adapters = {
-            device_idx: sd_program.get_kernel_adapter(kernel_name)
-            for device_idx, sd_program in self._sd_programs.items()}
-        return Kernel(self, sd_kernel_adapters)
+        self.kernel = KernelHub(self)
 
     def set_constant_array(
             self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
@@ -232,6 +228,26 @@ class Program:
             raise ValueError("Constant arrays are only supported for CUDA API")
         for sd_program in self._sd_programs.values():
             sd_program.set_constant_array(queue, name, arr)
+
+
+class KernelHub:
+    """
+    An object providing access to the host program's kernels.
+    """
+
+    def __init__(self, program: Program):
+        self._program_ref = weakref.ref(program)
+
+    def __getattr__(self, kernel_name: str) -> Kernel:
+        """
+        Returns a :py:class:`~grunnur.program.Kernel` object for a function (CUDA)/kernel (OpenCL)
+        with the name ``kernel_name``.
+        """
+        program = self._program_ref()
+        sd_kernel_adapters = {
+            device_idx: sd_program.get_kernel_adapter(kernel_name)
+            for device_idx, sd_program in program._sd_programs.items()}
+        return Kernel(program, sd_kernel_adapters)
 
 
 def process_arg(arg):

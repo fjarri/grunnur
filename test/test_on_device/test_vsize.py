@@ -126,7 +126,7 @@ def test_ids(context, vstest):
         """,
         render_globals=dict(static=vs.vsize_modules))
 
-    get_ids = program.get_ids
+    get_ids = program.kernel.get_ids
 
     queue = Queue.on_all_devices(context)
     local_ids = Array.empty(queue, ref.global_size, numpy.int32)
@@ -179,7 +179,7 @@ def test_sizes(context, vstest):
         """,
         render_globals=dict(vdims=vdims, static=vs.vsize_modules))
 
-    get_sizes = program.get_sizes
+    get_sizes = program.kernel.get_sizes
 
     queue = Queue.on_all_devices(context)
     sizes = Array.empty(queue, vdims * 3 + 1, numpy.int32)

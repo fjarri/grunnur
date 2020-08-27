@@ -49,7 +49,7 @@ def test_single_device(device_idx, full_len, benchmark=False):
 
     queue.synchronize()
     t1 = time.time()
-    program.sum(queue, gs, ls, a_dev, numpy.int32(pwr))
+    program.kernel.sum(queue, gs, ls, a_dev, numpy.int32(pwr))
     queue.synchronize()
     t2 = time.time()
     print(f"Single device time (device {device_idx}):", t2 - t1)
@@ -81,7 +81,7 @@ def test_multi_device(device_idxs, full_len, benchmark=False):
 
     queue.synchronize()
     t1 = time.time()
-    program.sum(queue, gs, ls, MultiDevice(a_dev_1, a_dev_2), numpy.int32(pwr), device_idxs=[0, 1])
+    program.kernel.sum(queue, gs, ls, MultiDevice(a_dev_1, a_dev_2), numpy.int32(pwr), device_idxs=[0, 1])
     queue.synchronize()
     t2 = time.time()
     print(f"Multidevice time (devices {device_idxs}):", t2 - t1)

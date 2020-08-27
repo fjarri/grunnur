@@ -97,6 +97,8 @@ Programs and kernels
 
 .. autoclass:: Program
     :members:
+
+.. autoclass:: grunnur.program.KernelHub()
     :special-members: __getattr__
 
 .. autoclass:: grunnur.program.Kernel()

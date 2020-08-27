@@ -66,14 +66,14 @@ def _test_compile(context, no_prelude, is_mocked):
     # Check that passing both Arrays and Buffers is supported
     # Pass one of the buffers as a subregion, too.
     a_dev_view = a_dev.data.get_sub_region(0, a_dev.data.size)
-    program.multiply(queue, length, None, res_dev, a_dev_view, b_dev.data, c)
+    program.kernel.multiply(queue, length, None, res_dev, a_dev_view, b_dev.data, c)
     res = res_dev.get()
     if not is_mocked:
         assert (res == ref).all()
 
     # Explicit local_size
     res2_dev = Array.from_host(queue, a) # Array.empty(queue, length, numpy.int32)
-    program.multiply(queue, length, length // 2, res2_dev, a_dev, b_dev, c)
+    program.kernel.multiply(queue, length, length // 2, res2_dev, a_dev, b_dev, c)
     res2 = res2_dev.get()
     if not is_mocked:
         assert (res2 == ref).all()
@@ -119,7 +119,7 @@ def _test_compile_multi_device(context, device_idxs, is_mocked):
     res_dev_1 = res_dev.single_device_view(d1)[:length//2]
     res_dev_2 = res_dev.single_device_view(d2)[length//2:]
 
-    program.multiply(
+    program.kernel.multiply(
         queue, length // 2, None,
         MultiDevice(res_dev_1, res_dev_2),
         MultiDevice(a_dev_1, a_dev_2),
@@ -240,7 +240,7 @@ def _test_constant_memory(context, is_mocked, is_static):
             program.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
             program.set_constant_array(queue, 'cm2', cm2) # setting from a host array
             program.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
-            copy_from_cm = lambda queue, *args: program.copy_from_cm(queue, 16, None, *args)
+            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, 16, None, *args)
 
         copy_from_cm(queue, res_dev)
     else:
@@ -249,7 +249,7 @@ def _test_constant_memory(context, is_mocked, is_static):
             copy_from_cm = StaticKernel(context, src, 'copy_from_cm', global_size=16)
         else:
             program = Program(context, src)
-            copy_from_cm = lambda queue, *args: program.copy_from_cm(queue, 16, None, *args)
+            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, 16, None, *args)
 
         copy_from_cm(queue, res_dev, cm1_dev, cm2_dev, cm3_dev)
 

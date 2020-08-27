@@ -70,7 +70,7 @@ def check_func(context, func_module, reference_func, out_dtype, in_dtypes, atol=
         return
 
     program = Program(context, full_src)
-    test = program.test
+    test = program.kernel.test
 
 
     queue = Queue.on_all_devices(context)
@@ -187,7 +187,7 @@ def test_pow_zero_base(context, out_code, in_codes):
     func_module = functions.pow(in_dtypes[0], exponent_dtype=in_dtypes[1], out_dtype=out_dtype)
     full_src = get_func_kernel(func_module, out_dtype, in_dtypes)
     program = Program(context, full_src)
-    test = program.test
+    test = program.kernel.test
 
     queue = Queue.on_all_devices(context)
     bases = Array.from_host(queue, numpy.zeros(N, in_dtypes[0]))
