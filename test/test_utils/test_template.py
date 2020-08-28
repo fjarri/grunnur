@@ -61,6 +61,29 @@ def test_template_from_string():
     assert template.get_def("test").render().strip() == "template body"
 
 
+def test_missing_def():
+    src = """
+        <%def name="test()">
+        template body
+        </%def>
+        """
+    template = Template.from_string(src)
+    with pytest.raises(AttributeError, match="Template has no def 'foo'"):
+        template.get_def("foo")
+
+
+def test_template_caching():
+    src = """
+        <%def name="test()">
+        template body
+        </%def>
+        """
+    template = Template.from_string(src)
+    def1 = template.get_def('test')
+    def2 = template.get_def('test')
+    assert def1 is def2
+
+
 def test_def_template_from_callable():
     template = DefTemplate.from_callable("test", lambda x, y: "${x} + ${y}")
     assert template.render(1, 2).strip() == "1 + 2"

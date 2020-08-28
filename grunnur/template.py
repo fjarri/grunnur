@@ -87,13 +87,22 @@ class Template:
 
     def __init__(self, mako_template: MakoTemplate):
         self._mako_template = mako_template
+        self._defs = {}
 
     def get_def(self, name: str) -> DefTemplate:
         """
         Returns the template def with the name ``name``.
         """
+        if name in self._defs:
+            return self._defs[name]
+
+        if name not in self._mako_template.list_defs():
+            raise AttributeError(f"Template has no def '{name}'")
+
         def_source = _extract_def_source(self._mako_template.source, name)
-        return DefTemplate(name, self._mako_template.get_def(name), def_source)
+        def_template = DefTemplate(name, self._mako_template.get_def(name), def_source)
+        self._defs[name] = def_template
+        return def_template
 
 
 class DefTemplate:
