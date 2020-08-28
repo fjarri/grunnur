@@ -72,7 +72,6 @@ def check_func(context, func_module, reference_func, out_dtype, in_dtypes, atol=
     program = Program(context, full_src)
     test = program.kernel.test
 
-
     queue = Queue.on_all_devices(context)
 
     arrays = [get_test_array(N, dt, no_zeros=True, high=8) for dt in in_dtypes]
@@ -495,7 +494,8 @@ def _test_mul_cast(context, out_code, in_codes, is_mocked):
         filterwarnings("ignore", "", numpy.ComplexWarning)
         mul = functions.mul(*in_dtypes, out_dtype=out_dtype)
 
-    check_func(context, mul, reference_mul, out_dtype, in_dtypes, is_mocked=is_mocked)
+    # Relax tolerance a little - in single precision the difference may sometimes go to 1e-5
+    check_func(context, mul, reference_mul, out_dtype, in_dtypes, is_mocked=is_mocked, rtol=1e-4)
 
 
 @_test_mul_cast_parameters
