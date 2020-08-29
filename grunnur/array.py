@@ -103,6 +103,10 @@ class Array:
         :param array: the source array.
         :param no_async: if `True`, the transfer blocks until completion.
         """
+        if self.shape != array.shape:
+            raise ValueError(f"Shape mismatch: expected {self.shape}, got {array.shape}")
+        if self.dtype != array.dtype:
+            raise ValueError(f"Dtype mismatch: expected {self.dtype}, got {array.dtype}")
         self.data.set(self._queue, array, no_async=no_async)
 
     def get(self, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:

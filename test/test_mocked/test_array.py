@@ -64,3 +64,15 @@ def test_custom_buffer(mock_context):
     arr_dev = Array(queue, metadata, data=bigger_data)
     res = arr_dev.get()
     assert (res == arr).all()
+
+
+def test_set_checks_shape(mock_context):
+    context = mock_context
+    queue = Queue.on_all_devices(context)
+    arr = Array.empty(queue, (10, 20), numpy.int32)
+
+    with pytest.raises(ValueError, match="Shape mismatch: expected \\(10, 20\\), got \\(10, 30\\)"):
+        arr.set(numpy.zeros((10, 30), numpy.int32))
+
+    with pytest.raises(ValueError, match="Dtype mismatch: expected int32, got int64"):
+        arr.set(numpy.zeros((10, 20), numpy.int64))
