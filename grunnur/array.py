@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Tuple, Sequence
+from typing import Optional, Callable, Tuple, Sequence, Union
 
 import numpy
 
@@ -86,28 +86,39 @@ class Array:
                 f"The device number must be one of those present in the queue ({device_nums})")
         return SingleDeviceFactory(self, device_idx)
 
-    def _view(self, slices, device_idx):
+    def _view(self, slices, device_idx=None):
         new_metadata = self._metadata[slices]
 
         origin, size, new_metadata = new_metadata.minimal_subregion()
         data = self.data.get_sub_region(origin, size)
-        data.bind(device_idx)
-        data.migrate(self._queue)
+        if device_idx is not None:
+            data.bind(device_idx)
+            data.migrate(self._queue)
 
         return Array(self._queue, new_metadata, data=data)
 
-    def set(self, array: numpy.ndarray, no_async: bool=False):
+    def set(self, array: Union[numpy.ndarray, 'Array'], no_async: bool=False):
         """
         Copy the contents of the host array to the array.
 
         :param array: the source array.
         :param no_async: if `True`, the transfer blocks until completion.
         """
+        if isinstance(array, numpy.ndarray):
+            array_data = array
+        elif isinstance(array, Array):
+            if not array._metadata.contiguous:
+                raise ValueError("Setting from a non-contiguous device array is not supported")
+            array_data = array.data
+        else:
+            raise TypeError(f"Cannot set from an object of type {type(array)}")
+
         if self.shape != array.shape:
             raise ValueError(f"Shape mismatch: expected {self.shape}, got {array.shape}")
         if self.dtype != array.dtype:
             raise ValueError(f"Dtype mismatch: expected {self.dtype}, got {array.dtype}")
-        self.data.set(self._queue, array, no_async=no_async)
+
+        self.data.set(self._queue, array_data, no_async=no_async)
 
     def get(self, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
         """
@@ -120,6 +131,12 @@ class Array:
             dest = numpy.empty(self.shape, self.dtype)
         self.data.get(self._queue, dest, async_=async_)
         return dest
+
+    def __getitem__(self, slices) -> 'Array':
+        """
+        Return a view of this array.
+        """
+        return self._view(slices)
 
 
 class SingleDeviceFactory:
@@ -136,4 +153,4 @@ class SingleDeviceFactory:
         Return a view of the parent array bound to the device this factory was created for
         (see :py:meth:`~grunnur.Array.single_device_view`).
         """
-        return self._array._view(slices, self._device_idx)
+        return self._array._view(slices, device_idx=self._device_idx)

@@ -4,11 +4,15 @@ import pytest
 from grunnur import Array, Buffer, Queue
 from grunnur.array_metadata import ArrayMetadata
 
-from ..test_on_device.test_array import _test_single_device, _test_multi_device
+from ..test_on_device.test_array import _test_single_device, _test_multi_device, _test_set_from_non_contiguous
 
 
 def test_single_device(mock_context):
     _test_single_device(context=mock_context)
+
+
+def test_set_from_non_contiguous(mock_context):
+    _test_set_from_non_contiguous(context=mock_context)
 
 
 def test_multi_device(mock_4_device_context):
@@ -76,3 +80,11 @@ def test_set_checks_shape(mock_context):
 
     with pytest.raises(ValueError, match="Dtype mismatch: expected int32, got int64"):
         arr.set(numpy.zeros((10, 20), numpy.int64))
+
+
+def test_set_from_wrong_type(mock_context):
+    context = mock_context
+    queue = Queue.on_all_devices(context)
+    arr = Array.empty(queue, (10, 20), numpy.int32)
+    with pytest.raises(TypeError, match="Cannot set from an object of type <class 'int'>"):
+        arr.set(1)

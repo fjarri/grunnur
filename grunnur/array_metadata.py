@@ -23,6 +23,9 @@ class ArrayMetadata:
     strides: Tuple[int, ...]
     """Array strides."""
 
+    is_contiguous: bool
+    """If ``True``, means that array's data forms a continuous chunk of memory."""
+
     @classmethod
     def from_arraylike(cls, array):
         return cls(
@@ -39,10 +42,16 @@ class ArrayMetadata:
         shape = wrap_in_tuple(shape)
         dtype = normalize_type(dtype)
 
+        default_strides = get_strides(shape, dtype.itemsize)
+
         if strides is None:
-            strides = get_strides(shape, dtype.itemsize)
+            strides = default_strides
+            self.contiguous = True
         else:
             strides = tuple(strides)
+            # Technically, an array with non-default (e.g., overlapping) strides
+            # can be contioguous, but that's too hard to determine.
+            self.contiguous = strides == default_strides
 
         min_offset, max_offset = get_range(shape, dtype.itemsize, strides)
         if buffer_size is None:
