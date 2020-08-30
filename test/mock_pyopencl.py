@@ -93,14 +93,16 @@ class Mock_pyopencl:
             src_size = src.size
         else:
             assert isinstance(src, numpy.ndarray)
-            src_size = src.dtype.itemsize
+            src_size = src.size * src.dtype.itemsize
 
         assert dest_size >= src_size
 
-        if isinstance(dest, Buffer) and isinstance(src, numpy.ndarray):
+        if isinstance(dest, Buffer):
             dest._set(src)
         elif isinstance(dest, numpy.ndarray) and isinstance(src, Buffer):
             src._get(dest)
+        else:
+            raise TypeError(f"Not supported: {type(dest)} and {type(src)}")
 
     def enqueue_marker(self, queue, wait_for=None):
         return Event(queue)
@@ -282,7 +284,12 @@ class Buffer:
         self._migrated_to = device
 
     def _set(self, arr):
-        data = arr.tobytes()
+        if isinstance(arr, numpy.ndarray):
+            data = arr.tobytes()
+        else:
+            full_buf = arr._buffer if arr._base_buffer is None else arr._base_buffer._buffer
+            data = full_buf[arr.offset:arr.offset + arr.size]
+
         assert len(data) <= self.size
 
         insert_data = lambda buf: buf[:self.offset] + data + buf[self.offset+len(data):]

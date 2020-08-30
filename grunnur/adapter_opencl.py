@@ -400,11 +400,14 @@ class OclBufferAdapter(BufferAdapter):
     def offset(self) -> int:
         return self.pyopencl_buffer.offset
 
-    def set(self, queue_adapter, device_idx, host_array, no_async=False):
-        wait_for = queue_adapter._other_device_events(device_idx)
+    def set(self, queue_adapter, device_idx, buf, no_async=False):
+        buf_data = buf.pyopencl_buffer if isinstance(buf, OclBufferAdapter) else buf
+        kwds = dict(wait_for=queue_adapter._other_device_events(device_idx))
+        # This keyword is only supported for transfers involving hosts in PyOpenCL
+        if not isinstance(buf, OclBufferAdapter):
+            kwds['is_blocking'] = no_async
         pyopencl.enqueue_copy(
-            queue_adapter._pyopencl_queues[device_idx], self.pyopencl_buffer, host_array,
-            wait_for=wait_for, is_blocking=no_async)
+            queue_adapter._pyopencl_queues[device_idx], self.pyopencl_buffer, buf_data, **kwds)
 
     def get(self, queue_adapter, device_idx, host_array, async_=False):
         wait_for = queue_adapter._other_device_events(device_idx)

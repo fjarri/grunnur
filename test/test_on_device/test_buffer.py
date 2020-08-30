@@ -4,7 +4,7 @@ import pytest
 from grunnur import Buffer, Queue, cuda_api_id
 
 
-def _test_allocate(context):
+def _test_allocate_and_copy(context):
     length = 100
     dtype = numpy.dtype('int32')
     size = length * dtype.itemsize
@@ -55,9 +55,33 @@ def _test_allocate(context):
         queue.synchronize()
         assert (res == arr).all()
 
+    # Device-to-device copy
+    buf2 = Buffer.allocate(context, size * 2)
+    buf2.set(queue, numpy.ones(length * 2, dtype))
+    buf2_view = buf2.get_sub_region(50 * dtype.itemsize, 100 * dtype.itemsize)
+    buf2_view.set(queue, buf)
+    res2 = numpy.empty(length * 2, dtype)
+    buf2.get(queue, res2)
+    queue.synchronize()
+    assert (res2[50:150] == arr).all()
+    assert (res2[:50] == 1).all()
+    assert (res2[150:] == 1).all()
 
-def test_allocate(context):
-    _test_allocate(context=context)
+    # Device-to-device copy (no_async)
+    buf2 = Buffer.allocate(context, size * 2)
+    buf2.set(queue, numpy.ones(length * 2, dtype))
+    buf2_view = buf2.get_sub_region(50 * dtype.itemsize, 100 * dtype.itemsize)
+    buf2_view.set(queue, buf, no_async=True)
+    res2 = numpy.empty(length * 2, dtype)
+    buf2.get(queue, res2)
+    queue.synchronize()
+    assert (res2[50:150] == arr).all()
+    assert (res2[:50] == 1).all()
+    assert (res2[150:] == 1).all()
+
+
+def test_allocate_and_copy(context):
+    _test_allocate_and_copy(context=context)
 
 
 def _test_migrate(context):

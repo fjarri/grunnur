@@ -428,7 +428,7 @@ class CuBufferAdapter(BufferAdapter):
             self._context_adapter, size,
             offset=self._offset + origin, ptr=new_ptr, base_buffer=base_buffer)
 
-    def set(self, queue_adapter, device_idx, host_array, no_async=False):
+    def set(self, queue_adapter, device_idx, buf, no_async=False):
         queue_adapter._synchronize_other_streams(device_idx)
 
         self._context_adapter.activate_device(device_idx)
@@ -437,11 +437,19 @@ class CuBufferAdapter(BufferAdapter):
         # but `memcpy` functions require Python `int`s.
         ptr = int(self._ptr) if isinstance(self._ptr, numpy.number) else self._ptr
 
-        if no_async:
-            pycuda_driver.memcpy_htod(ptr, host_array)
+        if isinstance(buf, numpy.ndarray):
+            if no_async:
+                pycuda_driver.memcpy_htod(ptr, buf)
+            else:
+                pycuda_driver.memcpy_htod_async(
+                    ptr, buf, stream=queue_adapter._pycuda_streams[device_idx])
         else:
-            pycuda_driver.memcpy_htod_async(
-                ptr, host_array, stream=queue_adapter._pycuda_streams[device_idx])
+            buf_ptr = int(buf._ptr) if isinstance(buf._ptr, numpy.number) else buf._ptr
+            if no_async:
+                pycuda_driver.memcpy_dtod(ptr, buf_ptr, buf.size)
+            else:
+                pycuda_driver.memcpy_dtod_async(
+                    ptr, buf_ptr, buf.size, stream=queue_adapter._pycuda_streams[device_idx])
 
     def get(self, queue_adapter, device_idx, host_array, async_=False):
         queue_adapter._synchronize_other_streams(device_idx)

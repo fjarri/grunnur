@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy
 
 from .adapter_base import BufferAdapter
@@ -47,18 +49,26 @@ class Buffer:
         """
         return self._buffer_adapter.size
 
-    def set(self, queue: Queue, host_array: numpy.ndarray, no_async: bool=False):
+    def set(self, queue: Queue, buf: Union[numpy.ndarray, 'Buffer'], no_async: bool=False):
         """
-        Copy the contents of the host array to the buffer.
+        Copy the contents of the host array or another buffer to this buffer.
 
         :param queue: the queue to use for the transfer.
-        :param host_array: the source array.
+        :param buf: the source - ``numpy`` array or a :py:class:`Buffer` object.
         :param no_async: if `True`, the transfer blocks until completion.
         """
         if self._device_idx is None:
             raise RuntimeError("This buffer has not been bound to any device yet")
+
+        if isinstance(buf, numpy.ndarray):
+            buf_adapter = buf
+        elif isinstance(buf, Buffer):
+            buf_adapter = buf._buffer_adapter
+        else:
+            raise TypeError(f"Cannot set from an object of type {type(buf)}")
+
         self._buffer_adapter.set(
-            queue._queue_adapter, self._device_idx, host_array, no_async=no_async)
+            queue._queue_adapter, self._device_idx, buf_adapter, no_async=no_async)
         self.migrate(queue)
 
     def get(self, queue: Queue, host_array: numpy.ndarray, async_: bool=False):

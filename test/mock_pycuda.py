@@ -219,6 +219,9 @@ class Mock_pycuda_driver:
         assert src._size >= dest.size * dest.dtype.itemsize
         src._get(dest)
 
+    def memcpy_dtod(self, dest, src, size):
+        self.memcpy_dtod_async(dest, src, size)
+
     def memcpy_dtod_async(self, dest, src, size, stream=None):
         current_context = self._backend_ref().current_context()
         dest = self.DeviceAllocation._from_memcpy_arg(dest)
@@ -227,6 +230,7 @@ class Mock_pycuda_driver:
             assert stream._context == current_context
         assert dest._size >= size
         assert src._size >= size
+        dest._set(src)
 
     def pagelocked_empty(self, shape, dtype):
         return numpy.empty(shape, dtype)
@@ -415,7 +419,10 @@ def make_device_allocation_class(backend):
             self._owns_buffer = owns_buffer
 
         def _set(self, arr):
-            data = arr.tobytes()
+            if isinstance(arr, numpy.ndarray):
+                data = arr.tobytes()
+            else:
+                data = self._backend_ref().get_allocation_buffer(arr._idx, arr._offset, arr._size)
             assert len(data) <= self._size
             self._backend_ref().set_allocation_buffer(self._idx, self._offset, data)
 

@@ -1,10 +1,12 @@
-from grunnur import API, Context, Buffer
+import pytest
 
-from ..test_on_device.test_buffer import _test_allocate, _test_migrate
+from grunnur import API, Context, Buffer, Queue
+
+from ..test_on_device.test_buffer import _test_allocate_and_copy, _test_migrate
 
 
-def test_allocate(mock_context):
-    _test_allocate(context=mock_context)
+def test_allocate_and_copy(mock_context):
+    _test_allocate_and_copy(context=mock_context)
 
 
 def test_migrate(mock_4_device_context):
@@ -40,3 +42,10 @@ def test_flags(mock_backend_pyopencl):
     context = Context.from_devices([api.platforms[1].devices[0], api.platforms[1].devices[1]])
     buf = Buffer.allocate(context, 100)
     assert buf._buffer_adapter.pyopencl_buffer.flags == normal_flags
+
+
+def test_set_from_wrong_type(mock_context):
+    buf = Buffer.allocate(mock_context, 100)
+    queue = Queue.on_all_devices(mock_context)
+    with pytest.raises(TypeError, match="Cannot set from an object of type <class 'int'>"):
+        buf.set(queue, 1)
