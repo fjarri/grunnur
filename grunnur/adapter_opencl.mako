@@ -10,19 +10,19 @@
 
 // 'static' helps to avoid the "no previous prototype for function" warning
 #if __OPENCL_VERSION__ >= 120
-#define WITHIN_KERNEL static
+#define FUNCTION static
 #else
-#define WITHIN_KERNEL
+#define FUNCTION
 #endif
 
 #define KERNEL __kernel
 #define GLOBAL_MEM __global
 #define GLOBAL_MEM_ARG __global
-#define LOCAL_MEM __local
+#define LOCAL_MEM_DECL __local
 #define LOCAL_MEM_DYNAMIC __local
-#define LOCAL_MEM_ARG __local
+#define LOCAL_MEM __local
+#define CONSTANT_MEM_DECL __constant
 #define CONSTANT_MEM __constant
-#define CONSTANT_MEM_ARG __constant
 // INLINE is already defined in Beignet driver
 #ifndef INLINE
 #define INLINE inline

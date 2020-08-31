@@ -8,15 +8,15 @@
 
 #define LOCAL_BARRIER __syncthreads()
 
-#define WITHIN_KERNEL __device__
+#define FUNCTION __device__
 #define KERNEL extern "C" __global__
 #define GLOBAL_MEM /* empty */
 #define GLOBAL_MEM_ARG /* empty */
-#define LOCAL_MEM __shared__
+#define LOCAL_MEM_DECL __shared__
 #define LOCAL_MEM_DYNAMIC extern __shared__
-#define LOCAL_MEM_ARG /* empty */
-#define CONSTANT_MEM __constant__
-#define CONSTANT_MEM_ARG /* empty */
+#define LOCAL_MEM /* empty */
+#define CONSTANT_MEM_DECL __constant__
+#define CONSTANT_MEM /* empty */
 #define INLINE __forceinline__
 #define SIZE_T int
 #define VSIZE_T int
@@ -28,7 +28,7 @@
     dimnames = ['x', 'y', 'z']
 %>
 
-WITHIN_KERNEL SIZE_T get_local_id(unsigned int dim)
+FUNCTION SIZE_T get_local_id(unsigned int dim)
 {
 %for n in range(3):
     if(dim == ${n}) return threadIdx.${dimnames[n]};
@@ -36,7 +36,7 @@ WITHIN_KERNEL SIZE_T get_local_id(unsigned int dim)
     return 0;
 }
 
-WITHIN_KERNEL SIZE_T get_group_id(unsigned int dim)
+FUNCTION SIZE_T get_group_id(unsigned int dim)
 {
 %for n in range(3):
     if(dim == ${n}) return blockIdx.${dimnames[n]};
@@ -44,7 +44,7 @@ WITHIN_KERNEL SIZE_T get_group_id(unsigned int dim)
     return 0;
 }
 
-WITHIN_KERNEL SIZE_T get_local_size(unsigned int dim)
+FUNCTION SIZE_T get_local_size(unsigned int dim)
 {
 %for n in range(3):
     if(dim == ${n}) return blockDim.${dimnames[n]};
@@ -52,7 +52,7 @@ WITHIN_KERNEL SIZE_T get_local_size(unsigned int dim)
     return 1;
 }
 
-WITHIN_KERNEL SIZE_T get_num_groups(unsigned int dim)
+FUNCTION SIZE_T get_num_groups(unsigned int dim)
 {
 %for n in range(3):
     if(dim == ${n}) return gridDim.${dimnames[n]};
@@ -60,12 +60,12 @@ WITHIN_KERNEL SIZE_T get_num_groups(unsigned int dim)
     return 1;
 }
 
-WITHIN_KERNEL SIZE_T get_global_size(unsigned int dim)
+FUNCTION SIZE_T get_global_size(unsigned int dim)
 {
     return get_num_groups(dim) * get_local_size(dim);
 }
 
-WITHIN_KERNEL SIZE_T get_global_id(unsigned int dim)
+FUNCTION SIZE_T get_global_id(unsigned int dim)
 {
     return get_local_id(dim) + get_group_id(dim) * get_local_size(dim);
 }
@@ -74,16 +74,16 @@ WITHIN_KERNEL SIZE_T get_global_id(unsigned int dim)
 
 ## These operators are supported by OpenCL
 %for tp in ('float2', 'double2'):
-    WITHIN_KERNEL ${tp} operator+(${tp} a, ${tp} b)
+    FUNCTION ${tp} operator+(${tp} a, ${tp} b)
     {
         return COMPLEX_CTR(${tp})(a.x + b.x, a.y + b.y);
     }
-    WITHIN_KERNEL ${tp} operator-(${tp} a, ${tp} b)
+    FUNCTION ${tp} operator-(${tp} a, ${tp} b)
     {
         return COMPLEX_CTR(${tp})(a.x - b.x, a.y - b.y);
     }
-    WITHIN_KERNEL ${tp} operator+(${tp} a) { return a; }
-    WITHIN_KERNEL ${tp} operator-(${tp} a) { return COMPLEX_CTR(${tp})(-a.x, -a.y); }
+    FUNCTION ${tp} operator+(${tp} a) { return a; }
+    FUNCTION ${tp} operator-(${tp} a) { return COMPLEX_CTR(${tp})(-a.x, -a.y); }
 %endfor
 </%def>
 
@@ -94,7 +94,7 @@ WITHIN_KERNEL SIZE_T get_global_id(unsigned int dim)
 <%
     length, dtype = constant_arrays[name]
 %>
-CONSTANT_MEM ${dtypes.ctype(dtype)} ${name}[${length}];
+CONSTANT_MEM_DECL ${dtypes.ctype(dtype)} ${name}[${length}];
 %endfor
 %endif
 </%def>

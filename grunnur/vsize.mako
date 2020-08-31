@@ -4,7 +4,7 @@
 
 
 <%def name="local_id(prefix)">
-WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
+FUNCTION VSIZE_T ${prefix}(unsigned int dim)
 {
     %for vdim in range(len(virtual_local_size)):
     if (dim == ${vdim_inverse(len(virtual_local_size), vdim)})
@@ -42,7 +42,7 @@ WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
 
 
 <%def name="local_size(prefix)">
-WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
+FUNCTION VSIZE_T ${prefix}(unsigned int dim)
 {
     %for vdim in range(len(virtual_local_size)):
     if (dim == ${vdim_inverse(len(virtual_local_size), vdim)})
@@ -57,7 +57,7 @@ WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
 
 
 <%def name="group_id(prefix)">
-WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
+FUNCTION VSIZE_T ${prefix}(unsigned int dim)
 {
     %for vdim in range(len(virtual_grid_size)):
     if (dim == ${vdim_inverse(len(virtual_grid_size), vdim)})
@@ -95,7 +95,7 @@ WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
 
 
 <%def name="num_groups(prefix)">
-WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
+FUNCTION VSIZE_T ${prefix}(unsigned int dim)
 {
     %for vdim in range(len(virtual_grid_size)):
     if (dim == ${vdim_inverse(len(virtual_grid_size), vdim)})
@@ -110,7 +110,7 @@ WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
 
 
 <%def name="global_id(prefix)">
-WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
+FUNCTION VSIZE_T ${prefix}(unsigned int dim)
 {
     return ${local_id_mod}(dim) + ${group_id_mod}(dim) * ${local_size_mod}(dim);
 }
@@ -118,7 +118,7 @@ WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
 
 
 <%def name="global_size(prefix)">
-WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
+FUNCTION VSIZE_T ${prefix}(unsigned int dim)
 {
     %for vdim in range(len(virtual_global_size)):
     if(dim == ${vdim_inverse(len(virtual_global_size), vdim)})
@@ -133,7 +133,7 @@ WITHIN_KERNEL VSIZE_T ${prefix}(unsigned int dim)
 
 
 <%def name="global_flat_id(prefix)">
-WITHIN_KERNEL VSIZE_T ${prefix}()
+FUNCTION VSIZE_T ${prefix}()
 {
     return
     %for vdim in range(len(virtual_global_size)):
@@ -145,7 +145,7 @@ WITHIN_KERNEL VSIZE_T ${prefix}()
 
 
 <%def name="global_flat_size(prefix)">
-WITHIN_KERNEL VSIZE_T ${prefix}()
+FUNCTION VSIZE_T ${prefix}()
 {
     return
     %for vdim in range(len(virtual_global_size)):
@@ -157,7 +157,7 @@ WITHIN_KERNEL VSIZE_T ${prefix}()
 
 
 <%def name="skip_local_threads(prefix)">
-WITHIN_KERNEL bool ${prefix}()
+FUNCTION bool ${prefix}()
 {
     %for threshold, strides in local_groups.skip_thresholds:
     {
@@ -178,7 +178,7 @@ WITHIN_KERNEL bool ${prefix}()
 
 
 <%def name="skip_groups(prefix)">
-WITHIN_KERNEL bool ${prefix}()
+FUNCTION bool ${prefix}()
 {
     %for threshold, strides in grid_groups.skip_thresholds:
     {
@@ -199,7 +199,7 @@ WITHIN_KERNEL bool ${prefix}()
 
 
 <%def name="skip_global_threads(prefix)">
-WITHIN_KERNEL bool ${prefix}()
+FUNCTION bool ${prefix}()
 {
     %for vdim in range(len(virtual_global_size)):
     %if virtual_global_size[vdim] < bounding_global_size[vdim]:

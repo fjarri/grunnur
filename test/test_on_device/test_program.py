@@ -164,9 +164,9 @@ SRC_CONSTANT_MEM = """
 KERNEL void copy_from_cm(
     GLOBAL_MEM int *dest
 #ifdef GRUNNUR_OPENCL_API
-    , CONSTANT_MEM_ARG int *cm1
-    , CONSTANT_MEM_ARG int *cm2
-    , CONSTANT_MEM_ARG int *cm3
+    , CONSTANT_MEM int *cm1
+    , CONSTANT_MEM int *cm2
+    , CONSTANT_MEM int *cm3
 #endif
     )
 {
@@ -180,9 +180,9 @@ SRC_CONSTANT_MEM_STATIC = """
 KERNEL void copy_from_cm(
     GLOBAL_MEM int *dest
 #ifdef GRUNNUR_OPENCL_API
-    , CONSTANT_MEM_ARG int *cm1
-    , CONSTANT_MEM_ARG int *cm2
-    , CONSTANT_MEM_ARG int *cm3
+    , CONSTANT_MEM int *cm1
+    , CONSTANT_MEM int *cm2
+    , CONSTANT_MEM int *cm3
 #endif
     )
 {

@@ -68,7 +68,7 @@ Consider a module containing a single function:
 
     add = Module.from_callable(
         lambda prefix, arg: """
-        WITHIN_KERNEL int ${prefix}(int x)
+        FUNCTION int ${prefix}(int x)
         {
             return x + ${num} + ${arg};
         }
@@ -107,7 +107,7 @@ With the code above, the rendered module will produce the code
 
 ::
 
-    WITHIN_KERNEL int _mod_foobar_0_(int x)
+    FUNCTION int _mod_foobar_0_(int x)
     {
         return x + 1 + 2;
     }
@@ -117,7 +117,7 @@ Then the main code is rendered and appended to the previously renderd parts, giv
 
 ::
 
-    WITHIN_KERNEL int _mod_foobar_0_(int x)
+    FUNCTION int _mod_foobar_0_(int x)
     {
         return x + 1 + 2;
     }
@@ -167,7 +167,7 @@ Alternatively, one can create a snippet with no parameters or a module with a si
 ::
 
     add = Module.from_string("""
-        WITHIN_KERNEL int ${prefix}(int x)
+        FUNCTION int ${prefix}(int x)
         {
             return x + ${num};
         }

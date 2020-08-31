@@ -1,5 +1,5 @@
 <%def name="cast(prefix)">
-WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(${dtypes.ctype(in_dtype)} x)
+FUNCTION ${dtypes.ctype(out_dtype)} ${prefix}(${dtypes.ctype(in_dtype)} x)
 {
 <%
     if dtypes.is_complex(out_dtype) and not dtypes.is_complex(in_dtype):
@@ -22,7 +22,7 @@ WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(${dtypes.ctype(in_dtype)} x)
     assert op in ('add', 'mul')
     argnames = ["a" + str(i + 1) for i in range(len(in_dtypes))]
 %>
-WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(
+FUNCTION ${dtypes.ctype(out_dtype)} ${prefix}(
     ${", ".join(dtypes.ctype(dt) + " " + name for name, dt in zip(argnames, in_dtypes))})
 {
 <%
@@ -93,7 +93,7 @@ WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(
 
 
 <%def name="div(prefix)">
-WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(
+FUNCTION ${dtypes.ctype(out_dtype)} ${prefix}(
     ${dtypes.ctype(dividend_dtype)} a, ${dtypes.ctype(divisor_dtype)} b)
 {
 <%
@@ -128,7 +128,7 @@ WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(
         out_dtype = dtype
         result = "a * a"
 %>
-WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
+FUNCTION ${dtypes.ctype(out_dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
 {
     return ${result};
 }
@@ -136,7 +136,7 @@ WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
 
 
 <%def name="conj(prefix)">
-WITHIN_KERNEL ${dtypes.ctype(dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
+FUNCTION ${dtypes.ctype(dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
 {
     %if dtypes.is_complex(dtype):
     return ${dtypes.complex_ctr(dtype) + "(a.x, -a.y)"};
@@ -152,7 +152,7 @@ WITHIN_KERNEL ${dtypes.ctype(dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
     c_ctype = dtypes.ctype(dtypes.complex_for(dtype))
     s_ctype = dtypes.ctype(dtype)
 %>
-WITHIN_KERNEL ${c_ctype} ${prefix}(${s_ctype} theta)
+FUNCTION ${c_ctype} ${prefix}(${s_ctype} theta)
 {
     ${dtypes.ctype(dtypes.complex_for(dtype))} res;
 
@@ -180,7 +180,7 @@ WITHIN_KERNEL ${c_ctype} ${prefix}(${s_ctype} theta)
 
 
 <%def name="exp(prefix)">
-WITHIN_KERNEL ${dtypes.ctype(dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
+FUNCTION ${dtypes.ctype(dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
 {
     %if dtypes.is_real(dtype):
     return exp(a);
@@ -200,7 +200,7 @@ WITHIN_KERNEL ${dtypes.ctype(dtype)} ${prefix}(${dtypes.ctype(dtype)} a)
     base_ctype = dtypes.ctype(out_dtype)
     exp_ctype = dtypes.ctype(exponent_dtype)
 %>
-WITHIN_KERNEL ${base_ctype} ${prefix}(${dtypes.ctype(base_dtype)} orig_base, ${exp_ctype} e)
+FUNCTION ${base_ctype} ${prefix}(${dtypes.ctype(base_dtype)} orig_base, ${exp_ctype} e)
 {
     %if out_dtype != base_dtype:
     ${base_ctype} base = ${cast_}(orig_base);
@@ -260,7 +260,7 @@ WITHIN_KERNEL ${base_ctype} ${prefix}(${dtypes.ctype(base_dtype)} orig_base, ${e
 <%
     out_dtype = dtypes.complex_for(dtype)
 %>
-WITHIN_KERNEL ${dtypes.ctype(out_dtype)} ${prefix}(
+FUNCTION ${dtypes.ctype(out_dtype)} ${prefix}(
     ${dtypes.ctype(dtype)} rho, ${dtypes.ctype(dtype)} theta)
 {
     ${dtypes.ctype(out_dtype)} res = ${polar_unit_}(theta);

@@ -246,7 +246,7 @@ There is a set of macros attached to any kernel depending on the API it is being
 
     Synchronizes threads inside a block.
 
-.. c:macro:: WITHIN_KERNEL
+.. c:macro:: FUNCTION
 
     Modifier for a device-only function declaration.
 
@@ -258,23 +258,23 @@ There is a set of macros attached to any kernel depending on the API it is being
 
     Modifier for a global memory pointer argument.
 
-.. c:macro:: LOCAL_MEM
+.. c:macro:: LOCAL_MEM_DECL
 
     Modifier for a statically allocated local memory variable.
 
 .. c:macro:: LOCAL_MEM_DYNAMIC
 
-    Modifier for a dynamically allocated local memory variable.
+    Modifier for a dynamically allocated local memory variable (CUDA only).
 
-.. c:macro:: LOCAL_MEM_ARG
+.. c:macro:: LOCAL_MEM
 
     Modifier for a local memory argument in device-only functions.
 
-.. c:macro:: CONSTANT_MEM
+.. c:macro:: CONSTANT_MEM_DECL
 
     Modifier for a statically allocated constant memory variable.
 
-.. c:macro:: CONSTANT_MEM_ARG
+.. c:macro:: CONSTANT_MEM
 
     Modifier for a constant memory argument in device-only functions.
 
