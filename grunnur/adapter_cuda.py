@@ -20,7 +20,7 @@ from . import dtypes
 from .adapter_base import (
     APIID, DeviceType, APIAdapterFactory, APIAdapter, PlatformAdapter, DeviceAdapter,
     DeviceParameters, ContextAdapter, BufferAdapter, QueueAdapter, ProgramAdapter, KernelAdapter,
-    AdapterCompilationError)
+    AdapterCompilationError, PreparedKernelAdapter)
 
 
 # Another way would be to place it in the try block and only set `_avaialable`
@@ -368,7 +368,7 @@ class CuContextAdapter(ContextAdapter):
         except pycuda_driver.CompileError as e:
             raise AdapterCompilationError(e, full_src)
 
-        return CuProgram(self, device_idx, module, full_src)
+        return CuProgramAdapter(self, device_idx, module, full_src)
 
     def allocate(self, size):
         managed = len(self._device_adapters) > 1
@@ -512,7 +512,7 @@ class CuQueueAdapter(QueueAdapter):
                 pycuda_stream.synchronize()
 
 
-class CuProgram(ProgramAdapter):
+class CuProgramAdapter(ProgramAdapter):
 
     def __init__(self, context_adapter, device_idx, pycuda_program, source):
         self._context_adapter = context_adapter
@@ -522,7 +522,7 @@ class CuProgram(ProgramAdapter):
 
     def __getattr__(self, kernel_name):
         pycuda_kernel = self._pycuda_program.get_function(kernel_name)
-        return CuKernel(self, self._device_idx, pycuda_kernel)
+        return CuKernelAdapter(self, self._device_idx, pycuda_kernel)
 
     def set_constant_buffer(
             self, queue_adapter: CuQueueAdapter,
@@ -561,24 +561,39 @@ class CuProgram(ProgramAdapter):
             pycuda_driver.memcpy_htod_async(symbol, buf, stream=pycuda_stream)
 
 
+class CuKernelAdapter(KernelAdapter):
 
-class CuKernel(KernelAdapter):
-
-    def __init__(self, program_adapter, device_idx, pycuda_function):
+    def __init__(self, program_adapter: CuProgramAdapter, device_idx: int, pycuda_function):
         self._program_adapter = program_adapter
         self._device_idx = device_idx
         self._pycuda_function = pycuda_function
 
     @property
-    def max_total_local_size(self):
+    def max_total_local_size(self) -> int:
         return self._pycuda_function.get_attribute(
             pycuda_driver.function_attribute.MAX_THREADS_PER_BLOCK)
 
-    def __call__(
-            self, queue_adapter, global_size: Tuple[int, ...],
-            local_size: Tuple[int, ...], *args, local_mem=0):
+    def prepare(
+            self, queue_adapter: CuQueueAdapter, global_size: Tuple[int, ...],
+            local_size: Tuple[int, ...]) -> CuPreparedKernelAdapter:
+        return CuPreparedKernelAdapter(self, queue_adapter, global_size, local_size)
 
-        device_adapter = queue_adapter.device_adapters[self._device_idx]
+    def __call__(
+            self, queue_adapter: CuQueueAdapter, global_size: Tuple[int, ...],
+            local_size: Tuple[int, ...], *args, local_mem=0):
+        pkernel = self.prepare(queue_adapter, global_size, local_size)
+        return pkernel(*args, local_mem=0)
+
+
+class CuPreparedKernelAdapter(PreparedKernelAdapter):
+
+    def __init__(
+            self, kernel_adapter: CuKernelAdapter,
+            queue_adapter: CuQueueAdapter,
+            global_size: Tuple[int, ...],
+            local_size: Tuple[int, ...]):
+
+        device_adapter = queue_adapter.device_adapters[kernel_adapter._device_idx]
 
         grid, block = get_launch_size(
             device_adapter.params.max_local_sizes,
@@ -587,10 +602,15 @@ class CuKernel(KernelAdapter):
 
         # append missing dimensions, otherwise PyCUDA will complain
         max_dims = len(device_adapter.params.max_local_sizes)
-        block = block + (1,) * (max_dims - len(block))
-        grid = grid + (1,) * (max_dims - len(grid))
+        self._block = block + (1,) * (max_dims - len(block))
+        self._grid = grid + (1,) * (max_dims - len(grid))
 
-        self._program_adapter._context_adapter.activate_device(self._device_idx)
-        self._pycuda_function(
-            *args, grid=grid, block=block, stream=queue_adapter._pycuda_streams[self._device_idx],
-            shared=local_mem)
+        self._context_adapter = queue_adapter._context_adapter
+        self._device_idx = kernel_adapter._device_idx
+        self._pycuda_stream = queue_adapter._pycuda_streams[self._device_idx]
+        self._pycuda_function = kernel_adapter._pycuda_function
+
+    def __call__(self, *args, local_mem: int=0):
+        self._context_adapter.activate_device(self._device_idx)
+        return self._pycuda_function(
+            *args, grid=self._grid, block=self._block, stream=self._pycuda_stream, shared=local_mem)

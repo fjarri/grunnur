@@ -16,7 +16,7 @@ from . import dtypes
 from .adapter_base import (
     DeviceType, APIID, APIAdapterFactory, APIAdapter, PlatformAdapter, DeviceAdapter,
     DeviceParameters, ContextAdapter, BufferAdapter, QueueAdapter, ProgramAdapter, KernelAdapter,
-    AdapterCompilationError)
+    AdapterCompilationError, PreparedKernelAdapter)
 
 
 _API_ID = APIID('opencl')
@@ -365,7 +365,7 @@ class OclContextAdapter(ContextAdapter):
         except pyopencl.RuntimeError as e:
             raise AdapterCompilationError(e, full_src)
 
-        return OclProgram(self, device_idx, pyopencl_program, full_src)
+        return OclProgramAdapter(self, device_idx, pyopencl_program, full_src)
 
     def make_queue_adapter(self, device_idxs):
         device_adapters = {
@@ -446,7 +446,7 @@ class OclQueueAdapter(QueueAdapter):
             pyopencl_queue.finish()
 
 
-class OclProgram(ProgramAdapter):
+class OclProgramAdapter(ProgramAdapter):
 
     def __init__(self, context_adapter, device_idx, pyopencl_program, source):
         self._context_adapter = context_adapter
@@ -456,22 +456,46 @@ class OclProgram(ProgramAdapter):
 
     def __getattr__(self, kernel_name):
         pyopencl_kernel = getattr(self._pyopencl_program, kernel_name)
-        return OclKernel(self, self._device_idx, pyopencl_kernel)
+        return OclKernelAdapter(self, self._device_idx, pyopencl_kernel)
 
 
-class OclKernel(KernelAdapter):
+class OclKernelAdapter(KernelAdapter):
 
-    def __init__(self, program_adapter, device_idx, pyopencl_kernel):
+    def __init__(self, program_adapter: OclProgramAdapter, device_idx: int, pyopencl_kernel):
         self._program_adapter = program_adapter
         self._device_idx = device_idx
         self._pyopencl_kernel = pyopencl_kernel
 
+    def prepare(
+            self, queue_adapter: OclQueueAdapter, global_size: Tuple[int, ...],
+            local_size: Tuple[int, ...]) -> OclPreparedKernelAdapter:
+        return OclPreparedKernelAdapter(self, queue_adapter, global_size, local_size)
+
     @property
-    def max_total_local_size(self):
+    def max_total_local_size(self) -> int:
         return self._pyopencl_kernel.get_work_group_info(
             pyopencl.kernel_work_group_info.WORK_GROUP_SIZE,
             self._program_adapter._context_adapter.device_adapters[self._device_idx].pyopencl_device)
 
-    def __call__(self, queue_adapter, global_size, local_size, *args):
+    def __call__(
+            self, queue_adapter: OclQueueAdapter,
+            global_size: Tuple[int, ...], local_size: Tuple[int, ...], *args):
+        pkernel = self.prepare(queue_adapter, global_size, local_size)
+        return pkernel(*args)
+
+
+class OclPreparedKernelAdapter(PreparedKernelAdapter):
+
+    def __init__(
+            self, kernel_adapter: OclKernelAdapter,
+            queue_adapter: OclQueueAdapter, global_size: Tuple[int, ...],
+            local_size: Tuple[int, ...]):
+        self._kernel_adapter = kernel_adapter
+        self._local_size = local_size
+        self._global_size = global_size
+        self._pyopencl_kernel = kernel_adapter._pyopencl_kernel
+        self._pyopencl_queue = queue_adapter._pyopencl_queues[kernel_adapter._device_idx]
+
+    def __call__(self, *args):
         return self._pyopencl_kernel(
-            queue_adapter._pyopencl_queues[self._device_idx], global_size, local_size, *args)
+            self._pyopencl_queue, self._global_size, self._local_size, *args)

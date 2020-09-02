@@ -361,7 +361,7 @@ class AdapterCompilationError(RuntimeError):
 class ProgramAdapter(ABC):
 
     @abstractmethod
-    def __getattr__(self, kernel_name):
+    def __getattr__(self, kernel_name: str) -> KernelAdapter:
         pass
 
 
@@ -369,9 +369,24 @@ class KernelAdapter(ABC):
 
     @property
     @abstractmethod
-    def max_total_local_size(self):
+    def max_total_local_size(self) -> int:
         pass
 
     @abstractmethod
-    def __call__(self, queue_adapter, global_size, local_size, *args, local_mem=0):
+    def prepare(
+            self, queue_adapter: QueueAdapter,
+            global_size: Tuple[int, ...], local_size: Tuple[int, ...]):
+        pass
+
+    @abstractmethod
+    def __call__(
+            self, queue_adapter: QueueAdapter, global_size: Tuple[int, ...],
+            local_size: Tuple[int, ...], *args, local_mem: int=0):
+        pass
+
+
+class PreparedKernelAdapter(ABC):
+
+    @abstractmethod
+    def __call__(self, *args, local_mem: int=0):
         pass
