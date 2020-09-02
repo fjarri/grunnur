@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import os.path
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Dict
 import re
 import warnings
 
@@ -87,7 +87,7 @@ class Template:
 
     def __init__(self, mako_template: MakoTemplate):
         self._mako_template = mako_template
-        self._defs = {}
+        self._defs: Dict[str, DefTemplate] = {}
 
     def get_def(self, name: str) -> DefTemplate:
         """
