@@ -477,12 +477,6 @@ class OclKernelAdapter(KernelAdapter):
             pyopencl.kernel_work_group_info.WORK_GROUP_SIZE,
             self._program_adapter._context_adapter.device_adapters[self._device_idx].pyopencl_device)
 
-    def __call__(
-            self, queue_adapter: OclQueueAdapter,
-            global_size: Tuple[int, ...], local_size: Tuple[int, ...], *args):
-        pkernel = self.prepare(queue_adapter, global_size, local_size)
-        return pkernel(*args)
-
 
 class OclPreparedKernelAdapter(PreparedKernelAdapter):
 

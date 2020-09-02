@@ -258,40 +258,78 @@ def process_arg(arg):
     return arg
 
 
-def _call_kernels(
-        queue: Queue,
-        sd_kernel_adapters,
-        global_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]]],
-        local_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None],
-        *args,
-        device_idxs: Optional[Sequence[int]]=None,
-        **kwds):
+class PreparedKernel:
+    """
+    A kernel specialized for execution on a given queue
+    with all possible preparations and checks performed.
+    """
 
-    if device_idxs is None:
-        device_idxs = queue.device_idxs
+    def __init__(
+            self,
+            sd_kernel_adapters: Dict[int, KernelAdapter],
+            queue: Queue,
+            device_idxs: Tuple[int],
+            global_sizes: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]]],
+            local_sizes: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None],
+            hold_reference=None):
 
-    if not all(device_idx in sd_kernel_adapters for device_idx in device_idxs):
-        missing_dev_nums = [
-            str(device_idx) for device_idx in device_idxs if device_idx not in sd_kernel_adapters]
-        raise ValueError(
-            f"This kernel's program was not compiled for devices {', '.join(missing_dev_nums)}")
+        # If this object can be used by itself (e.g. when created from `Kernel.prepare()`),
+        # this attribute will hold thre reference to the original `Kernel`.
+        # On the other hand, in `StaticKernel` the object is used internally,
+        # and holding a reference to the parent `StaticKernel` here will result in a reference cycle.
+        # So `StaticKernel` will just pass `None`.
+        self._hold_reference = hold_reference
 
-    ret_vals = []
-    for i, device_idx in enumerate(device_idxs):
-        kernel_args = [arg.values[i] if isinstance(arg, MultiDevice) else arg for arg in args]
-        kernel_args = [process_arg(arg) for arg in kernel_args]
+        if not all(device_idx in sd_kernel_adapters for device_idx in device_idxs):
+            missing_dev_nums = [
+                str(device_idx) for device_idx in device_idxs if device_idx not in sd_kernel_adapters]
+            raise ValueError(
+                f"This kernel's program was not compiled for devices {', '.join(missing_dev_nums)}")
 
-        _kernel_ls = local_size.values[i] if isinstance(local_size, MultiDevice) else local_size
-        _kernel_gs = global_size.values[i] if isinstance(global_size, MultiDevice) else global_size
+        self._prepared_kernel_adapters = {}
+        self._device_idxs = device_idxs
 
-        kernel_ls = wrap_in_tuple(_kernel_ls) if _kernel_ls is not None else _kernel_ls
-        kernel_gs = wrap_in_tuple(_kernel_gs)
+        for i, device_idx in enumerate(device_idxs):
+            _kernel_ls = local_sizes.values[i] if isinstance(local_sizes, MultiDevice) else local_sizes
+            _kernel_gs = global_sizes.values[i] if isinstance(global_sizes, MultiDevice) else global_sizes
 
-        ret_val = sd_kernel_adapters[device_idx](
-            queue._queue_adapter, kernel_gs, kernel_ls, *kernel_args, **kwds)
-        ret_vals.append(ret_val)
+            kernel_ls = wrap_in_tuple(_kernel_ls) if _kernel_ls is not None else _kernel_ls
+            kernel_gs = wrap_in_tuple(_kernel_gs)
 
-    return ret_vals
+            pkernel = sd_kernel_adapters[device_idx].prepare(
+                queue._queue_adapter, kernel_gs, kernel_ls)
+
+            self._prepared_kernel_adapters[device_idx] = pkernel
+
+    def __call__(self, *args, device_idxs: Iterable[int]=None, **kwds):
+        """
+        Enqueues the kernel on the chosen devices.
+
+        :param args: kernel arguments. Can be: :py:class:`~grunnur.Array` objects,
+            :py:class:`~grunnur.Buffer` objects, ``numpy`` scalars.
+        :param device_idxs: the devices to enqueue the kernel on
+            (*in the context, not in the queue*). Must be a subset of the devices of the ``queue``
+            used for preparation.
+            If ``None``, all the ``queue``'s devices are used.
+            Note that the used devices must be among the ones the parent
+            :py:class:`~grunnur.Program` was compiled for.
+        :param kwds: backend-specific keyword parameters.
+        :returns: a list of ``Event`` objects for enqueued kernels in case of PyOpenCL.
+        """
+
+        if device_idxs is None:
+            device_idxs = self._device_idxs
+
+        ret_vals = []
+        for i, device_idx in enumerate(device_idxs):
+            kernel_args = [arg.values[i] if isinstance(arg, MultiDevice) else arg for arg in args]
+            kernel_args = [process_arg(arg) for arg in kernel_args]
+
+            pkernel = self._prepared_kernel_adapters[device_idx]
+            ret_val = pkernel(*kernel_args, **kwds)
+            ret_vals.append(ret_val)
+
+        return ret_vals
 
 
 class Kernel:
@@ -314,16 +352,14 @@ class Kernel:
             device_idx: sd_kernel_adapter.max_total_local_size
             for device_idx, sd_kernel_adapter in self._sd_kernel_adapters.items()}
 
-    def __call__(
+    def prepare(
             self,
             queue: Queue,
             global_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]]],
-            local_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None],
-            *args,
-            device_idxs: Optional[Sequence[int]]=None,
-            **kwds):
+            local_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None]
+            ) -> PreparedKernel:
         """
-        Enqueues the kernel on the chosen devices.
+        Prepares the kernel for execution.
 
         :param queue: the multi-device queue to use.
         :param global_size: the total number of threads (CUDA)/work items (OpenCL) in each dimension
@@ -332,15 +368,21 @@ class Kernel:
         :param local_size: the number of threads in a block (CUDA)/work items in a
             work group (OpenCL) in each dimension (column-major).
             If ``None``, it will be chosen automatically.
-        :param args: kernel arguments. Can be: :py:class:`~grunnur.Array` objects,
-            :py:class:`~grunnur.Buffer` objects, ``numpy`` scalars.
-        :param device_idxs: the devices to enqueue the kernel on
-            (*in the context, not in the queue*). Must be a subset of the devices of the ``queue``.
-            If ``None``, all the ``queue``'s devices are used.
-            Note that the used devices must be among the ones the parent
-            :py:class:`~grunnur.Program` was compiled for.
-        :param kwds: backend-specific keyword parameters.
         """
-        return _call_kernels(
-            queue, self._sd_kernel_adapters, global_size, local_size, *args,
-            device_idxs=device_idxs, **kwds)
+        return PreparedKernel(
+            self._sd_kernel_adapters, queue, queue.device_idxs, global_size, local_size,
+            hold_reference=self)
+
+    def __call__(
+            self,
+            queue: Queue,
+            global_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]]],
+            local_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None],
+            *args,
+            **kwds):
+        """
+        A shortcut for :py:meth:`Kernel.prepare` and subsequent :py:meth:`PreparedKernel.__call__`.
+        See their doc entries for details.
+        """
+        pkernel = self.prepare(queue, global_size, local_size)
+        return pkernel(*args, **kwds)

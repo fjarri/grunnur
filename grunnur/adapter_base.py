@@ -378,12 +378,6 @@ class KernelAdapter(ABC):
             global_size: Tuple[int, ...], local_size: Tuple[int, ...]):
         pass
 
-    @abstractmethod
-    def __call__(
-            self, queue_adapter: QueueAdapter, global_size: Tuple[int, ...],
-            local_size: Tuple[int, ...], *args, local_mem: int=0):
-        pass
-
 
 class PreparedKernelAdapter(ABC):
 

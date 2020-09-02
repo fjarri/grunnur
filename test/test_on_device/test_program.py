@@ -78,6 +78,13 @@ def _test_compile(context, no_prelude, is_mocked):
     if not is_mocked:
         assert (res2 == ref).all()
 
+    # Explicit device_idxs
+    res3_dev = Array.from_host(queue, a) # Array.empty(queue, length, numpy.int32)
+    program.kernel.multiply(queue, length, None, res3_dev, a_dev, b_dev, c, device_idxs=[0])
+    res3 = res3_dev.get()
+    if not is_mocked:
+        assert (res3 == ref).all()
+
 
 @pytest.mark.parametrize('no_prelude', [False, True], ids=["with_prelude", "no_prelude"])
 def test_compile(context, no_prelude):
@@ -230,7 +237,7 @@ def _test_constant_memory(context, is_mocked, is_static):
 
         if is_static:
             copy_from_cm = StaticKernel(
-                context, src, 'copy_from_cm',
+                queue, src, 'copy_from_cm',
                 global_size=16, constant_arrays=constant_arrays)
             copy_from_cm.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
             copy_from_cm.set_constant_array(queue, 'cm2', cm2) # setting from a host array
@@ -240,18 +247,18 @@ def _test_constant_memory(context, is_mocked, is_static):
             program.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
             program.set_constant_array(queue, 'cm2', cm2) # setting from a host array
             program.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
-            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, 16, None, *args)
+            copy_from_cm = lambda *args: program.kernel.copy_from_cm(queue, 16, None, *args)
 
-        copy_from_cm(queue, res_dev)
+        copy_from_cm(res_dev)
     else:
 
         if is_static:
-            copy_from_cm = StaticKernel(context, src, 'copy_from_cm', global_size=16)
+            copy_from_cm = StaticKernel(queue, src, 'copy_from_cm', global_size=16)
         else:
             program = Program(context, src)
-            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, 16, None, *args)
+            copy_from_cm = lambda *args: program.kernel.copy_from_cm(queue, 16, None, *args)
 
-        copy_from_cm(queue, res_dev, cm1_dev, cm2_dev, cm3_dev)
+        copy_from_cm(res_dev, cm1_dev, cm2_dev, cm3_dev)
 
     res = res_dev.get()
 

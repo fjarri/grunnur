@@ -105,6 +105,10 @@ Programs and kernels
     :members:
     :special-members: __call__
 
+.. autoclass:: grunnur.program.PreparedKernel()
+    :members:
+    :special-members: __call__
+
 .. autoclass:: MultiDevice
 
 

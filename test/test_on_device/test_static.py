@@ -39,8 +39,8 @@ def _test_compile_static(context, is_mocked):
 
     res_dev = Array.empty(queue, (11, 15), numpy.int32)
 
-    multiply = StaticKernel(context, src, 'multiply', (11, 15))
-    multiply(queue, res_dev, a_dev, b_dev)
+    multiply = StaticKernel(queue, src, 'multiply', (11, 15))
+    multiply(res_dev, a_dev, b_dev)
 
     res = res_dev.get()
 
@@ -81,9 +81,8 @@ def _test_compile_static_multi_device(context, is_mocked):
     res_dev_1 = res_dev.single_device_view(0)[:11,:]
     res_dev_2 = res_dev.single_device_view(1)[11:,:]
 
-    multiply = StaticKernel(context, src, 'multiply', (11, 15), device_idxs=[0, 1])
+    multiply = StaticKernel(queue, src, 'multiply', (11, 15), device_idxs=[0, 1])
     multiply(
-        queue,
         MultiDevice(res_dev_1, res_dev_2),
         MultiDevice(a_dev_1, a_dev_2),
         MultiDevice(b_dev_1, b_dev_2))

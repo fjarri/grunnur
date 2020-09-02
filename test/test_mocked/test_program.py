@@ -105,9 +105,9 @@ def test_set_constant_array_errors(mock_4_device_context, mock_backend):
             program.set_constant_array(queue, 'cm1', cm1)
 
         with pytest.raises(ValueError, match="Compile-time constant arrays are only supported by CUDA API"):
-            sk = StaticKernel(context, src, 'kernel', 1024, constant_arrays=dict(cm1=cm1))
+            sk = StaticKernel(queue, src, 'kernel', 1024, constant_arrays=dict(cm1=cm1))
 
-        sk = StaticKernel(context, src, 'kernel', 1024)
+        sk = StaticKernel(queue, src, 'kernel', 1024)
         with pytest.raises(ValueError, match="Constant arrays are only supported for CUDA API"):
             sk.set_constant_array(queue, 'cm1', cm1)
 

@@ -10,7 +10,7 @@ from .queue import Queue
 from .array import Array
 from .utils import prod, wrap_in_tuple, update_dict
 from .vsize import VirtualSizes, VirtualSizeError
-from .program import SingleDeviceProgram, MultiDevice, _call_kernels, _set_constant_array
+from .program import SingleDeviceProgram, MultiDevice, PreparedKernel, _set_constant_array
 
 
 # the name of the global in the template containing static kernel modules
@@ -26,15 +26,15 @@ class StaticKernel:
     to be used instead of regular ones.
     """
 
-    context: Context
-    """The context this program was compiled for."""
+    queue: Queue
+    """The queue this static kernel was compiled and prepared for."""
 
     sources: Dict[int, str]
     """Source files used for each device."""
 
     def __init__(
             self,
-            context: Context,
+            queue: Queue,
             template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
             name: str,
             global_size: Union[int, Sequence[int]],
@@ -59,11 +59,10 @@ class StaticKernel:
         :param constant_arrays: (**CUDA only**) a dictionary ``name: (size, dtype)``
             of global constant arrays to be declared in the program.
         """
+        context = queue.context
 
         if context.api.id != cuda_api_id() and len(constant_arrays) > 0:
             raise ValueError("Compile-time constant arrays are only supported by CUDA API")
-
-        self.context = context
 
         if device_idxs is None:
             device_idxs = range(len(context.devices))
@@ -136,16 +135,19 @@ class StaticKernel:
             sources[device_idx] = program.source
             vs_metadata.append(vs)
 
-        self.context = context
+        self.queue = queue
         self.sources = sources
         self._vs_metadata = vs_metadata
         self._sd_kernel_adapters = kernel_adapters
         self._device_idxs = device_idxs
 
-        self._global_sizes = MultiDevice(*[vs.real_global_size for vs in self._vs_metadata])
-        self._local_sizes = MultiDevice(*[vs.real_local_size for vs in self._vs_metadata])
+        global_sizes = MultiDevice(*[vs.real_global_size for vs in self._vs_metadata])
+        local_sizes = MultiDevice(*[vs.real_local_size for vs in self._vs_metadata])
 
-    def __call__(self, queue: Queue, *args):
+        self._prepared_kernel = PreparedKernel(
+            kernel_adapters, queue, device_idxs, global_sizes, local_sizes)
+
+    def __call__(self, *args):
         """
         Execute the kernel.
         In case of the OpenCL backend, returns a ``pyopencl.Event`` object.
@@ -154,9 +156,7 @@ class StaticKernel:
         :param args: kernel arguments. Can be: :py:class:`~grunnur.Array` objects,
             :py:class:`~grunnur.Buffer` objects, ``numpy`` scalars.
         """
-        return _call_kernels(
-            queue, self._sd_kernel_adapters, self._global_sizes, self._local_sizes, *args,
-            device_idxs=self._device_idxs)
+        return self._prepared_kernel(*args)
 
     def set_constant_array(self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
         """
@@ -166,7 +166,7 @@ class StaticKernel:
         :param name: the name of the constant array symbol in the code.
         :param arr: either a device or a host array.
         """
-        if self.context.api.id != cuda_api_id():
+        if self.queue.context.api.id != cuda_api_id():
             raise ValueError("Constant arrays are only supported for CUDA API")
         for kernel_adapter in self._sd_kernel_adapters.values():
             _set_constant_array(queue, kernel_adapter._program_adapter, name, arr)

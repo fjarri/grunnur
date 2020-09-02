@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import StaticKernel, VirtualSizeError, API, Context
+from grunnur import StaticKernel, VirtualSizeError, API, Context, Queue
 from grunnur.template import DefTemplate
 
 from ..mock_base import MockKernel, MockDefTemplate, MockDefTemplate
@@ -18,9 +18,10 @@ def test_compile_static(mock_context):
 
 
 def test_find_local_size(mock_context):
+    queue = Queue.on_all_devices(mock_context)
     kernel = MockKernel('multiply', [None], max_total_local_sizes={0: 64})
     src = MockDefTemplate(kernels=[kernel])
-    multiply = StaticKernel(mock_context, src, 'multiply', (11, 15))
+    multiply = StaticKernel(queue, src, 'multiply', (11, 15))
     assert multiply._vs_metadata[0].real_global_size == (16, 12)
     assert multiply._vs_metadata[0].real_local_size == (16, 4)
 
@@ -34,19 +35,21 @@ def test_constant_memory(mock_context):
 
 
 def test_reserved_names(mock_context):
+    queue = Queue.on_all_devices(mock_context)
     kernel = MockKernel('test', [None])
     src = MockDefTemplate(kernels=[kernel])
     with pytest.raises(ValueError, match="The global name 'static' is reserved in static kernels"):
-        multiply = StaticKernel(mock_context, src, 'test', (1024,), render_globals=dict(static=1))
+        multiply = StaticKernel(queue, src, 'test', (1024,), render_globals=dict(static=1))
 
 
 def test_zero_max_total_local_size(mock_context):
+    queue = Queue.on_all_devices(mock_context)
     kernel = MockKernel('test', [None], max_total_local_sizes={0: 0})
     src = MockDefTemplate(kernels=[kernel])
     with pytest.raises(
             VirtualSizeError,
             match="The kernel requires too much resourses to be executed with any local size"):
-        multiply = StaticKernel(mock_context, src, 'test', (1024,))
+        multiply = StaticKernel(queue, src, 'test', (1024,))
 
 
 def test_virtual_sizes_error_propagated(mock_backend_pycuda):
@@ -71,15 +74,17 @@ def test_virtual_sizes_error_propagated(mock_backend_pycuda):
     kernel = MockKernel('test', [None], max_total_local_sizes={0: 16})
     src = MockDefTemplate(kernels=[kernel])
 
+    queue = Queue.on_all_devices(context)
+
     # Just enough to fit in the grid limits
-    multiply = StaticKernel(context, src, 'test', (2**14, 2**10, 2**8), (2**4, 1, 1))
+    multiply = StaticKernel(queue, src, 'test', (2**14, 2**10, 2**8), (2**4, 1, 1))
 
     # Global size is too large to fit on the device,
     # so virtual size finding fails and the error is propagated to the user.
     with pytest.raises(
             VirtualSizeError,
             match="Bounding global size \\(16384, 2048, 256\\) is too large"):
-        multiply = StaticKernel(context, src, 'test', (2**14, 2**11, 2**8), (2**4, 1, 1))
+        multiply = StaticKernel(queue, src, 'test', (2**14, 2**11, 2**8), (2**4, 1, 1))
 
 
 def test_builtin_globals(mock_backend_pycuda):
@@ -103,7 +108,8 @@ def test_builtin_globals(mock_backend_pycuda):
         kernels=[MockKernel('test', [None], max_total_local_sizes={0: 1024, 1: 512})],
         source_template=source_template)
 
-    kernel = StaticKernel(context, src, 'test', (1024,))
+    queue = Queue.on_all_devices(context)
+    kernel = StaticKernel(queue, src, 'test', (1024,))
 
     assert 'max_total_local_size = 1024' in kernel.sources[0].source
     assert 'max_total_local_size = 512' in kernel.sources[1].source

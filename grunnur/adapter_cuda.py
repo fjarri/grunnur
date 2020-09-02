@@ -578,12 +578,6 @@ class CuKernelAdapter(KernelAdapter):
             local_size: Tuple[int, ...]) -> CuPreparedKernelAdapter:
         return CuPreparedKernelAdapter(self, queue_adapter, global_size, local_size)
 
-    def __call__(
-            self, queue_adapter: CuQueueAdapter, global_size: Tuple[int, ...],
-            local_size: Tuple[int, ...], *args, local_mem=0):
-        pkernel = self.prepare(queue_adapter, global_size, local_size)
-        return pkernel(*args, local_mem=0)
-
 
 class CuPreparedKernelAdapter(PreparedKernelAdapter):
 
