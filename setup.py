@@ -14,7 +14,7 @@ from shutil import rmtree
 from setuptools import find_packages, setup, Command
 from setuptools.command.test import test as TestCommand
 
-from grunnur import __version__
+from grunnur.__version__ import __version__
 
 
 # Package meta-data.
