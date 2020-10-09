@@ -13,7 +13,7 @@ class Platform:
     """
 
     api: API
-    """The :py:class:`API` object this platform belongs to."""
+    """The :py:class:`~grunnur.API` object this platform belongs to."""
 
     name: str
     """The platform's name."""

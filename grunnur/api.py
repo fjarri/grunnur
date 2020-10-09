@@ -54,7 +54,7 @@ class API:
     @classmethod
     def all_available(cls) -> List[API]:
         """
-        Returns a list of :py:class:`API` objects
+        Returns a list of :py:class:`~grunnur.API` objects
         for which backends are available.
         """
         return [
@@ -65,12 +65,12 @@ class API:
     @classmethod
     def all_by_shortcut(cls, shortcut: Optional[str]=None) -> List[API]:
         """
-        If ``shortcut`` is a string, returns a list of one :py:class:`API` object
+        If ``shortcut`` is a string, returns a list of one :py:class:`~grunnur.API` object
         whose :py:attr:`~API.id` attribute has its
         :py:attr:`~grunnur.adapter_base.APIID.shortcut` attribute equal to it
         (or raises an error if it was not found, or its backend is not available).
 
-        If ``shortcut`` is ``None``, returns a list of all available :py:class:`API` objects.
+        If ``shortcut`` is ``None``, returns a list of all available :py:class:`~grunnur.API` objects.
 
         :param shortcut: an API shortcut to match.
         """
@@ -91,7 +91,7 @@ class API:
     @classmethod
     def from_api_id(cls, api_id: APIID) -> API:
         """
-        Creates an API object out of an identifier.
+        Creates an :py:class:`~grunnur.API` object out of an identifier.
 
         :param api_id: API identifier.
         """

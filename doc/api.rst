@@ -292,13 +292,12 @@ There is a set of macros attached to any kernel depending on the API it is being
     Equal to ``unsigned int`` for CUDA, and ``size_t`` for OpenCL
     (which can be 32- or 64-bit unsigned integer, depending on the device).
 
-.. FIXME: techincally, it should be unsigned int here, but Sphinx gives warnings for 'unsigned'
-.. c:function:: SIZE_T get_local_id(int dim)
-.. c:function:: SIZE_T get_group_id(int dim)
-.. c:function:: SIZE_T get_global_id(int dim)
-.. c:function:: SIZE_T get_local_size(int dim)
-.. c:function:: SIZE_T get_num_groups(int dim)
-.. c:function:: SIZE_T get_global_size(int dim)
+.. c:function:: SIZE_T get_local_id(unsigned int dim)
+.. c:function:: SIZE_T get_group_id(unsigned int dim)
+.. c:function:: SIZE_T get_global_id(unsigned int dim)
+.. c:function:: SIZE_T get_local_size(unsigned int dim)
+.. c:function:: SIZE_T get_num_groups(unsigned int dim)
+.. c:function:: SIZE_T get_global_size(unsigned int dim)
 
     Local, group and global identifiers and sizes.
     In case of CUDA mimic the behavior of corresponding OpenCL functions.

@@ -14,7 +14,7 @@ class Device:
     """
 
     platform: Platform
-    """The :py:class:`Platform` object this device belongs to."""
+    """The :py:class:`~grunnur.Platform` object this device belongs to."""
 
     name: str
     """This device's name."""
@@ -49,7 +49,8 @@ class Device:
             neither of which must match with the device name.
         :param unique_only: if ``True``, only return devices with unique names.
         :param include_pure_parallel_devices: if ``True``, include devices with
-            :py:meth:`~Device.max_total_local_size` equal to 1.
+            :py:attr:`params.max_total_local_size <grunnur.adapter_base.DeviceParameters.max_total_local_size>`
+            equal to 1.
         """
 
         seen_devices = set()
@@ -112,7 +113,8 @@ class Device:
     @property
     def params(self) -> DeviceParameters:
         """
-        Returns a :py:class:`~grunnur.DeviceParameters` object associated with this device.
+        Returns a :py:class:`~grunnur.adapter_base.DeviceParameters` object
+        associated with this device.
         """
         # Already cached in the adapters
         return self._device_adapter.params
