@@ -1,5 +1,7 @@
 recursive-include examples *.py
+recursive-include test *.py
 
+include grunnur/*.mako
 include LICENSE.md
 include MANIFEST.in
 include README.rst
