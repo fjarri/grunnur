@@ -14,8 +14,6 @@ from shutil import rmtree
 from setuptools import find_packages, setup, Command
 from setuptools.command.test import test as TestCommand
 
-from grunnur.__version__ import __version__
-
 
 # Package meta-data.
 NAME = 'grunnur'
@@ -24,7 +22,6 @@ URL = 'https://github.com/fjarri/grunnur'
 EMAIL = 'bogdan@opanchuk.net'
 AUTHOR = 'Bogdan Opanchuk'
 REQUIRES_PYTHON = '>=3.7.0'
-VERSION = __version__
 
 
 REQUIRED = [
