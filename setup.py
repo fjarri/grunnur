@@ -58,12 +58,10 @@ except FileNotFoundError:
 
 # Load the package's __version__.py module as a dictionary.
 about = {}
-if not VERSION:
-    project_slug = NAME.lower().replace("-", "_").replace(" ", "_")
-    with open(os.path.join(here, project_slug, '__version__.py')) as f:
-        exec(f.read(), about)
-else:
-    about['__version__'] = VERSION
+project_slug = NAME.lower().replace("-", "_").replace(" ", "_")
+with open(os.path.join(here, project_slug, '__version__.py')) as f:
+    exec(f.read(), about)
+VERSION = about['__version__']
 
 
 class PyTest(TestCommand):
@@ -112,7 +110,7 @@ class UploadCommand(Command):
         os.system('twine upload dist/*')
 
         self.status('Pushing git tags…')
-        os.system('git tag v{0}'.format(about['__version__']))
+        os.system('git tag v{0}'.format(VERSION))
         os.system('git push --tags')
 
         sys.exit()
@@ -120,7 +118,7 @@ class UploadCommand(Command):
 
 setup(
     name=NAME,
-    version=about['__version__'],
+    version=VERSION,
     description=DESCRIPTION,
     long_description=long_description,
     long_description_content_type='text/x-rst',
