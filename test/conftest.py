@@ -9,7 +9,7 @@ from grunnur.virtual_alloc import TrivialManager, ZeroOffsetManager
 
 # Cannot just use the plugin directly since it is loaded before the coverage plugin,
 # and all the function definitions in all `grunnur` modules get marked as not covered.
-from grunnur.pytest_plugin import context, multi_device_context, get_devices
+from grunnur.pytest_plugin import context, multi_device_context, get_devices, get_multi_device_sets
 from grunnur.pytest_plugin import pytest_addoption as grunnur_pytest_addoption
 from grunnur.pytest_plugin import pytest_generate_tests as grunnur_pytest_generate_tests
 from grunnur.pytest_plugin import pytest_report_header as grunnur_pytest_report_header
@@ -133,6 +133,22 @@ def mock_or_real_context(request, monkeypatch):
         raise TypeError
 
 
+@pytest.fixture(scope='function')
+def mock_or_real_multi_device_context(request, monkeypatch):
+    # Same as `mock_or_real_context` above, but for 2-device contexts.
+    value = request.param
+    if value is None:
+        pytest.skip("Could not find 2 suitable GPGPU devices on the same platform")
+    elif isinstance(value, list):
+        yield (Context.from_devices(value), False)
+    elif isinstance(value, APIID):
+        factory = MockBackendFactory(monkeypatch)
+        backend = factory.mock(value)
+        yield (make_context(backend, 2), True)
+    else:
+        raise TypeError
+
+
 class MockStdin:
 
     def __init__(self):
@@ -185,16 +201,33 @@ def _mock_or_real_context_make_id(value):
         raise TypeError
 
 
+def _mock_or_real_multi_device_context_make_id(value):
+    if value is None:
+        return "no_2_real_devices"
+    elif isinstance(value, list):
+        return "+".join(device.shortcut for device in value)
+    elif isinstance(value, APIID):
+        return f"mock_{value.shortcut}_2dev"
+    else:
+        raise TypeError
+
+
 def pytest_generate_tests(metafunc):
     grunnur_pytest_generate_tests(metafunc)
 
-    devices = get_devices(metafunc.config)
     api_ids = all_api_ids()
+    devices = get_devices(metafunc.config)
+    device_sets = get_multi_device_sets(metafunc.config)
 
     if 'mock_or_real_context' in metafunc.fixturenames:
         values = (devices if len(devices) > 0 else [None]) + all_api_ids()
         ids = [_mock_or_real_context_make_id(value) for value in values]
         metafunc.parametrize('mock_or_real_context', values, ids=ids, indirect=True)
+
+    if 'mock_or_real_multi_device_context' in metafunc.fixturenames:
+        values = (device_sets if len(device_sets) > 0 else [None]) + all_api_ids()
+        ids = [_mock_or_real_multi_device_context_make_id(value) for value in values]
+        metafunc.parametrize('mock_or_real_multi_device_context', values, ids=ids, indirect=True)
 
 
 def pytest_report_header(config):

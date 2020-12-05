@@ -65,9 +65,9 @@ def test_set_from_non_contiguous(mock_or_real_context):
     assert (arr.get() == 1).all()
 
 
-def test_multi_device(mock_4_device_context):
+def test_multi_device(mock_or_real_multi_device_context):
 
-    context = mock_4_device_context
+    context, _mocked = mock_or_real_multi_device_context
 
     arr = numpy.arange(100)
     queue = Queue.on_all_devices(context)
