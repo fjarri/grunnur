@@ -20,27 +20,6 @@ def mock_get(buf):
     return res
 
 
-def test_extract_dependencies(mock_context):
-
-    queue = Queue.on_all_devices(mock_context)
-    virtual_alloc = TrivialManager(queue).allocator()
-
-    vbuf = virtual_alloc(100)
-    varr = Array.empty(queue, 100, numpy.int32, allocator=virtual_alloc)
-
-    assert extract_dependencies(vbuf) == {vbuf._buffer_adapter._id}
-    assert extract_dependencies(varr) == {varr.data._buffer_adapter._id}
-    assert extract_dependencies([vbuf, varr]) == {vbuf._buffer_adapter._id, varr.data._buffer_adapter._id}
-
-    class DependencyHolder:
-        __virtual_allocations__ = [vbuf, varr]
-
-    assert extract_dependencies(DependencyHolder()) == {vbuf._buffer_adapter._id, varr.data._buffer_adapter._id}
-
-    # An object not having any dependencies
-    assert extract_dependencies(123) == set()
-
-
 def allocate_test_set(virtual_alloc, allocate_callable):
 
     # Allocate virtual buffers with dependencies
@@ -67,7 +46,50 @@ def allocate_test_set(virtual_alloc, allocate_callable):
 
 
 @pytest.mark.parametrize('pack', [False, True], ids=['no_pack', 'pack'])
-def test_contract(mock_backend_pycuda, mock_context_pycuda, valloc_cls, pack):
+def test_contract(context, valloc_cls, pack):
+
+    dtype = numpy.int32
+
+    program = Program(
+        context,
+        """
+        KERNEL void fill(GLOBAL_MEM ${ctype} *dest, ${ctype} val)
+        {
+            const SIZE_T i = get_global_id(0);
+            dest[i] = val;
+        }
+        """,
+        render_globals=dict(ctype=dtypes.ctype(dtype)))
+    fill = program.kernel.fill
+
+    queue = Queue.on_all_devices(context)
+    virtual_alloc = valloc_cls(queue)
+
+    buffers_metadata, arrays = allocate_test_set(
+        virtual_alloc,
+        # Bump size to make sure buffer alignment doesn't hide any out-of-bounds access
+        lambda allocator, size: Array.empty(queue, size * 100, dtype, allocator=allocator))
+    dependencies = {id_: deps for id_, _, deps in buffers_metadata}
+
+    if pack:
+        virtual_alloc.pack()
+
+    # Clear all arrays
+    for name in sorted(arrays.keys()):
+        fill(queue, arrays[name].shape, None, arrays[name], dtype(0))
+
+    for i, name in enumerate(sorted(arrays.keys())):
+        val = dtype(i + 1)
+        fill(queue, arrays[name].shape, None, arrays[name], val)
+        # According to the virtual allocator contract, the allocated buffer
+        # will not intersect with the buffers from the specified dependencies.
+        # So we're filling the buffer and checking that the dependencies did not change.
+        for dep in dependencies[name]:
+            assert (arrays[dep].get() != val).all()
+
+
+@pytest.mark.parametrize('pack', [False, True], ids=['no_pack', 'pack'])
+def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, pack):
 
     # Using PyCUDA backend here because it tracks the allocations.
 
@@ -104,6 +126,27 @@ def test_contract(mock_backend_pycuda, mock_context_pycuda, valloc_cls, pack):
     # Check that after deleting virtual buffers all the real buffers are freed as well
     del buffers
     assert mock_backend_pycuda.allocation_count() == 0
+
+
+def test_extract_dependencies(mock_context):
+
+    queue = Queue.on_all_devices(mock_context)
+    virtual_alloc = TrivialManager(queue).allocator()
+
+    vbuf = virtual_alloc(100)
+    varr = Array.empty(queue, 100, numpy.int32, allocator=virtual_alloc)
+
+    assert extract_dependencies(vbuf) == {vbuf._buffer_adapter._id}
+    assert extract_dependencies(varr) == {varr.data._buffer_adapter._id}
+    assert extract_dependencies([vbuf, varr]) == {vbuf._buffer_adapter._id, varr.data._buffer_adapter._id}
+
+    class DependencyHolder:
+        __virtual_allocations__ = [vbuf, varr]
+
+    assert extract_dependencies(DependencyHolder()) == {vbuf._buffer_adapter._id, varr.data._buffer_adapter._id}
+
+    # An object not having any dependencies
+    assert extract_dependencies(123) == set()
 
 
 def check_statistics(buffers_metadata, stats):
