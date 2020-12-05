@@ -61,7 +61,7 @@ class Buffer:
             raise RuntimeError("This buffer has not been bound to any device yet")
 
         if isinstance(buf, numpy.ndarray):
-            buf_adapter = buf
+            buf_adapter = numpy.ascontiguousarray(buf)
         elif isinstance(buf, Buffer):
             buf_adapter = buf._buffer_adapter
         else:
