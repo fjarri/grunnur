@@ -1,16 +1,23 @@
-from typing import Optional, Callable, Tuple, Sequence, Union
+from abc import ABC, abstractmethod
+from typing import Optional, Callable, Tuple, Sequence, Union, Iterable, Dict, TypeVar
 
 import numpy
 
 from .array_metadata import ArrayMetadata
-from .queue import Queue
+from .context import Context
+from .device import Device
+from .queue import Queue, MultiQueue
 from .buffer import Buffer
+from .utils import min_blocks
 
 
 class Array:
     """
-    Array on the device.
+    Array on a single device.
     """
+
+    context: Context
+    """Context this array is allocated on."""
 
     shape: Tuple[int, ...]
     """Array shape."""
@@ -29,78 +36,71 @@ class Array:
         :param queue: the queue to use for the transfer.
         :param host_arr: the source array.
         """
-        metadata = ArrayMetadata.from_arraylike(host_arr)
-        array = cls(queue, metadata)
-        array.set(host_arr)
+        array = cls.empty(queue.context, host_arr.shape, host_arr.dtype, device_idx=queue.device_idx)
+        array.set(queue, host_arr)
         return array
 
     @classmethod
     def empty(
-            cls, queue: Queue, shape: Sequence[int],
-            dtype: numpy.dtype, allocator: Callable[[int], Buffer]=None) -> 'Array':
+            cls, context: Context, shape: Sequence[int],
+            dtype: numpy.dtype, allocator: Callable[[int, int], Buffer]=None,
+            device_idx: Optional[int]=None) -> 'Array':
         """
         Creates an empty array.
 
-        :param queue: the queue to use for the transfer.
         :param shape: array shape.
         :param dtype: array data type.
-        :param allocator: an optional callable returning a :py:class:`Buffer` object.
+        :param allocator: an optional callable taking two integer arguments
+            (buffer size in bytes, and the device to allocate it on)
+            and returning a :py:class:`Buffer` object.
+        :param device_idx: the index of the device on which to allocate the array.
         """
-        metadata = ArrayMetadata(shape, dtype)
-        return cls(queue, metadata, allocator=allocator)
+        if device_idx is None:
+            if len(context.devices) == 1:
+                device_idx = 0
+            else:
+                raise ValueError("device_idx must be specified in a multi-device context")
 
-    def __init__(
-            self, queue: Queue, array_metadata: ArrayMetadata,
-            data: Optional[Buffer]=None, allocator: Callable[[int], Buffer]=None):
+        metadata = ArrayMetadata(shape, dtype)
+        size = metadata.buffer_size
 
         if allocator is None:
-            allocator = lambda size: Buffer.allocate(queue.context, size)
+            data = Buffer.allocate(context, size, device_idx=device_idx)
+        else:
+            data = allocator(size, device_idx)
 
-        self._queue = queue
+        return cls(context, metadata, data)
+
+    def __init__(self, context: Context, array_metadata: ArrayMetadata, data: Buffer):
+
         self._metadata = array_metadata
 
+        self.context = context
         self.shape = self._metadata.shape
         self.dtype = self._metadata.dtype
         self.strides = self._metadata.strides
         self.first_element_offset = self._metadata.first_element_offset
         self.buffer_size = self._metadata.buffer_size
 
-        if data is None:
-            data = allocator(self.buffer_size)
-            data.bind(queue.device_idxs[0])
-        else:
-            if data.size < self.buffer_size:
-                raise ValueError(
-                    "Provided data buffer is not big enough to hold the array "
-                    "(minimum required {self.buffer_size})")
+        if data.size < self.buffer_size:
+            raise ValueError(
+                "Provided data buffer is not big enough to hold the array "
+                "(minimum required {self.buffer_size})")
 
         self.data = data
 
-    def single_device_view(self, device_idx: int) -> 'SingleDeviceFactory':
-        """
-        Returns a subscriptable object that produces sub-arrays based on the device ``device_idx``.
-        """
-        if device_idx not in self._queue.devices:
-            device_nums = ', '.join(str(i) for i in self._queue.devices)
-            raise ValueError(
-                f"The device number must be one of those present in the queue ({device_nums})")
-        return SingleDeviceFactory(self, device_idx)
-
-    def _view(self, slices, device_idx=None):
+    def _view(self, slices):
         new_metadata = self._metadata[slices]
 
         origin, size, new_metadata = new_metadata.minimal_subregion()
         data = self.data.get_sub_region(origin, size)
-        if device_idx is not None:
-            data.bind(device_idx)
-            data.migrate(self._queue)
+        return Array(self.context, new_metadata, data)
 
-        return Array(self._queue, new_metadata, data=data)
-
-    def set(self, array: Union[numpy.ndarray, 'Array'], no_async: bool=False):
+    def set(self, queue: Queue, array: Union[numpy.ndarray, 'Array'], no_async: bool=False):
         """
-        Copy the contents of the host array to the array.
+        Copies the contents of the host array to the array.
 
+        :param queue: the queue to use for the transfer.
         :param array: the source array.
         :param no_async: if `True`, the transfer blocks until completion.
         """
@@ -118,39 +118,198 @@ class Array:
         if self.dtype != array.dtype:
             raise ValueError(f"Dtype mismatch: expected {self.dtype}, got {array.dtype}")
 
-        self.data.set(self._queue, array_data, no_async=no_async)
+        self.data.set(queue, array_data, no_async=no_async)
 
-    def get(self, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
+    def get(self, queue: Queue, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
         """
-        Copy the contents of the array to the host array and return it.
+        Copies the contents of the array to the host array and returns it.
 
+        :param queue: the queue to use for the transfer.
         :param dest: the destination array. If ``None``, the target array is created.
         :param async_: if `True`, the transfer is performed asynchronously.
         """
         if dest is None:
             dest = numpy.empty(self.shape, self.dtype)
-        self.data.get(self._queue, dest, async_=async_)
+        self.data.get(queue, dest, async_=async_)
         return dest
 
     def __getitem__(self, slices) -> 'Array':
         """
-        Return a view of this array.
+        Returns a view of this array.
         """
         return self._view(slices)
 
 
-class SingleDeviceFactory:
+class BaseSplay(ABC):
     """
-    A subscriptable object that produces sub-arrays based on a single device.
+    Base class for splay strategies for :py:class:`MultiArray`.
     """
 
-    def __init__(self, array, device_idx):
-        self._array = array
-        self._device_idx = device_idx
+    ArrayLike = TypeVar("ArrayLike")
 
-    def __getitem__(self, slices) -> Array:
+    @abstractmethod
+    def __call__(self, arr: ArrayLike, devices: Dict[int, Device]) -> Dict[int, ArrayLike]:
         """
-        Return a view of the parent array bound to the device this factory was created for
-        (see :py:meth:`~grunnur.Array.single_device_view`).
+        Creates a dictionary of views of an array-like object for each of the given devices.
+
+        :param arr: an array-like object.
+        :param devices: a dictionary of device indices matched to device objects.
         """
-        return self._array._view(slices, device_idx=self._device_idx)
+        pass
+
+
+class EqualSplay(BaseSplay):
+    """
+    Splays the given array equally between the devices using the outermost dimension.
+    The outermost dimension should be larger or equal to the number of devices.
+    """
+
+    def __call__(self, arr, devices):
+        parts = len(devices)
+        outer_dim = arr.shape[0]
+        assert parts <= outer_dim
+        chunk_size = min_blocks(outer_dim, parts)
+        rem = outer_dim % parts
+
+        subarrays = {}
+        ptr = 0
+        for part, device_idx in enumerate(sorted(devices)):
+            l = chunk_size if rem == 0 or part < rem else chunk_size - 1
+            subarrays[device_idx] = arr[ptr:ptr+l]
+            ptr += l
+
+        return subarrays
+
+
+class CloneSplay(BaseSplay):
+    """
+    Copies the given array to each device.
+    """
+
+    def __call__(self, arr, devices):
+        return {device_idx: arr for device_idx in devices}
+
+
+class MultiArray:
+    """
+    An array on multiple devices.
+    """
+
+    context: Context
+    """Context this array is allocated on."""
+
+    shape: Tuple[int, ...]
+    """Array shape."""
+
+    dtype: numpy.dtype
+    """Array item data type."""
+
+    shapes: Dict[int, Tuple[int, ...]]
+    """Sub-array shapes matched to device indices."""
+
+    EqualSplay = EqualSplay
+    CloneSplay = CloneSplay
+
+    @classmethod
+    def from_host(cls, mqueue: MultiQueue, host_arr: numpy.ndarray, splay: BaseSplay=EqualSplay()) -> 'MultiArray':
+        """
+        Creates an array object from a host array.
+
+        :param mqueue: the queue to use for the transfer.
+        :param host_arr: the source array.
+        :param splay: the splay strategy.
+        """
+
+        host_subarrays = splay(host_arr, mqueue.devices)
+
+        subarrays = {
+            device_idx: Array.from_host(mqueue.queues[device_idx], host_subarrays[device_idx])
+            for device_idx in mqueue.devices
+        }
+
+        return cls(mqueue.context, host_arr.shape, host_arr.dtype, subarrays, splay)
+
+    @classmethod
+    def empty(
+            cls, context: Context, shape: Sequence[int],
+            dtype: numpy.dtype, allocator: Callable[[int, int], Buffer]=None,
+            device_idxs: Optional[Iterable[int]]=None,
+            splay: BaseSplay=EqualSplay(),
+            ) -> 'MultiArray':
+        """
+        Creates an empty array.
+
+        :param shape: array shape.
+        :param dtype: array data type.
+        :param allocator: an optional callable taking two integer arguments
+            (buffer size in bytes, and the device to allocate it on)
+            and returning a :py:class:`Buffer` object.
+        :param device_idx: the index of the device on which to allocate the array.
+        :param splay: the splay strategy.
+        """
+
+        if device_idxs is None:
+            device_idxs = list(range(len(context.devices)))
+
+        devices = {device_idx: context.devices[device_idx] for device_idx in device_idxs}
+
+        metadata = ArrayMetadata(shape, dtype)
+        submetadatas = splay(metadata, devices)
+
+        subarrays = {
+            device_idx: Array.empty(
+                context, submetadata.shape, submetadata.dtype, allocator=allocator, device_idx=device_idx)
+            for device_idx, submetadata in submetadatas.items()
+            }
+
+        return cls(context, shape, dtype, subarrays, splay)
+
+    def __init__(self, context, shape, dtype, subarrays, splay):
+        self.context = context
+        self.shape = shape
+        self.dtype = dtype
+        self.subarrays = subarrays
+        self.shapes = {device_idx: subarray.shape for device_idx, subarray in self.subarrays.items()}
+
+        self._devices = {device_idx: self.context.devices[device_idx] for device_idx in self.subarrays}
+        self._splay = splay
+
+    def get(self, mqueue: MultiQueue, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
+        """
+        Copies the contents of the array to the host array and returns it.
+
+        :param mqueue: the queue to use for the transfer.
+        :param dest: the destination array. If ``None``, the target array is created.
+        :param async_: if `True`, the transfer is performed asynchronously.
+        """
+
+        if dest is None:
+            dest = numpy.empty(self.shape, self.dtype)
+
+        dest_subarrays = self._splay(dest, self._devices)
+
+        for device_idx, subarray in self.subarrays.items():
+            subarray.get(mqueue.queues[device_idx], dest_subarrays[device_idx], async_=async_)
+
+        return dest
+
+    def set(self, mqueue: MultiQueue, array: Union[numpy.ndarray, 'MultiArray'], no_async: bool=False):
+        """
+        Copies the contents of the host array to the array.
+
+        :param mqueue: the queue to use for the transfer.
+        :param array: the source array.
+        :param no_async: if `True`, the transfer blocks until completion.
+        """
+
+        if isinstance(array, numpy.ndarray):
+            subarrays = self._splay(array, self._devices)
+        else:
+            subarrays = array.subarrays
+
+        if self.subarrays.keys() != subarrays.keys():
+            raise ValueError("Mismatched device sets in the source and the destination")
+
+        for device_idx in self.subarrays:
+            self.subarrays[device_idx].set(
+                mqueue.queues[device_idx], subarrays[device_idx], no_async=no_async)

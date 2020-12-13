@@ -86,10 +86,13 @@ Buffers and arrays
 
 .. autoclass:: Array()
     :members:
-
-.. autoclass:: grunnur.array.SingleDeviceFactory()
-    :members:
     :special-members: __getitem__
+
+.. autoclass:: grunnur.array.BaseSplay()
+    :special-members: __call__
+
+.. autoclass:: MultiArray()
+    :members:
 
 
 Programs and kernels
@@ -108,8 +111,6 @@ Programs and kernels
 .. autoclass:: grunnur.program.PreparedKernel()
     :members:
     :special-members: __call__
-
-.. autoclass:: MultiDevice
 
 
 Static kernels

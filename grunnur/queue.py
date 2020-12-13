@@ -1,45 +1,91 @@
-from typing import Optional, Iterable, Tuple
+from abc import ABC
+from typing import Optional, Iterable, Tuple, Set, Dict
+import weakref
 
 from .adapter_base import QueueAdapter
 from .context import Context
 from .device import Device
 
 
-class Queue:
+class MultiQueue:
     """
     A queue on multiple devices.
+
+    :param context: the context to create a queue in.
+    :param queues: single-device queues (must belong to distinct devices).
     """
 
     context: Context
     """This queue's context."""
 
-    device_idxs: Tuple[int, ...]
+    device_idxs: Set[int]
     """Device indices (in the context) this queue operates on."""
 
-    @classmethod
-    def on_all_devices(cls, context: Context) -> 'Queue':
-        return cls.on_device_idxs(context, list(range(len(context.devices))))
+    queues: Dict[int, 'Queue']
+    """Single-device queues associated with device indices."""
+
+    devices: Dict[int, Device]
+    """Device objects associated with device indices."""
 
     @classmethod
-    def on_device_idxs(cls, context: Context, device_idxs: Iterable[int]) -> 'Queue':
+    def on_device_idxs(cls, context: Context, device_idxs: Iterable[int]) -> 'MultiQueue':
         """
         Creates a queue from provided device indexes (in the context).
-
-        :param context: the context to create a queue in.
-        :param device_idxs: the indices of devices (in the context) to use.
         """
-        device_idxs = tuple(sorted(device_idxs))
-        queue_adapter = context._context_adapter.make_queue_adapter(device_idxs)
-        return cls(context, queue_adapter, device_idxs)
+        return cls(context, [Queue(context, device_idx) for device_idx in device_idxs])
 
-    def __init__(self, context: Context, queue_adapter: QueueAdapter, device_idxs: Tuple[int, ...]):
+    def __init__(self, context: Context, queues: Optional[Iterable['Queue']]=None):
+
+        if queues is None:
+            queues = [Queue(context, device_idx) for device_idx in range(len(context.devices))]
+        else:
+            queues = list(queues)
+            device_idxs = [queue.device_idx for queue in queues]
+            if len(set(device_idxs)) != len(device_idxs):
+                raise ValueError("Queues in a MultiQueue must belong to distinct devices")
+
         self.context = context
-        self._queue_adapter = queue_adapter
-        self.default_device_idx = device_idxs[0]
-        self.device_idxs = device_idxs # Preserving the order of given device indices
-        self.devices = {
-            device_idx: Device(queue_adapter.device_adapters[device_idx])
-            for device_idx in device_idxs}
+        self.queues = {queue.device_idx: queue for queue in queues}
+
+        # Preserving the order of given device indices
+        self.device_idxs = {queue.device_idx for queue in queues}
+
+        self.devices = {device_idx: context.devices[device_idx] for device_idx in self.device_idxs}
+
+    def synchronize(self):
+        """
+        Blocks until queues on all devices are empty.
+        """
+        for queue in self.queues.values():
+            queue.synchronize()
+
+
+class Queue:
+    """
+    A queue on a single device.
+    """
+
+    context: Context
+    """This queue's context."""
+
+    device_idx: int
+    """Device index this queue operates on."""
+
+    device: Device
+    """Device object this queue operates on."""
+
+    def __init__(self, context: Context, device_idx: Optional[int]=None):
+
+        if device_idx is None:
+            if len(context.devices) > 1:
+                raise ValueError("For multi-device contexts, device_idx must be set explicitly")
+            else:
+                device_idx = 0
+
+        self.context = context
+        self._queue_adapter = context._context_adapter.make_queue_adapter(device_idx)
+        self.device_idx = device_idx
+        self.device = context.devices[device_idx]
 
     def synchronize(self):
         """

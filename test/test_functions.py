@@ -72,16 +72,16 @@ def check_func(context, func_module, reference_func, out_dtype, in_dtypes, atol=
     program = Program(context, full_src)
     test = program.kernel.test
 
-    queue = Queue.on_all_devices(context)
+    queue = Queue(context)
 
     arrays = [get_test_array(N, dt, no_zeros=True, high=8) for dt in in_dtypes]
     arrays_dev = [Array.from_host(queue, array) for array in arrays]
-    dest_dev = Array.empty(queue, N, out_dtype)
+    dest_dev = Array.empty(context, N, out_dtype)
 
     test(queue, N, None, dest_dev, *arrays_dev)
 
     assert numpy.allclose(
-        dest_dev.get(),
+        dest_dev.get(queue),
         reference_func(*arrays).astype(out_dtype), atol=atol, rtol=rtol)
 
 
@@ -188,20 +188,20 @@ def test_pow_zero_base(context, out_code, in_codes):
     program = Program(context, full_src)
     test = program.kernel.test
 
-    queue = Queue.on_all_devices(context)
+    queue = Queue(context)
     bases = Array.from_host(queue, numpy.zeros(N, in_dtypes[0]))
 
     # zero exponents
     exponents = Array.from_host(queue, numpy.zeros(N, in_dtypes[1]))
-    dest_dev = Array.empty(queue, N, out_dtype)
+    dest_dev = Array.empty(context, N, out_dtype)
     test(queue, N, None, dest_dev, bases, exponents)
-    assert numpy.allclose(dest_dev.get(), numpy.ones(N, in_dtypes[0]))
+    assert numpy.allclose(dest_dev.get(queue), numpy.ones(N, in_dtypes[0]))
 
     # non-zero exponents
     exponents = Array.from_host(queue, numpy.ones(N, in_dtypes[1]))
-    dest_dev = Array.empty(queue, N, out_dtype)
+    dest_dev = Array.empty(context, N, out_dtype)
     test(queue, N, None, dest_dev, bases, exponents)
-    assert numpy.allclose(dest_dev.get(), numpy.zeros(N, in_dtypes[0]))
+    assert numpy.allclose(dest_dev.get(queue), numpy.zeros(N, in_dtypes[0]))
 
 
 # polar_unit()

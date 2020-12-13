@@ -11,24 +11,13 @@ import numpy
 from .adapter_base import AdapterCompilationError, KernelAdapter, BufferAdapter, ProgramAdapter
 from .modules import render_with_modules
 from .utils import wrap_in_tuple, update_dict
-from .array import Array
+from .array import Array, MultiArray
 from .buffer import Buffer
-from .queue import Queue
+from .queue import Queue, MultiQueue
 from .context import Context
 from .api import cuda_api_id
 from .template import DefTemplate
 from .modules import Snippet
-
-
-_T = TypeVar('_T', covariant=True)
-
-
-class MultiDevice(Generic[_T]):
-    """
-    A wrapper for a sequence of arguments where each should be passed to a separate device.
-    """
-    def __init__(self, *args: _T):
-        self.values: Tuple[_T, ...] = args
 
 
 class CompilationError(RuntimeError):
@@ -46,15 +35,12 @@ def _set_constant_array(
     device_idx = program_adapter._device_idx
     queue_adapter = queue._queue_adapter
 
-    if isinstance(arr, Array):
-        assert queue is arr._queue
-
     if queue_adapter._context_adapter is not program_adapter._context_adapter:
         raise ValueError(
             "The provided queue must belong to the same context as this program uses")
-    if device_idx not in queue.devices:
+    if device_idx != queue.device_idx:
         raise ValueError(
-            f"The provided queue must include the device this program uses ({device_idx})")
+            f"The provided queue must run on the device this program uses ({device_idx})")
 
     constant_data: Union[BufferAdapter, numpy.ndarray]
 
@@ -68,7 +54,6 @@ def _set_constant_array(
         raise TypeError(f"Unsupported array type: {type(arr)}")
 
     program_adapter.set_constant_buffer(queue_adapter, name, constant_data)
-
 
 
 class SingleDeviceProgram:
@@ -250,7 +235,16 @@ class KernelHub:
         return Kernel(program, sd_kernel_adapters)
 
 
-def process_arg(arg):
+def extract_single_device_arg(arg, device_idx):
+    if isinstance(arg, dict):
+        return arg[device_idx]
+    elif isinstance(arg, MultiArray):
+        return arg.subarrays[device_idx]
+    else:
+        return arg
+
+
+def extract_backend_arg(arg):
     if isinstance(arg, Array):
         return arg.data.kernel_arg
     if isinstance(arg, Buffer):
@@ -260,17 +254,16 @@ def process_arg(arg):
 
 class PreparedKernel:
     """
-    A kernel specialized for execution on a given queue
+    A kernel specialized for execution on a set of devices
     with all possible preparations and checks performed.
     """
 
     def __init__(
             self,
+            context: Context,
             sd_kernel_adapters: Dict[int, KernelAdapter],
-            queue: Queue,
-            device_idxs: Tuple[int],
-            global_sizes: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]]],
-            local_sizes: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None],
+            global_sizes: Union[int, Sequence[int]],
+            local_sizes: Union[int, Sequence[int], None],
             hold_reference=None):
 
         # If this object can be used by itself (e.g. when created from `Kernel.prepare()`),
@@ -280,56 +273,73 @@ class PreparedKernel:
         # So `StaticKernel` will just pass `None`.
         self._hold_reference = hold_reference
 
-        if not all(device_idx in sd_kernel_adapters for device_idx in device_idxs):
-            missing_dev_nums = [
-                str(device_idx) for device_idx in device_idxs if device_idx not in sd_kernel_adapters]
-            raise ValueError(
-                f"This kernel's program was not compiled for devices {', '.join(missing_dev_nums)}")
-
         self._prepared_kernel_adapters = {}
-        self._device_idxs = device_idxs
 
-        for i, device_idx in enumerate(device_idxs):
-            _kernel_ls = local_sizes.values[i] if isinstance(local_sizes, MultiDevice) else local_sizes
-            _kernel_gs = global_sizes.values[i] if isinstance(global_sizes, MultiDevice) else global_sizes
-
+        for device_idx in sd_kernel_adapters:
+            _kernel_ls = local_sizes[device_idx]
             kernel_ls = wrap_in_tuple(_kernel_ls) if _kernel_ls is not None else _kernel_ls
-            kernel_gs = wrap_in_tuple(_kernel_gs)
+            kernel_gs = wrap_in_tuple(global_sizes[device_idx])
 
-            pkernel = sd_kernel_adapters[device_idx].prepare(
-                queue._queue_adapter, kernel_gs, kernel_ls)
+            pkernel = sd_kernel_adapters[device_idx].prepare(kernel_gs, kernel_ls)
 
             self._prepared_kernel_adapters[device_idx] = pkernel
 
-    def __call__(self, *args, device_idxs: Iterable[int]=None, **kwds):
-        """
-        Enqueues the kernel on the chosen devices.
+        self._context = context
 
-        :param args: kernel arguments. Can be: :py:class:`~grunnur.Array` objects,
-            :py:class:`~grunnur.Buffer` objects, ``numpy`` scalars.
-        :param device_idxs: the devices to enqueue the kernel on
-            (*in the context, not in the queue*). Must be a subset of the devices of the ``queue``
-            used for preparation.
-            If ``None``, all the ``queue``'s devices are used.
-            Note that the used devices must be among the ones the parent
-            :py:class:`~grunnur.Program` was compiled for.
+    def __call__(self, queue: Union[Queue, MultiQueue], *args, **kwds):
+        """
+        Enqueues the kernel on the devices in the given queue.
+        The kernel must have been prepared for all of these devices.
+
+        If an argument is a :py:class:`~grunnur.Array` or :py:class:`~grunnur.Buffer` object,
+        it must belong to the device on which the kernel is being executed
+        (so ``queue`` must only have one device).
+
+        If an argument is a :py:class:`~grunnur.MultiArray`, it should have subarrays
+        on all the devices from the given ``queue``.
+
+        If an argument is a ``numpy`` scalar, it will be passed to the kernel directly.
+
+        If an argument is a integer-keyed ``dict``, its values corresponding to the
+        device indices the kernel is executed on will be passed as kernel arguments.
+
+        :param args: kernel arguments.
         :param kwds: backend-specific keyword parameters.
         :returns: a list of ``Event`` objects for enqueued kernels in case of PyOpenCL.
         """
+        if isinstance(queue, Queue):
+            queue = MultiQueue(self._context, [queue])
 
-        if device_idxs is None:
-            device_idxs = self._device_idxs
+        available_device_idxs = set(self._prepared_kernel_adapters)
+        if not queue.device_idxs.issubset(available_device_idxs):
+            raise ValueError(
+                f"Requested execution on devices {queue.device_idxs}; "
+                f"only compiled for {available_device_idxs}")
 
         ret_vals = []
-        for i, device_idx in enumerate(device_idxs):
-            kernel_args = [arg.values[i] if isinstance(arg, MultiDevice) else arg for arg in args]
-            kernel_args = [process_arg(arg) for arg in kernel_args]
+        for device_idx in queue.device_idxs:
+            kernel_args = [
+                extract_backend_arg(extract_single_device_arg(arg, device_idx)) for arg in args]
+
+            single_queue = queue.queues[device_idx]
 
             pkernel = self._prepared_kernel_adapters[device_idx]
-            ret_val = pkernel(*kernel_args, **kwds)
+            ret_val = pkernel(single_queue._queue_adapter, *kernel_args, **kwds)
             ret_vals.append(ret_val)
 
         return ret_vals
+
+
+def normalize_sizes(available_device_idxs, global_size, local_size):
+    if not isinstance(global_size, dict):
+        global_size = {device_idx: global_size for device_idx in available_device_idxs}
+    if not isinstance(local_size, dict):
+        local_size = {device_idx: local_size for device_idx in available_device_idxs}
+
+    if local_size.keys() != global_size.keys():
+        raise ValueError("global_size and local_size must be specified for the same set of devices")
+
+    return global_size, local_size
 
 
 class Kernel:
@@ -339,7 +349,6 @@ class Kernel:
 
     def __init__(self, program: Program, sd_kernel_adapters: Dict[int, KernelAdapter]):
         self._program = program
-        self._device_idxs = set(sd_kernel_adapters)
         self._sd_kernel_adapters = sd_kernel_adapters
 
     @property
@@ -354,14 +363,19 @@ class Kernel:
 
     def prepare(
             self,
-            queue: Queue,
-            global_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]]],
-            local_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None]
+            global_size: Union[int, Sequence[int], Dict[int, Union[int, Sequence[int]]]],
+            local_size: Union[int, Sequence[int], None, Dict[int, Union[int, Sequence[int], None]]]=None,
             ) -> PreparedKernel:
         """
         Prepares the kernel for execution.
 
-        :param queue: the multi-device queue to use.
+        If ``local_size`` or ``global_size`` are integer, they will be treated as 1-tuples.
+
+        One can pass specific global and local sizes for each device
+        using dictionaries keyed with device indices.
+        This achieves another purpose: the kernel will only be prepared for those devices,
+        and not for all devices available in the context.
+
         :param global_size: the total number of threads (CUDA)/work items (OpenCL) in each dimension
             (column-major). Note that there may be a maximum size in each dimension as well
             as the maximum number of dimensions. See :py:class:`DeviceParameters` for details.
@@ -369,20 +383,28 @@ class Kernel:
             work group (OpenCL) in each dimension (column-major).
             If ``None``, it will be chosen automatically.
         """
+        context = self._program.context
+
+        available_device_idxs = set(self._sd_kernel_adapters)
+        global_size, local_size = normalize_sizes(available_device_idxs, global_size, local_size)
+
+        sd_kernel_adapters = {
+            device_idx: self._sd_kernel_adapters[device_idx]
+            for device_idx in global_size}
+
         return PreparedKernel(
-            self._sd_kernel_adapters, queue, queue.device_idxs, global_size, local_size,
-            hold_reference=self)
+            context, sd_kernel_adapters, global_size, local_size, hold_reference=self)
 
     def __call__(
             self,
-            queue: Queue,
-            global_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]]],
-            local_size: Union[int, Sequence[int], MultiDevice[Union[int, Sequence[int]]], None],
+            queue: Union[Queue, MultiQueue],
+            global_size: Union[int, Sequence[int], Dict[int, Union[int, Sequence[int]]]],
+            local_size: Union[int, Sequence[int], None, Dict[int, Union[int, Sequence[int], None]]]=None,
             *args,
             **kwds):
         """
         A shortcut for :py:meth:`Kernel.prepare` and subsequent :py:meth:`PreparedKernel.__call__`.
         See their doc entries for details.
         """
-        pkernel = self.prepare(queue, global_size, local_size)
-        return pkernel(*args, **kwds)
+        pkernel = self.prepare(global_size, local_size)
+        return pkernel(queue, *args, **kwds)

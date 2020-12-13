@@ -254,7 +254,7 @@ class ContextAdapter(ABC):
         pass
 
     @abstractmethod
-    def allocate(self, size):
+    def allocate(self, size, device_idx):
         pass
 
     @abstractmethod
@@ -326,24 +326,15 @@ class BufferAdapter(ABC):
         pass
 
     @abstractmethod
-    def set(self, queue_adapter, device_idx, host_array, no_async=False):
+    def set(self, queue_adapter, host_array, no_async=False):
         pass
 
     @abstractmethod
-    def get(self, queue_adapter, device_idx, host_array, async_=False):
-        pass
-
-    @abstractmethod
-    def migrate(self, queue_adapter, device_idx):
+    def get(self, queue_adapter, host_array, async_=False):
         pass
 
 
 class QueueAdapter(ABC):
-
-    @property
-    @abstractmethod
-    def device_adapters(self) -> Dict[int, DeviceAdapter]:
-        pass
 
     @abstractmethod
     def synchronize(self):
@@ -373,14 +364,12 @@ class KernelAdapter(ABC):
         pass
 
     @abstractmethod
-    def prepare(
-            self, queue_adapter: QueueAdapter,
-            global_size: Tuple[int, ...], local_size: Tuple[int, ...]):
+    def prepare(self, global_size: Tuple[int, ...], local_size: Tuple[int, ...]):
         pass
 
 
 class PreparedKernelAdapter(ABC):
 
     @abstractmethod
-    def __call__(self, *args, local_mem: int=0):
+    def __call__(self, queue_adapter: QueueAdapter, *args, local_mem: int=0):
         pass

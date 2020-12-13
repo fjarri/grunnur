@@ -5,7 +5,7 @@ import numpy
 import pytest
 
 from grunnur.adapter_base import APIID
-from grunnur import Queue, Program, Array, Context, Buffer
+from grunnur import Queue, MultiQueue, Program, Array, Context, Buffer
 import grunnur.dtypes as dtypes
 from grunnur.virtual_alloc import extract_dependencies, TrivialManager, ZeroOffsetManager
 
@@ -62,17 +62,17 @@ def test_contract(context, valloc_cls, pack):
         render_globals=dict(ctype=dtypes.ctype(dtype)))
     fill = program.kernel.fill
 
-    queue = Queue.on_all_devices(context)
-    virtual_alloc = valloc_cls(queue)
+    queue = Queue(context)
+    virtual_alloc = valloc_cls(context)
 
     buffers_metadata, arrays = allocate_test_set(
         virtual_alloc,
         # Bump size to make sure buffer alignment doesn't hide any out-of-bounds access
-        lambda allocator, size: Array.empty(queue, size * 100, dtype, allocator=allocator))
+        lambda allocator, size: Array.empty(context, size * 100, dtype, allocator=allocator))
     dependencies = {id_: deps for id_, _, deps in buffers_metadata}
 
     if pack:
-        virtual_alloc.pack()
+        virtual_alloc.pack(queue)
 
     # Clear all arrays
     for name in sorted(arrays.keys()):
@@ -85,7 +85,7 @@ def test_contract(context, valloc_cls, pack):
         # will not intersect with the buffers from the specified dependencies.
         # So we're filling the buffer and checking that the dependencies did not change.
         for dep in dependencies[name]:
-            assert (arrays[dep].get() != val).all()
+            assert (arrays[dep].get(queue) != val).all()
 
 
 @pytest.mark.parametrize('pack', [False, True], ids=['no_pack', 'pack'])
@@ -94,11 +94,11 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
     # Using PyCUDA backend here because it tracks the allocations.
 
     context = mock_context_pycuda
-    queue = Queue.on_all_devices(context)
-    virtual_alloc = valloc_cls(queue)
+    queue = Queue(context)
+    virtual_alloc = valloc_cls(context)
 
     buffers_metadata, buffers = allocate_test_set(
-        virtual_alloc, lambda allocator, size: allocator(size))
+        virtual_alloc, lambda allocator, size: allocator(size, 0))
 
     for name, size, deps in buffers_metadata:
         # Virtual buffer size should be exactly as requested
@@ -108,7 +108,7 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
         assert buffers[name].kernel_arg._size >= size
 
     if pack:
-        virtual_alloc.pack()
+        virtual_alloc.pack(queue)
 
     # Clear all buffers
     for name, _, _ in buffers_metadata:
@@ -130,11 +130,11 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
 
 def test_extract_dependencies(mock_context):
 
-    queue = Queue.on_all_devices(mock_context)
-    virtual_alloc = TrivialManager(queue).allocator()
+    queue = Queue(mock_context)
+    virtual_alloc = TrivialManager(mock_context).allocator()
 
-    vbuf = virtual_alloc(100)
-    varr = Array.empty(queue, 100, numpy.int32, allocator=virtual_alloc)
+    vbuf = virtual_alloc(100, 0)
+    varr = Array.empty(mock_context, 100, numpy.int32, allocator=virtual_alloc)
 
     assert extract_dependencies(vbuf) == {vbuf._buffer_adapter._id}
     assert extract_dependencies(varr) == {varr.data._buffer_adapter._id}
@@ -162,16 +162,16 @@ def check_statistics(buffers_metadata, stats):
 def test_statistics(mock_context, valloc_cls):
 
     context = mock_context
-    queue = Queue.on_all_devices(context)
-    virtual_alloc = valloc_cls(queue)
+    queue = Queue(context)
+    virtual_alloc = valloc_cls(context)
 
     buffers_metadata, buffers = allocate_test_set(
-        virtual_alloc, lambda allocator, size: allocator(size))
+        virtual_alloc, lambda allocator, size: allocator(size, 0))
 
     stats = virtual_alloc.statistics()
     check_statistics(buffers_metadata, stats)
 
-    virtual_alloc.pack()
+    virtual_alloc.pack(queue)
 
     stats = virtual_alloc.statistics()
     check_statistics(buffers_metadata, stats)
@@ -185,10 +185,9 @@ def test_statistics(mock_context, valloc_cls):
 
 def test_non_existent_dependencies(mock_context, valloc_cls):
     context = mock_context
-    queue = Queue.on_all_devices(context)
-    virtual_alloc = valloc_cls(queue)
+    virtual_alloc = valloc_cls(context)
     with pytest.raises(ValueError, match="12345"):
-        virtual_alloc._allocate_virtual(100, {12345})
+        virtual_alloc._allocate_virtual(100, {12345}, 0)
 
 
 def test_virtual_buffer(mock_4_device_context_pyopencl):
@@ -196,11 +195,11 @@ def test_virtual_buffer(mock_4_device_context_pyopencl):
     # Using an OpenCL mock context here because it keeps track of buffer migrations
 
     context = mock_4_device_context_pyopencl
-    queue = Queue.on_all_devices(context)
-    virtual_alloc = TrivialManager(queue)
+    mqueue = MultiQueue(context)
+    virtual_alloc = TrivialManager(context)
 
     allocator = virtual_alloc.allocator()
-    vbuf = allocator(100)
+    vbuf = allocator(100, 0)
 
     assert vbuf.size == 100
     assert isinstance(vbuf.kernel_arg._buffer, bytes)
@@ -210,37 +209,7 @@ def test_virtual_buffer(mock_4_device_context_pyopencl):
     assert vbuf.offset == 0
 
     arr = numpy.arange(100).astype(numpy.uint8)
-    vbuf.bind(1)
-    vbuf.set(queue, arr)
+    vbuf.set(mqueue.queues[0], arr)
     res = numpy.empty_like(arr)
-    vbuf.get(queue, res)
+    vbuf.get(mqueue.queues[0], res)
     assert (arr == res).all()
-
-    vbuf2 = allocator(100)
-    assert vbuf2.kernel_arg._migrated_to is None
-    vbuf2.bind(1)
-    vbuf2.migrate(queue)
-    assert vbuf2.kernel_arg._migrated_to == context.devices[1]._device_adapter.pyopencl_device
-
-
-def test_continuous_pack(mock_context, valloc_cls):
-    context = mock_context
-    queue = Queue.on_all_devices(context)
-    virtual_alloc_ref = valloc_cls(queue, pack_on_alloc=False, pack_on_free=False)
-    virtual_alloc = valloc_cls(queue, pack_on_alloc=True, pack_on_free=True)
-
-    _, buffers_ref = allocate_test_set(
-        virtual_alloc_ref, lambda allocator, size: allocator(size))
-
-    _, buffers = allocate_test_set(
-        virtual_alloc, lambda allocator, size: allocator(size))
-
-    virtual_alloc_ref.pack()
-    assert virtual_alloc_ref.statistics() == virtual_alloc.statistics()
-
-    for id_ in (2, 4, 6, 8):
-        del buffers_ref[id_]
-        del buffers[id_]
-
-    virtual_alloc_ref.pack()
-    assert virtual_alloc_ref.statistics() == virtual_alloc.statistics()

@@ -22,7 +22,7 @@ def test_allocate_and_copy(mock_or_real_context):
     # Hard to actually check it without running a kernel
     assert buf.kernel_arg is not None
 
-    queue = Queue.on_all_devices(context)
+    queue = Queue(context)
     buf.set(queue, arr)
 
     # Read the whole buffer
@@ -83,58 +83,6 @@ def test_allocate_and_copy(mock_or_real_context):
     assert (res2[150:] == 1).all()
 
 
-def test_migrate(mock_or_real_multi_device_context):
-
-    context, _mocked = mock_or_real_multi_device_context
-
-    length = 100
-    dtype = numpy.dtype('int32')
-    size = length * dtype.itemsize
-
-    arr = numpy.arange(length).astype(dtype)
-
-    buf = Buffer.allocate(context, size)
-    assert buf.size == size
-    assert buf.offset == 0
-
-    queue0 = Queue.on_device_idxs(context, [0])
-    queue1 = Queue.on_device_idxs(context, [1])
-
-    res = numpy.empty_like(arr)
-
-    with pytest.raises(RuntimeError, match="This buffer has not been bound to any device yet"):
-        buf.set(queue0, arr)
-
-    with pytest.raises(RuntimeError, match="This buffer has not been bound to any device yet"):
-        buf.get(queue0, arr)
-
-    with pytest.raises(RuntimeError, match="This buffer has not been bound to any device yet"):
-        buf.migrate(queue0)
-
-    idx = len(context.devices)
-    with pytest.raises(ValueError, match=f"Device index {idx} out of available range for this context"):
-        buf.bind(idx)
-
-    buf.bind(0)
-
-    # Binding to the same device produces no effect
-    buf.bind(0)
-
-    with pytest.raises(ValueError, match=f"The buffer is already bound to device 0"):
-        buf.bind(1)
-
-    buf.set(queue0, arr)
-    queue0.synchronize()
-
-    buf1 = buf.get_sub_region(0, size)
-    buf1.bind(1)
-    buf1.migrate(queue1)
-
-    buf1.get(queue1, res)
-    queue1.synchronize()
-    assert (res == arr).all()
-
-
 def test_flags(mock_backend_pyopencl):
     backend = mock_backend_pyopencl
 
@@ -147,12 +95,12 @@ def test_flags(mock_backend_pyopencl):
     # Multi-device on Apple platform with one of the devices being GeForce: need special Buffer flags
     api = API.from_api_id(backend.api_id)
     context = Context.from_devices([api.platforms[0].devices[0], api.platforms[0].devices[1]])
-    buf = Buffer.allocate(context, 100)
+    buf = Buffer.allocate(context, 100, device_idx=0)
     assert buf._buffer_adapter.pyopencl_buffer.flags == special_flags
 
     # None of the devices is GeForce
     context = Context.from_devices([api.platforms[0].devices[1], api.platforms[0].devices[2]])
-    buf = Buffer.allocate(context, 100)
+    buf = Buffer.allocate(context, 100, device_idx=0)
     assert buf._buffer_adapter.pyopencl_buffer.flags == normal_flags
 
     # Only one device
@@ -162,12 +110,31 @@ def test_flags(mock_backend_pyopencl):
 
     # Not an Apple platform
     context = Context.from_devices([api.platforms[1].devices[0], api.platforms[1].devices[1]])
-    buf = Buffer.allocate(context, 100)
+    buf = Buffer.allocate(context, 100, device_idx=0)
     assert buf._buffer_adapter.pyopencl_buffer.flags == normal_flags
 
 
 def test_set_from_wrong_type(mock_context):
     buf = Buffer.allocate(mock_context, 100)
-    queue = Queue.on_all_devices(mock_context)
+    queue = Queue(mock_context)
     with pytest.raises(TypeError, match="Cannot set from an object of type <class 'int'>"):
         buf.set(queue, 1)
+
+
+def test_create_in_multi_device_context(mock_4_device_context):
+    context = mock_4_device_context
+    with pytest.raises(ValueError, match="device_idx must be specified in a multi-device context"):
+        buf = Buffer.allocate(context, 100)
+
+
+def test_mismatched_devices(mock_4_device_context):
+    context = mock_4_device_context
+    buf = Buffer.allocate(context, 100, device_idx=0)
+    queue = Queue(context, device_idx=1)
+    arr = numpy.ones(100, numpy.uint8)
+
+    with pytest.raises(ValueError, match="Mismatched devices: queue on device"):
+        buf.get(queue, arr)
+
+    with pytest.raises(ValueError, match="Mismatched devices: queue on device"):
+        buf.set(queue, arr)

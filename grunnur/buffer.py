@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 
 import numpy
 
@@ -12,21 +12,34 @@ class Buffer:
     A memory buffer on device.
     """
 
+    context: Context
+    """Context this buffer is allocated on."""
+
+    device_idx: int
+    """The index of the device this buffer is allocated on."""
+
     @classmethod
-    def allocate(cls, context: Context, size: int) -> 'Buffer':
+    def allocate(cls, context: Context, size: int, device_idx: Optional[int]=None) -> 'Buffer':
         """
         Allocate a buffer of ``size`` bytes.
 
         :param context: the context to use.
         :param size: the buffer's size in bytes.
+        :param device_idx: the device to allocate on (can be omitted in a single-device context).
         """
-        buffer_adapter = context._context_adapter.allocate(size)
-        return cls(context, buffer_adapter)
+        if device_idx is None:
+            if len(context.devices) == 1:
+                device_idx = 0
+            else:
+                raise ValueError("device_idx must be specified in a multi-device context")
 
-    def __init__(self, context: Context, buffer_adapter: BufferAdapter):
+        buffer_adapter = context._context_adapter.allocate(size, device_idx)
+        return cls(context, device_idx, buffer_adapter)
+
+    def __init__(self, context: Context, device_idx: int, buffer_adapter: BufferAdapter):
         self.context = context
         self._buffer_adapter = buffer_adapter
-        self._device_idx = None if len(context.devices) > 1 else 0
+        self.device_idx = device_idx
 
     @property
     def kernel_arg(self):
@@ -57,8 +70,10 @@ class Buffer:
         :param buf: the source - ``numpy`` array or a :py:class:`Buffer` object.
         :param no_async: if `True`, the transfer blocks until completion.
         """
-        if self._device_idx is None:
-            raise RuntimeError("This buffer has not been bound to any device yet")
+        if queue.device_idx != self.device_idx:
+            raise ValueError(
+                f"Mismatched devices: queue on device {queue.device_idx}, "
+                f"buffer on device {self.device_idx}")
 
         if isinstance(buf, numpy.ndarray):
             buf_adapter = numpy.ascontiguousarray(buf)
@@ -67,9 +82,7 @@ class Buffer:
         else:
             raise TypeError(f"Cannot set from an object of type {type(buf)}")
 
-        self._buffer_adapter.set(
-            queue._queue_adapter, self._device_idx, buf_adapter, no_async=no_async)
-        self.migrate(queue)
+        self._buffer_adapter.set(queue._queue_adapter, buf_adapter, no_async=no_async)
 
     def get(self, queue: Queue, host_array: numpy.ndarray, async_: bool=False):
         """
@@ -79,9 +92,12 @@ class Buffer:
         :param host_array: the destination array.
         :param async_: if `True`, the transfer is performed asynchronously.
         """
-        if self._device_idx is None:
-            raise RuntimeError("This buffer has not been bound to any device yet")
-        self._buffer_adapter.get(queue._queue_adapter, self._device_idx, host_array, async_=async_)
+        if queue.device_idx != self.device_idx:
+            raise ValueError(
+                f"Mismatched devices: queue on device {queue.device_idx}, "
+                f"buffer on device {self.device_idx}")
+
+        self._buffer_adapter.get(queue._queue_adapter, host_array, async_=async_)
 
     def get_sub_region(self, origin: int, size: int) -> 'Buffer':
         """
@@ -90,27 +106,4 @@ class Buffer:
         :param origin: the offset of the subregion.
         :param size: the size of the subregion.
         """
-        return Buffer(self.context, self._buffer_adapter.get_sub_region(origin, size))
-
-    def bind(self, device_idx: int):
-        if device_idx >= len(self.context.devices):
-            max_idx = len(self.context.devices) - 1
-            raise ValueError(
-                f"Device index {device_idx} out of available range for this context (0-{max_idx})")
-
-        if self._device_idx is None:
-            self._device_idx = device_idx
-        elif self._device_idx != device_idx:
-            raise ValueError(f"The buffer is already bound to device {self._device_idx}")
-
-    def migrate(self, queue: Queue):
-        # Normally, a buffer will migrate automatically to the device,
-        # but on some platforms the lack of explicit migration might lead
-        # to performance degradation.
-        # (e.g. `examples/multi_device_comparison.py` on a multi-Tesla AWS instance).
-        if self._device_idx is None:
-            raise RuntimeError("This buffer has not been bound to any device yet")
-
-        # Automatic migration works well enough for one-device contexts
-        if len(self.context.devices) > 1:
-            self._buffer_adapter.migrate(queue._queue_adapter, self._device_idx)
+        return Buffer(self.context, self.device_idx, self._buffer_adapter.get_sub_region(origin, size))

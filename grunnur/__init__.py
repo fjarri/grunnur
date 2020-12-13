@@ -6,15 +6,15 @@ from .api import (
     opencl_api_id,
     all_api_ids,
     )
-from .program import Program, CompilationError, MultiDevice
+from .program import Program, CompilationError
 from .platform import Platform
 from .device import Device
 from .device_discovery import (
     platforms_and_devices_by_mask,
     select_devices,
     )
-from .queue import Queue
-from .array import Array
+from .queue import Queue, MultiQueue
+from .array import Array, MultiArray
 from .context import Context
 from .buffer import Buffer
 from .static import StaticKernel

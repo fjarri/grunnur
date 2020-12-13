@@ -10,7 +10,7 @@ from .queue import Queue
 from .array import Array
 from .utils import prod, wrap_in_tuple, update_dict
 from .vsize import VirtualSizes, VirtualSizeError
-from .program import SingleDeviceProgram, MultiDevice, PreparedKernel, _set_constant_array
+from .program import SingleDeviceProgram, PreparedKernel, _set_constant_array, normalize_sizes
 
 
 # the name of the global in the template containing static kernel modules
@@ -34,12 +34,11 @@ class StaticKernel:
 
     def __init__(
             self,
-            queue: Queue,
+            context: Context,
             template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
             name: str,
-            global_size: Union[int, Sequence[int]],
-            local_size: Union[int, Sequence[int], None]=None,
-            device_idxs: Optional[Sequence[int]]=None,
+            global_size: Union[int, Sequence[int], Dict[int, Union[int, Sequence[int]]]],
+            local_size: Union[int, Sequence[int], None, Dict[int, Union[int, Sequence[int], None]]]=None,
             render_globals: Dict={},
             constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={},
             **kwds):
@@ -47,37 +46,30 @@ class StaticKernel:
         :param context: context to compile the kernel on.
         :param template_src: a string with the source code, or a Mako template source to render.
         :param name: the kernel's name.
-        :param global_size: the total number of threads (CUDA)/work items (OpenCL) in each dimension
-            (column-major). Note that there may be a maximum size in each dimension as well
-            as the maximum number of dimensions. See :py:class:`DeviceParameters` for details.
-        :param local_size: the number of threads in a block (CUDA)/work items in a
-            work group (OpenCL) in each dimension (column-major).
-            If ``None``, it will be chosen automatically.
-        :param device_idxs: a list of device numbers to compile on.
-            If ``None``, compile on all context's devices.
+        :param global_size: see :py:meth:`~grunnur.program.Kernel.prepare`.
+        :param local_size: see :py:meth:`~grunnur.program.Kernel.prepare`.
         :param render_globals: a dictionary of globals to pass to the template.
         :param constant_arrays: (**CUDA only**) a dictionary ``name: (size, dtype)``
             of global constant arrays to be declared in the program.
         """
-        context = queue.context
-
         if context.api.id != cuda_api_id() and len(constant_arrays) > 0:
             raise ValueError("Compile-time constant arrays are only supported by CUDA API")
 
-        if device_idxs is None:
-            device_idxs = range(len(context.devices))
-        else:
-            device_idxs = sorted(device_idxs)
+        available_device_idxs = set(range(len(context.devices)))
+        global_size, local_size = normalize_sizes(available_device_idxs, global_size, local_size)
 
-        kernel_ls = wrap_in_tuple(local_size) if local_size is not None else local_size
-        kernel_gs = wrap_in_tuple(global_size)
+        device_idxs = local_size.keys()
 
         kernel_adapters = {}
         sources = {}
-        vs_metadata = []
+        vs_metadata = {}
         for device_idx in device_idxs:
 
             device_params = context.devices[device_idx].params
+
+            _kernel_ls = local_size[device_idx]
+            kernel_ls = wrap_in_tuple(_kernel_ls) if _kernel_ls is not None else _kernel_ls
+            kernel_gs = wrap_in_tuple(global_size[device_idx])
 
             # Since virtual size function require some registers,
             # they affect the maximum local size.
@@ -133,30 +125,27 @@ class StaticKernel:
 
             kernel_adapters[device_idx] = kernel_adapter
             sources[device_idx] = program.source
-            vs_metadata.append(vs)
+            vs_metadata[device_idx] = vs
 
-        self.queue = queue
         self.sources = sources
         self._vs_metadata = vs_metadata
         self._sd_kernel_adapters = kernel_adapters
-        self._device_idxs = device_idxs
 
-        global_sizes = MultiDevice(*[vs.real_global_size for vs in self._vs_metadata])
-        local_sizes = MultiDevice(*[vs.real_local_size for vs in self._vs_metadata])
+        global_sizes = {device_idx: vs.real_global_size for device_idx, vs in self._vs_metadata.items()}
+        local_sizes = {device_idx: vs.real_local_size for device_idx, vs in self._vs_metadata.items()}
 
         self._prepared_kernel = PreparedKernel(
-            kernel_adapters, queue, device_idxs, global_sizes, local_sizes)
+            context, kernel_adapters, global_sizes, local_sizes)
 
-    def __call__(self, *args):
+    def __call__(self, queue, *args):
         """
         Execute the kernel.
         In case of the OpenCL backend, returns a ``pyopencl.Event`` object.
 
         :param queue: the multi-device queue to use.
-        :param args: kernel arguments. Can be: :py:class:`~grunnur.Array` objects,
-            :py:class:`~grunnur.Buffer` objects, ``numpy`` scalars.
+        :param args: kernel arguments. See :py:meth:`grunnur.program.PreparedKernel.__call__`.
         """
-        return self._prepared_kernel(*args)
+        return self._prepared_kernel(queue, *args)
 
     def set_constant_array(self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
         """
@@ -166,7 +155,7 @@ class StaticKernel:
         :param name: the name of the constant array symbol in the code.
         :param arr: either a device or a host array.
         """
-        if self.queue.context.api.id != cuda_api_id():
+        if queue.context.api.id != cuda_api_id():
             raise ValueError("Constant arrays are only supported for CUDA API")
         for kernel_adapter in self._sd_kernel_adapters.values():
             _set_constant_array(queue, kernel_adapter._program_adapter, name, arr)

@@ -11,7 +11,7 @@ from .sorted_list import SortedList
 from .adapter_base import BufferAdapter
 from .buffer import Buffer
 from .array import Array
-from .queue import Queue
+from .context import Context
 
 
 def extract_dependencies(dependencies) -> Set[int]:
@@ -47,8 +47,8 @@ class VirtualAllocator:
         self.manager = manager
         self.dependencies = dependencies
 
-    def __call__(self, size: int) -> Buffer:
-        return self.manager._allocate_virtual(size, self.dependencies)
+    def __call__(self, size: int, device_idx: int) -> Buffer:
+        return self.manager._allocate_virtual(size, self.dependencies, device_idx)
 
 
 class VirtualBufferAdapter(BufferAdapter):
@@ -84,9 +84,6 @@ class VirtualBufferAdapter(BufferAdapter):
     def size(self) -> int:
         return self._size
 
-    def migrate(self, *args, **kwds):
-        self._real_buffer_adapter.migrate(*args, **kwds)
-
     def _set_real_buffer_adapter(self, buf: Buffer):
         self._real_buffer_adapter = buf._buffer_adapter
 
@@ -95,21 +92,13 @@ class VirtualManager:
     """
     Base class for a manager of virtual allocations.
 
-    :param queue: an instance of :py:class:`~grunnur.Queue`.
-    :param pack_on_alloc: whether to repack allocations when a new allocation is requested.
-    :param pack_on_free: whether to repack allocations when an allocation is freed.
-
-    .. note::
-
-        The allocators returned by this object must be used for arrays attached to the same queue.
+    :param context: an instance of :py:class:`~grunnur.Context`.
     """
 
-    def __init__(self, queue: Queue, pack_on_alloc: bool=False, pack_on_free: bool=False):
-        self.queue = queue
+    def __init__(self, context: Context):
+        self.context = context
         self._id_counter = 0
         self._virtual_buffers: Dict[int, ReferenceType[VirtualBufferAdapter]] = {}
-        self._pack_on_alloc = pack_on_alloc
-        self._pack_on_free = pack_on_free
 
     def allocator(self, dependencies=None) -> VirtualAllocator:
         """
@@ -124,7 +113,7 @@ class VirtualManager:
         dependencies = extract_dependencies(dependencies)
         return VirtualAllocator(self, dependencies)
 
-    def _allocate_virtual(self, size: int, dependencies: Set[int]) -> Buffer:
+    def _allocate_virtual(self, size: int, dependencies: Set[int], device_idx: int) -> Buffer:
 
         new_id = self._id_counter
         self._id_counter += 1
@@ -135,15 +124,11 @@ class VirtualManager:
             raise ValueError(
                 f"Some of the declared dependencies (with IDs {missing_deps}) do not exist")
 
-        self._allocate_specific(new_id, size, dependencies, self._pack_on_alloc)
+        self._allocate_specific(new_id, size, device_idx, dependencies)
         vbuf = VirtualBufferAdapter(self, size, new_id)
-        buf = Buffer(self.queue.context, vbuf)
+        buf = Buffer(self.context, device_idx, vbuf)
         self._virtual_buffers[new_id] = weakref.ref(vbuf, lambda _: self._free(new_id))
-
-        if self._pack_on_alloc:
-            self._update_all()
-        else:
-            self._update_buffer(new_id)
+        self._update_buffer(new_id)
 
         return buf
 
@@ -159,16 +144,14 @@ class VirtualManager:
 
     def _free(self, id_: int):
         del self._virtual_buffers[id_]
-        self._free_specific(id_, self._pack_on_free)
-        if self._pack_on_free:
-            self._update_all()
+        self._free_specific(id_)
 
-    def pack(self):
+    def pack(self, queue):
         """
         Packs the real allocations possibly reducing total memory usage.
         This process can be slow and may synchronize the base queue.
         """
-        self._pack_specific()
+        self._pack_specific(queue)
         self._update_all()
 
     def statistics(self) -> VirtualAllocationStatistics:
@@ -181,7 +164,7 @@ class VirtualManager:
             [cast(VirtualBufferAdapter, vb()) for vb in self._virtual_buffers.values()])
 
     @abstractmethod
-    def _allocate_specific(self, new_id: int, size:int, dependencies: Set[int], pack: bool):
+    def _allocate_specific(self, new_id: int, size: int, device_idx: int, dependencies: Set[int]):
         pass
 
     @abstractmethod
@@ -193,11 +176,11 @@ class VirtualManager:
         pass
 
     @abstractmethod
-    def _free_specific(self, id_: int, _pack: bool):
+    def _free_specific(self, id_: int):
         pass
 
     @abstractmethod
-    def _pack_specific(self):
+    def _pack_specific(self, queue):
         pass
 
 
@@ -238,16 +221,6 @@ class VirtualAllocationStatistics:
         self.virtual_num: int = len(virtual_sizes)
         self.virtual_sizes: Dict[int, int] = dict(Counter(virtual_sizes))
 
-    def __eq__(self, other):
-        return (
-            self.real_size_total == other.real_size_total
-            and self.real_num == other.real_num
-            and self.real_sizes == other.real_sizes
-            and self.virtual_size_total == other.virtual_size_total
-            and self.virtual_num == other.virtual_num
-            and self.virtual_sizes == other.virtual_sizes
-            )
-
     def __str__(self):
         real_buffers = ", ".join(
             f"{num}x{size}b" for size, num in sorted(self.real_sizes.items()))
@@ -273,17 +246,17 @@ class TrivialManager(VirtualManager):
         VirtualManager.__init__(self, *args, **kwds)
         self._rbuffers = {}
 
-    def _allocate_specific(self, new_id, size, _dependencies, _pack):
-        buf = Buffer.allocate(self.queue.context, size)
+    def _allocate_specific(self, new_id, size, device_idx, _dependencies):
+        buf = Buffer.allocate(self.context, size, device_idx=device_idx)
         self._rbuffers[new_id] = buf
 
     def _get_real_buffer(self, id_):
         return self._rbuffers[id_]
 
-    def _free_specific(self, id_, _pack):
+    def _free_specific(self, id_):
         del self._rbuffers[id_]
 
-    def _pack_specific(self):
+    def _pack_specific(self, queue):
         pass
 
     def _real_buffers(self):
@@ -311,7 +284,7 @@ class ZeroOffsetManager(VirtualManager):
         self._real_allocations = {} # real_id -> RealAllocation
         self._real_id_counter = 0
 
-    def _allocate_specific(self, new_id, size, dependencies, pack):
+    def _allocate_specific(self, new_id, size, device_idx, dependencies):
 
         # Dependencies should be bidirectional.
         # So if some new allocation says it depends on earlier ones,
@@ -322,12 +295,8 @@ class ZeroOffsetManager(VirtualManager):
         # Save virtual allocation parameters
         self._virtual_allocations[new_id] = self.VirtualAllocation(size, dependencies)
 
-        if pack:
-            # If pack is requested, we can just do full re-pack right away.
-            self._pack_specific()
-        else:
-            # If not, find a real allocation using the greedy algorithm.
-            self._fast_add(new_id, size, dependencies)
+        # Find a real allocation using the greedy algorithm.
+        self._fast_add(new_id, size, dependencies)
 
     def _fast_add(self, new_id, size, dependencies):
         """
@@ -351,7 +320,7 @@ class ZeroOffsetManager(VirtualManager):
                 break
         else:
             # If no suitable real allocation is found, create a new one.
-            buf = Buffer.allocate(self.queue.context, size)
+            buf = Buffer.allocate(self.context, size)
             real_id = self._real_id_counter
             self._real_id_counter += 1
 
@@ -368,7 +337,7 @@ class ZeroOffsetManager(VirtualManager):
     def _get_real_buffer(self, id_: int) -> Buffer:
         return self._virtual_to_real[id_].sub_region
 
-    def _free_specific(self, id_: int, pack: bool=False):
+    def _free_specific(self, id_: int):
         # Remove the allocation from the dependency lists of its dependencies
         dependencies = self._virtual_allocations[id_].dependencies
         for dep in dependencies:
@@ -380,19 +349,16 @@ class ZeroOffsetManager(VirtualManager):
         del self._virtual_allocations[id_]
         del self._virtual_to_real[id_]
 
-        if pack:
-            self._pack_specific()
-        else:
-            # Fast and non-optimal free.
-            # Remove the virtual allocation from the real allocation,
-            # and delete the real allocation if its no longer used by other virtual allocations.
-            ra = self._real_allocations[vtr.real_id]
-            ra.virtual_ids.remove(id_)
-            if len(ra.virtual_ids) == 0:
-                del self._real_allocations[vtr.real_id]
-                self._real_sizes.remove(self.RealSize(ra.buffer.size, vtr.real_id))
+        # Fast and non-optimal free.
+        # Remove the virtual allocation from the real allocation,
+        # and delete the real allocation if its no longer used by other virtual allocations.
+        ra = self._real_allocations[vtr.real_id]
+        ra.virtual_ids.remove(id_)
+        if len(ra.virtual_ids) == 0:
+            del self._real_allocations[vtr.real_id]
+            self._real_sizes.remove(self.RealSize(ra.buffer.size, vtr.real_id))
 
-    def _pack_specific(self):
+    def _pack_specific(self, queue):
         """
         Full memory re-pack.
         In theory, should find the optimal (with the minimal real allocation size) distribution
@@ -401,7 +367,7 @@ class ZeroOffsetManager(VirtualManager):
 
         # Need to synchronize, because we are going to change allocation addresses,
         # and we do not want to free the memory some kernel is reading from.
-        self.queue.synchronize()
+        queue.synchronize()
 
         # Clear all real allocation data.
         self._real_sizes.clear()

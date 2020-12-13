@@ -408,7 +408,7 @@ def make_device_allocation_class(backend):
             if isinstance(arg, (cls, numpy.uintp)):
                 return cls._from_memcpy_arg(int(arg))
             else:
-                raise TypeError(type(kernel_arg))
+                raise TypeError(type(arg))
 
         def __init__(self, idx, address, offset, size, owns_buffer=False):
             self._context = self._backend_ref().current_context()

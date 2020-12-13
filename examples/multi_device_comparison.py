@@ -1,7 +1,7 @@
 import time
 import numpy
 from grunnur import opencl_api as api
-from grunnur import Context, Queue, Program, Array, MultiDevice
+from grunnur import Context, Queue, MultiQueue, Program, Array, MultiArray
 
 
 src = """
@@ -39,22 +39,19 @@ def test_single_device(device_idx, full_len, benchmark=False):
     a = numpy.arange(full_len).astype(numpy.uint64)
 
     context = Context.from_devices([api.platforms[0].devices[device_idx]])
-    queue = Queue.on_all_devices(context)
+    queue = Queue(context)
 
     program = Program(context, src)
     a_dev = Array.from_host(queue, a)
 
-    gs = full_len
-    ls = None
-
     queue.synchronize()
     t1 = time.time()
-    program.kernel.sum(queue, gs, ls, a_dev, numpy.int32(pwr))
+    program.kernel.sum(queue, full_len, None, a_dev, numpy.int32(pwr))
     queue.synchronize()
     t2 = time.time()
     print(f"Single device time (device {device_idx}):", t2 - t1)
 
-    a_res = a_dev.get()
+    a_res = a_dev.get(queue)
 
     if not benchmark:
         a_ref = calc_ref(a, pwr)
@@ -68,25 +65,19 @@ def test_multi_device(device_idxs, full_len, benchmark=False):
     a = numpy.arange(full_len).astype(numpy.uint64)
 
     context = Context.from_devices([api.platforms[0].devices[device_idx] for device_idx in device_idxs])
-    queue = Queue.on_all_devices(context)
+    mqueue = MultiQueue(context)
 
     program = Program(context, src)
-    a_dev = Array.from_host(queue, a)
+    a_dev = MultiArray.from_host(mqueue, a)
 
-    a_dev_1 = a_dev.single_device_view(0)[:full_len//2]
-    a_dev_2 = a_dev.single_device_view(1)[full_len//2:]
-
-    gs = full_len // 2
-    ls = None
-
-    queue.synchronize()
+    mqueue.synchronize()
     t1 = time.time()
-    program.kernel.sum(queue, gs, ls, MultiDevice(a_dev_1, a_dev_2), numpy.int32(pwr), device_idxs=[0, 1])
-    queue.synchronize()
+    program.kernel.sum(mqueue, a_dev.shapes, None, a_dev, numpy.int32(pwr))
+    mqueue.synchronize()
     t2 = time.time()
     print(f"Multidevice time (devices {device_idxs}):", t2 - t1)
 
-    a_res = a_dev.get()
+    a_res = a_dev.get(mqueue)
 
     if not benchmark:
         a_ref = calc_ref(a, pwr)

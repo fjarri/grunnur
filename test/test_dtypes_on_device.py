@@ -32,13 +32,13 @@ def check_struct_fill(context, dtype):
             dtype=dtype))
 
     test = program.kernel.test
-    queue = Queue.on_all_devices(context)
+    queue = Queue(context)
 
-    a_dev = Array.empty(queue, 128, dtype)
-    itemsizes_dev = Array.empty(queue, 128, numpy.int32)
+    a_dev = Array.empty(context, 128, dtype)
+    itemsizes_dev = Array.empty(context, 128, numpy.int32)
     test(queue, 128, None, a_dev, itemsizes_dev)
-    a = a_dev.get()
-    itemsizes = itemsizes_dev.get()
+    a = a_dev.get(queue)
+    itemsizes = itemsizes_dev.get(queue)
 
     for i, field_info in enumerate(dtypes.flatten_dtype(dtype)):
         path, _ = field_info

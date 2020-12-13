@@ -3,7 +3,7 @@ import numpy
 
 from grunnur import (
     cuda_api_id, opencl_api_id,
-    StaticKernel, VirtualSizeError, API, Context, Queue, Array, MultiDevice
+    StaticKernel, VirtualSizeError, API, Context, Queue, MultiQueue, Array, MultiArray
     )
 from grunnur.template import DefTemplate
 
@@ -39,17 +39,17 @@ def test_compile_static(mock_or_real_context):
     b = numpy.arange(15).astype(numpy.int32)
     ref = numpy.outer(a, b)
 
-    queue = Queue.on_all_devices(context)
+    queue = Queue(context)
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
 
-    res_dev = Array.empty(queue, (11, 15), numpy.int32)
+    res_dev = Array.empty(context, (11, 15), numpy.int32)
 
-    multiply = StaticKernel(queue, src, 'multiply', (11, 15))
-    multiply(res_dev, a_dev, b_dev)
+    multiply = StaticKernel(context, src, 'multiply', (11, 15))
+    multiply(queue, res_dev, a_dev, b_dev)
 
-    res = res_dev.get()
+    res = res_dev.get(queue)
 
     if not mocked:
         assert (res == ref).all()
@@ -70,51 +70,19 @@ def test_compile_static_multi_device(mock_or_real_multi_device_context):
     b = numpy.arange(15).astype(numpy.int32)
     ref = numpy.outer(a, b)
 
-    queue = Queue.on_device_idxs(context, device_idxs=[0, 1])
+    mqueue = MultiQueue.on_device_idxs(context, device_idxs=[0, 1])
 
-    a_dev = Array.from_host(queue, a)
-    b_dev = Array.from_host(queue, b)
+    a_dev = MultiArray.from_host(mqueue, a)
+    b_dev = MultiArray.from_host(mqueue, b, splay=MultiArray.CloneSplay())
+    res_dev = MultiArray.empty(context, (22, 15), ref.dtype, device_idxs=mqueue.device_idxs)
 
-    res_dev = Array.empty(queue, (22, 15), numpy.int32)
+    multiply = StaticKernel(context, src, 'multiply', res_dev.shapes)
+    multiply(mqueue, res_dev, a_dev, b_dev)
 
-    a_dev_1 = a_dev.single_device_view(0)[:11]
-    a_dev_2 = a_dev.single_device_view(1)[11:]
+    res = res_dev.get(mqueue)
 
-    b_dev_1 = b_dev.single_device_view(0)[:]
-    b_dev_2 = b_dev.single_device_view(0)[:]
-
-    res_dev_1 = res_dev.single_device_view(0)[:11,:]
-    res_dev_2 = res_dev.single_device_view(1)[11:,:]
-
-    multiply = StaticKernel(queue, src, 'multiply', (11, 15), device_idxs=[0, 1])
-    multiply(
-        MultiDevice(res_dev_1, res_dev_2),
-        MultiDevice(a_dev_1, a_dev_2),
-        MultiDevice(b_dev_1, b_dev_2))
-
-    res = res_dev.get()
-
-    if mocked:
-        correct_result = True
-        expected_to_fail = False
-    else:
-        correct_result = (res == ref).all()
-        device_names = [device.name for device in queue.devices.values()]
-        expected_to_fail = (
-            context.api.id == opencl_api_id() and
-            'Apple' in context.platform.name and
-            any('GeForce' in name for name in device_names) and
-            not all('GeForce' in name for name in device_names))
-
-    if expected_to_fail:
-        if correct_result:
-            raise Exception("This test was expected to fail on this configuration.")
-        else:
-            pytest.xfail(
-                "Multi-device OpenCL contexts on an Apple platform with one device being a GeForce "
-                "don't work correctly (the kernel invocation on GeForce is ignored).")
-
-    assert correct_result
+    if not mocked:
+        assert (res == ref).all()
 
 
 def test_constant_memory(mock_or_real_context):
@@ -123,30 +91,27 @@ def test_constant_memory(mock_or_real_context):
 
 
 def test_find_local_size(mock_context):
-    queue = Queue.on_all_devices(mock_context)
     kernel = MockKernel('multiply', [None], max_total_local_sizes={0: 64})
     src = MockDefTemplate(kernels=[kernel])
-    multiply = StaticKernel(queue, src, 'multiply', (11, 15))
+    multiply = StaticKernel(mock_context, src, 'multiply', (11, 15))
     assert multiply._vs_metadata[0].real_global_size == (16, 12)
     assert multiply._vs_metadata[0].real_local_size == (16, 4)
 
 
 def test_reserved_names(mock_context):
-    queue = Queue.on_all_devices(mock_context)
     kernel = MockKernel('test', [None])
     src = MockDefTemplate(kernels=[kernel])
     with pytest.raises(ValueError, match="The global name 'static' is reserved in static kernels"):
-        multiply = StaticKernel(queue, src, 'test', (1024,), render_globals=dict(static=1))
+        multiply = StaticKernel(mock_context, src, 'test', (1024,), render_globals=dict(static=1))
 
 
 def test_zero_max_total_local_size(mock_context):
-    queue = Queue.on_all_devices(mock_context)
     kernel = MockKernel('test', [None], max_total_local_sizes={0: 0})
     src = MockDefTemplate(kernels=[kernel])
     with pytest.raises(
             VirtualSizeError,
             match="The kernel requires too much resourses to be executed with any local size"):
-        multiply = StaticKernel(queue, src, 'test', (1024,))
+        multiply = StaticKernel(mock_context, src, 'test', (1024,))
 
 
 def test_virtual_sizes_error_propagated(mock_backend_pycuda):
@@ -171,17 +136,15 @@ def test_virtual_sizes_error_propagated(mock_backend_pycuda):
     kernel = MockKernel('test', [None], max_total_local_sizes={0: 16})
     src = MockDefTemplate(kernels=[kernel])
 
-    queue = Queue.on_all_devices(context)
-
     # Just enough to fit in the grid limits
-    multiply = StaticKernel(queue, src, 'test', (2**14, 2**10, 2**8), (2**4, 1, 1))
+    multiply = StaticKernel(context, src, 'test', (2**14, 2**10, 2**8), (2**4, 1, 1))
 
     # Global size is too large to fit on the device,
     # so virtual size finding fails and the error is propagated to the user.
     with pytest.raises(
             VirtualSizeError,
             match="Bounding global size \\(16384, 2048, 256\\) is too large"):
-        multiply = StaticKernel(queue, src, 'test', (2**14, 2**11, 2**8), (2**4, 1, 1))
+        multiply = StaticKernel(context, src, 'test', (2**14, 2**11, 2**8), (2**4, 1, 1))
 
 
 def test_builtin_globals(mock_backend_pycuda):
@@ -205,8 +168,7 @@ def test_builtin_globals(mock_backend_pycuda):
         kernels=[MockKernel('test', [None], max_total_local_sizes={0: 1024, 1: 512})],
         source_template=source_template)
 
-    queue = Queue.on_all_devices(context)
-    kernel = StaticKernel(queue, src, 'test', (1024,))
+    kernel = StaticKernel(context, src, 'test', (1024,))
 
     assert 'max_total_local_size = 1024' in kernel.sources[0].source
     assert 'max_total_local_size = 512' in kernel.sources[1].source

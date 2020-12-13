@@ -128,10 +128,10 @@ def test_ids(context, vstest):
 
     get_ids = program.kernel.get_ids
 
-    queue = Queue.on_all_devices(context)
-    local_ids = Array.empty(queue, ref.global_size, numpy.int32)
-    group_ids = Array.empty(queue, ref.global_size, numpy.int32)
-    global_ids = Array.empty(queue, ref.global_size, numpy.int32)
+    queue = Queue(context)
+    local_ids = Array.empty(context, ref.global_size, numpy.int32)
+    group_ids = Array.empty(context, ref.global_size, numpy.int32)
+    global_ids = Array.empty(context, ref.global_size, numpy.int32)
 
     for vdim in range(len(vstest.global_size)):
 
@@ -139,10 +139,10 @@ def test_ids(context, vstest):
             queue, vs.real_global_size, vs.real_local_size,
             local_ids, group_ids, global_ids, numpy.int32(vdim))
 
-        assert (global_ids.get() == ref.predict_global_ids(vdim)).all()
+        assert (global_ids.get(queue) == ref.predict_global_ids(vdim)).all()
         if vstest.local_size is not None:
-            assert (local_ids.get() == ref.predict_local_ids(vdim)).all()
-            assert (group_ids.get() == ref.predict_group_ids(vdim)).all()
+            assert (local_ids.get(queue) == ref.predict_local_ids(vdim)).all()
+            assert (group_ids.get(queue) == ref.predict_group_ids(vdim)).all()
 
 
 def test_sizes(context, vstest):
@@ -181,11 +181,11 @@ def test_sizes(context, vstest):
 
     get_sizes = program.kernel.get_sizes
 
-    queue = Queue.on_all_devices(context)
-    sizes = Array.empty(queue, vdims * 3 + 1, numpy.int32)
+    queue = Queue(context)
+    sizes = Array.empty(context, vdims * 3 + 1, numpy.int32)
     get_sizes(queue, vs.real_global_size, vs.real_local_size, sizes)
 
-    sizes = sizes.get()
+    sizes = sizes.get(queue)
     local_sizes = sizes[0:vdims]
     grid_sizes = sizes[vdims:vdims*2]
     global_sizes = sizes[vdims*2:vdims*3]

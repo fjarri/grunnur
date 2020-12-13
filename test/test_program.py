@@ -6,7 +6,7 @@ import pytest
 
 from grunnur import (
     cuda_api_id, opencl_api_id, cuda_api_id,
-    Program, Queue, Array, CompilationError, MultiDevice, StaticKernel, API, Context,
+    Program, Queue, MultiQueue, Array, MultiArray, CompilationError, StaticKernel, API, Context,
     )
 from grunnur.template import Template, DefTemplate
 
@@ -65,33 +65,26 @@ def test_compile(mock_or_real_context, no_prelude):
     c = numpy.int32(3)
     ref = a * b + c
 
-    queue = Queue.on_all_devices(context)
+    queue = Queue(context)
 
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
 
-    res_dev = Array.empty(queue, length, numpy.int32)
+    res_dev = Array.empty(context, length, numpy.int32)
     # Check that passing both Arrays and Buffers is supported
     # Pass one of the buffers as a subregion, too.
     a_dev_view = a_dev.data.get_sub_region(0, a_dev.data.size)
     program.kernel.multiply(queue, length, None, res_dev, a_dev_view, b_dev.data, c)
-    res = res_dev.get()
+    res = res_dev.get(queue)
     if not mocked:
         assert (res == ref).all()
 
     # Explicit local_size
     res2_dev = Array.from_host(queue, a) # Array.empty(queue, length, numpy.int32)
     program.kernel.multiply(queue, length, length // 2, res2_dev, a_dev, b_dev, c)
-    res2 = res2_dev.get()
+    res2 = res2_dev.get(queue)
     if not mocked:
         assert (res2 == ref).all()
-
-    # Explicit device_idxs
-    res3_dev = Array.from_host(queue, a) # Array.empty(queue, length, numpy.int32)
-    program.kernel.multiply(queue, length, None, res3_dev, a_dev, b_dev, c, device_idxs=[0])
-    res3 = res3_dev.get()
-    if not mocked:
-        assert (res3 == ref).all()
 
 
 def test_compile_multi_device(mock_or_real_multi_device_context):
@@ -112,55 +105,33 @@ def test_compile_multi_device(mock_or_real_multi_device_context):
     c = numpy.int32(3)
     ref = a * b + c
 
-    queue = Queue.on_device_idxs(context, device_idxs=device_idxs)
+    mqueue = MultiQueue.on_device_idxs(context, device_idxs=device_idxs)
 
-    a_dev = Array.from_host(queue, a)
-    b_dev = Array.from_host(queue, b)
-    res_dev = Array.empty(queue, length, numpy.int32)
+    a_dev = MultiArray.from_host(mqueue, a)
+    b_dev = MultiArray.from_host(mqueue, b)
 
-    d1, d2 = device_idxs
-
-    a_dev_1 = a_dev.single_device_view(d1)[:length//2]
-    a_dev_2 = a_dev.single_device_view(d2)[length//2:]
-
-    b_dev_1 = b_dev.single_device_view(d1)[:length//2]
-    b_dev_2 = b_dev.single_device_view(d2)[length//2:]
-
-    res_dev_1 = res_dev.single_device_view(d1)[:length//2]
-    res_dev_2 = res_dev.single_device_view(d2)[length//2:]
-
-    program.kernel.multiply(
-        queue, length // 2, None,
-        MultiDevice(res_dev_1, res_dev_2),
-        MultiDevice(a_dev_1, a_dev_2),
-        MultiDevice(b_dev_1, b_dev_2),
-        c)
-
-    queue.synchronize()
-
-    res = res_dev.get()
-
-    device_names = [device.name for device in queue.devices.values()]
-
+    res_dev = MultiArray.empty(context, length, numpy.int32, device_idxs=mqueue.device_idxs)
+    program.kernel.multiply(mqueue, a_dev.shapes, None, res_dev, a_dev, b_dev, c)
+    res = res_dev.get(mqueue)
     if not mocked:
+        assert (res == ref).all()
 
-        correct_result = (res == ref).all()
+    # Test argument unpacking from dictionaries
+    res_dev = MultiArray.empty(context, length, numpy.int32, device_idxs=mqueue.device_idxs)
+    program.kernel.multiply(
+        mqueue, a_dev.shapes, {device_idx: None for device_idx in device_idxs},
+        res_dev, a_dev.subarrays, b_dev, c)
+    res = res_dev.get(mqueue)
+    if not mocked:
+        assert (res == ref).all()
 
-        expected_to_fail = (
-            context.api.id == opencl_api_id() and
-            'Apple' in context.platform.name and
-            any('GeForce' in name for name in device_names) and
-            not all('GeForce' in name for name in device_names))
 
-        if expected_to_fail:
-            if correct_result:
-                raise Exception("This test was expected to fail on this configuration.")
-            else:
-                pytest.xfail(
-                    "Multi-device OpenCL contexts on an Apple platform with one device being a GeForce "
-                    "don't work correctly (the kernel invocation on GeForce is ignored).")
-
-        assert correct_result
+def test_mismatched_devices(mock_4_device_context):
+    context = mock_4_device_context
+    src = MockDefTemplate(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
+    program = Program(context, src)
+    with pytest.raises(ValueError, match="global_size and local_size must be specified for the same set of devices"):
+        program.kernel.multiply.prepare({0: 10, 2: 20}, {0: None, 1: None})
 
 
 SRC_CONSTANT_MEM = """
@@ -216,12 +187,12 @@ def _test_constant_memory(context, mocked, is_static):
     else:
         src = SRC_CONSTANT_MEM_STATIC if is_static else SRC_CONSTANT_MEM
 
-    queue = Queue.on_all_devices(context)
+    queue = Queue(context)
 
     cm1_dev = Array.from_host(queue, cm1)
     cm2_dev = Array.from_host(queue, cm2)
     cm3_dev = Array.from_host(queue, cm3)
-    res_dev = Array.empty(queue, 16, numpy.int32)
+    res_dev = Array.empty(context, 16, numpy.int32)
 
     if context.api.id == cuda_api_id():
 
@@ -233,7 +204,7 @@ def _test_constant_memory(context, mocked, is_static):
 
         if is_static:
             copy_from_cm = StaticKernel(
-                queue, src, 'copy_from_cm',
+                context, src, 'copy_from_cm',
                 global_size=16, constant_arrays=constant_arrays)
             copy_from_cm.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
             copy_from_cm.set_constant_array(queue, 'cm2', cm2) # setting from a host array
@@ -243,20 +214,20 @@ def _test_constant_memory(context, mocked, is_static):
             program.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
             program.set_constant_array(queue, 'cm2', cm2) # setting from a host array
             program.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
-            copy_from_cm = lambda *args: program.kernel.copy_from_cm(queue, 16, None, *args)
+            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, 16, None, *args)
 
-        copy_from_cm(res_dev)
+        copy_from_cm(queue, res_dev)
     else:
 
         if is_static:
-            copy_from_cm = StaticKernel(queue, src, 'copy_from_cm', global_size=16)
+            copy_from_cm = StaticKernel(context, src, 'copy_from_cm', global_size=16)
         else:
             program = Program(context, src)
-            copy_from_cm = lambda *args: program.kernel.copy_from_cm(queue, 16, None, *args)
+            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, 16, None, *args)
 
-        copy_from_cm(res_dev, cm1_dev, cm2_dev, cm3_dev)
+        copy_from_cm(queue, res_dev, cm1_dev, cm2_dev, cm3_dev)
 
-    res = res_dev.get()
+    res = res_dev.get(queue)
 
     if not mocked:
         assert (res == cm1 + cm2 + cm3).all()
@@ -331,16 +302,12 @@ def test_wrong_device_idxs(mock_4_device_context):
 
     context = mock_4_device_context
     program = Program(context, src, device_idxs=[0, 1])
-    queue = Queue.on_device_idxs(context, device_idxs=[2, 1])
-    res_dev = Array.empty(queue, 16, numpy.int32)
+    mqueue = MultiQueue.on_device_idxs(context, device_idxs=[2, 1])
+    res_dev = MultiArray.empty(context, 16, numpy.int32, device_idxs=[2, 1])
 
     # Using all the queue's devices (1, 2)
-    with pytest.raises(ValueError, match="This kernel's program was not compiled for devices"):
-        program.kernel.multiply(queue, 8, None, res_dev)
-
-    # Explicit device_idxs
-    with pytest.raises(ValueError, match="This kernel's program was not compiled for devices"):
-        program.kernel.multiply(queue, 8, None, res_dev, device_idxs=[0, 2])
+    with pytest.raises(ValueError, match="Requested execution on devices"):
+        program.kernel.multiply(mqueue, 8, None, res_dev)
 
 
 def test_set_constant_array_errors(mock_4_device_context):
@@ -349,7 +316,7 @@ def test_set_constant_array_errors(mock_4_device_context):
 
     api = API.from_api_id(mock_4_device_context.api.id)
     other_context = Context.from_criteria(api)
-    other_queue = Queue.on_all_devices(other_context)
+    other_queue = Queue(other_context, device_idx=0)
     other_context.deactivate()
 
     cm1 = numpy.arange(16).astype(numpy.int32)
@@ -357,7 +324,7 @@ def test_set_constant_array_errors(mock_4_device_context):
         MockKernel(
             'kernel', [], max_total_local_sizes={0: 1024, 1: 1024, 2: 1024, 3: 1024})],
             constant_mem={'cm1': cm1.size * cm1.dtype.itemsize})
-    queue = Queue.on_all_devices(context)
+    queue = Queue(context, device_idx=0)
 
     if context.api.id == cuda_api_id():
         program = Program(context, src, constant_arrays=dict(cm1=cm1))
@@ -377,11 +344,11 @@ def test_set_constant_array_errors(mock_4_device_context):
             program = Program(context, src, constant_arrays=dict(cm1=1), device_idxs=[0, 1, 2])
 
         program = Program(context, src, constant_arrays=dict(cm1=cm1), device_idxs=[0, 1, 2])
-        queue3 = Queue.on_device_idxs(context, device_idxs=[3])
+        queue3 = Queue(context, device_idx=3)
 
         with pytest.raises(
                 ValueError,
-                match="The provided queue must include the device this program uses"):
+                match="The provided queue must run on the device this program uses"):
             program.set_constant_array(queue3, 'cm1', cm1)
 
     else:
@@ -393,9 +360,9 @@ def test_set_constant_array_errors(mock_4_device_context):
             program.set_constant_array(queue, 'cm1', cm1)
 
         with pytest.raises(ValueError, match="Compile-time constant arrays are only supported by CUDA API"):
-            sk = StaticKernel(queue, src, 'kernel', 1024, constant_arrays=dict(cm1=cm1))
+            sk = StaticKernel(context, src, 'kernel', 1024, constant_arrays=dict(cm1=cm1))
 
-        sk = StaticKernel(queue, src, 'kernel', 1024)
+        sk = StaticKernel(context, src, 'kernel', 1024)
         with pytest.raises(ValueError, match="Constant arrays are only supported for CUDA API"):
             sk.set_constant_array(queue, 'cm1', cm1)
 

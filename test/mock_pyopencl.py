@@ -14,6 +14,10 @@ class MemFlags(IntEnum):
     ALLOC_HOST_PTR = 16
 
 
+class MemMigrationFlags(IntEnum):
+    CONTENT_UNDEFINED = 2
+
+
 class MockPyOpenCL:
 
     def __init__(self):
@@ -73,6 +77,7 @@ class Mock_pyopencl:
         self.RuntimeError = PyopenclRuntimeError
 
         self.mem_flags = MemFlags
+        self.mem_migration_flags = MemMigrationFlags
         self.kernel_work_group_info = KernelWorkGroupInfo
 
     def get_platforms(self):
@@ -254,6 +259,7 @@ class Kernel:
             if isinstance(arg, Buffer):
                 assert param is None
                 assert arg.context == queue.context
+                assert arg._migrated_to == queue.device
             elif isinstance(arg, numpy.number):
                 assert arg.dtype == param
             else:
