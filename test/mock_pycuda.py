@@ -63,12 +63,12 @@ class MockPyCUDA:
                 return True
         return False
 
-    def allocate(self, size, managed=False):
+    def allocate(self, size):
         assert size <= self._allocation_step
         idx = self._allocation_idx
         self._allocation_idx += 1
         address = self._allocation_start + self._allocation_step * idx
-        self._allocations[idx] = (size, None if managed else self._context_stack[-1], b"\xef" * size)
+        self._allocations[idx] = (size, self._context_stack[-1], b"\xef" * size)
         return idx, address
 
     def get_allocation_buffer(self, idx, offset, region_size):
@@ -186,14 +186,8 @@ class Mock_pycuda_driver:
     def init(self):
         pass
 
-    def mem_alloc(self, size, _managed=False):
-        return self.DeviceAllocation._allocate(size, _managed=_managed)
-
-    def managed_empty(self, shape, dtype, mem_flags=None):
-        size = prod(wrap_in_tuple(shape)) * normalize_type(dtype).itemsize
-        class _mock_array:
-            base = self.mem_alloc(size, _managed=True)
-        return _mock_array()
+    def mem_alloc(self, size):
+        return self.DeviceAllocation._allocate(size)
 
     def memcpy_htod(self, dest, src):
         self.memcpy_htod_async(dest, src)
@@ -385,8 +379,8 @@ def make_device_allocation_class(backend):
         _backend_ref = backend_ref
 
         @classmethod
-        def _allocate(cls, size, _managed=True):
-            idx, address = backend.allocate(size, managed=_managed)
+        def _allocate(cls, size):
+            idx, address = backend.allocate(size)
             return cls(idx, address, 0, size, owns_buffer=True)
 
         @classmethod
