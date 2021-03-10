@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Tuple, Optional, Sequence, Union
 
 import numpy
@@ -77,7 +75,7 @@ class ArrayMetadata:
         self._full_max_offset = full_max_offset
         self.buffer_size = buffer_size
 
-    def minimal_subregion(self) -> Tuple[int, int, ArrayMetadata]:
+    def minimal_subregion(self) -> Tuple[int, int, 'ArrayMetadata']:
         """
         Returns the metadata for the minimal subregion that fits all the data in this view,
         along with the subgregion offset in the current buffer and the required subregion length.

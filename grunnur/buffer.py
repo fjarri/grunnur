@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Union, Optional
 
 import numpy
@@ -12,14 +14,14 @@ class Buffer:
     A memory buffer on device.
     """
 
-    context: Context
+    context: 'Context'
     """Context this buffer is allocated on."""
 
     device_idx: int
     """The index of the device this buffer is allocated on."""
 
     @classmethod
-    def allocate(cls, context: Context, size: int, device_idx: Optional[int]=None) -> 'Buffer':
+    def allocate(cls, context: 'Context', size: int, device_idx: Optional[int]=None) -> 'Buffer':
         """
         Allocate a buffer of ``size`` bytes.
 
@@ -62,7 +64,7 @@ class Buffer:
         """
         return self._buffer_adapter.size
 
-    def set(self, queue: Queue, buf: Union[numpy.ndarray, 'Buffer'], no_async: bool=False):
+    def set(self, queue: 'Queue', buf: Union[numpy.ndarray, 'Buffer'], no_async: bool=False):
         """
         Copy the contents of the host array or another buffer to this buffer.
 
@@ -84,7 +86,7 @@ class Buffer:
 
         self._buffer_adapter.set(queue._queue_adapter, buf_adapter, no_async=no_async)
 
-    def get(self, queue: Queue, host_array: numpy.ndarray, async_: bool=False):
+    def get(self, queue: 'Queue', host_array: numpy.ndarray, async_: bool=False):
         """
         Copy the contents of the buffer to the host array.
 

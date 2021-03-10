@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Callable, Optional, Union, Dict, Mapping, Tuple, Sequence
 
 import numpy
@@ -26,7 +28,7 @@ class StaticKernel:
     to be used instead of regular ones.
     """
 
-    queue: Queue
+    queue: 'Queue'
     """The queue this static kernel was compiled and prepared for."""
 
     sources: Dict[int, str]
@@ -34,8 +36,8 @@ class StaticKernel:
 
     def __init__(
             self,
-            context: Context,
-            template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
+            context: 'Context',
+            template_src: Union[str, Callable[..., str], 'DefTemplate', 'Snippet'],
             name: str,
             global_size: Union[int, Sequence[int], Dict[int, Union[int, Sequence[int]]]],
             local_size: Union[int, Sequence[int], None, Dict[int, Union[int, Sequence[int], None]]]=None,
@@ -147,7 +149,7 @@ class StaticKernel:
         """
         return self._prepared_kernel(queue, *args)
 
-    def set_constant_array(self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
+    def set_constant_array(self, queue: 'Queue', name: str, arr: Union['Array', numpy.ndarray]):
         """
         Uploads a constant array to the context's devices (**CUDA only**).
 

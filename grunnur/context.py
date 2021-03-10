@@ -14,17 +14,17 @@ class Context:
     GPGPU context.
     """
 
-    devices: Tuple[Device]
+    devices: Tuple['Device']
     """Devices in this context."""
 
-    platform: Platform
+    platform: 'Platform'
     """The platform this context is based on."""
 
-    api: API
+    api: 'API'
     """The API this context is based on."""
 
     @classmethod
-    def from_devices(cls, devices: Union[Device, Iterable[Device]]) -> Context:
+    def from_devices(cls, devices: Union['Device', Iterable['Device']]) -> 'Context':
         """
         Creates a context from a device or an iterable of devices.
 
@@ -45,7 +45,7 @@ class Context:
         return cls(context_adapter)
 
     @classmethod
-    def from_backend_devices(cls, backend_devices) -> Context:
+    def from_backend_devices(cls, backend_devices) -> 'Context':
         """
         Creates a context from a single or several backend device objects.
         """
@@ -54,7 +54,7 @@ class Context:
         return cls.from_devices(devices)
 
     @classmethod
-    def from_backend_contexts(cls, backend_contexts, take_ownership: bool=False) -> Context:
+    def from_backend_contexts(cls, backend_contexts, take_ownership: bool=False) -> 'Context':
         """
         Creates a context from a single or several backend device contexts.
         If ``take_ownership`` is ``True``, this object will be responsible for the lifetime
@@ -71,8 +71,8 @@ class Context:
 
     @classmethod
     def from_criteria(
-            cls, api: API, interactive: bool=False,
-            devices_num: Optional[int]=1, **device_filters) -> Context:
+            cls, api: 'API', interactive: bool=False,
+            devices_num: Optional[int]=1, **device_filters) -> 'Context':
         """
         Finds devices matching the given criteria and creates a
         :py:class:`Context` object out of them.

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Optional, Tuple, List, Sequence
 
 from .platform import Platform
@@ -13,7 +15,7 @@ def platforms_and_devices_by_mask(
         device_exclude_masks: Optional[Sequence[str]]=None,
         unique_devices_only: bool=False,
         include_pure_parallel_devices: bool=False) \
-        -> List[Tuple[Platform, List[Device]]]:
+        -> List[Tuple['Platform', List['Device']]]:
     """
     Returns all tuples (platform, list of devices) where the platform name and device names
     satisfy the given criteria, and there are at least ``quantity`` devices in the list.
@@ -94,7 +96,7 @@ def _select_devices_interactive(suitable_pds, quantity=1):
 
 def select_devices(
         api, interactive: bool=False, quantity: Optional[int]=1,
-        **device_filters) -> List[Device]:
+        **device_filters) -> List['Device']:
     """
     Using the results from :py:func:`platforms_and_devices_by_mask`, either lets the user
     select the devices (from the ones matching the criteria) interactively,

@@ -12,7 +12,7 @@ class Snippet:
     with possible context that can include other :py:class:`Snippet`
     or :py:class:`Module` objects.
     """
-    def __init__(self, template: DefTemplate, render_globals: Mapping={}):
+    def __init__(self, template: 'DefTemplate', render_globals: Mapping={}):
         """
         Creates a snippet out of a prepared template.
 
@@ -23,7 +23,7 @@ class Snippet:
         self.template = template
         self.render_globals = render_globals
 
-    def with_added_globals(self, add_globals: Mapping={}) -> Snippet:
+    def with_added_globals(self, add_globals: Mapping={}) -> 'Snippet':
         new_globals = update_dict(
             self.render_globals, add_globals,
             error_msg="Cannot add a global '{name}' - it already exists")
@@ -32,7 +32,7 @@ class Snippet:
     @classmethod
     def from_callable(
             cls, callable_obj: Callable[..., str],
-            name: str='_snippet', render_globals: Mapping={}) -> Snippet:
+            name: str='_snippet', render_globals: Mapping={}) -> 'Snippet':
         """
         Creates a snippet from a callable returning a string.
         The parameter list of the callable is used to create the pararameter list
@@ -47,7 +47,7 @@ class Snippet:
         return cls(template, render_globals=render_globals)
 
     @classmethod
-    def from_string(cls, source: str, name: str='_snippet', render_globals: Mapping={}) -> Snippet:
+    def from_string(cls, source: str, name: str='_snippet', render_globals: Mapping={}) -> 'Snippet':
         """
         Creates a snippet from a template source, treated as a body of a
         template def with no arguments.
@@ -59,7 +59,7 @@ class Snippet:
         template = DefTemplate.from_string(name, [], source)
         return cls(template, render_globals=render_globals)
 
-    def __process_modules__(self, process: Callable) -> RenderableSnippet:
+    def __process_modules__(self, process: Callable) -> 'RenderableSnippet':
         return RenderableSnippet(self.template, process(self.render_globals))
 
 
@@ -89,7 +89,7 @@ class Module:
     @classmethod
     def from_callable(
             cls, callable_obj: Callable[..., str],
-            name: str='_module', render_globals: Mapping={}) -> Module:
+            name: str='_module', render_globals: Mapping={}) -> 'Module':
         """
         Creates a module from a callable returning a string.
         The parameter list of the callable is used to create the pararameter list
@@ -106,7 +106,7 @@ class Module:
         return cls(template, render_globals=render_globals)
 
     @classmethod
-    def from_string(cls, source: str, name: str='_module', render_globals: Mapping={}) -> Module:
+    def from_string(cls, source: str, name: str='_module', render_globals: Mapping={}) -> 'Module':
         """
         Creates a module from a template source, treated as a body of a
         template def with a single argument (prefix).
@@ -118,7 +118,7 @@ class Module:
         template = DefTemplate.from_string(name, ['prefix'], source)
         return cls(template, render_globals=render_globals)
 
-    def __init__(self, template: DefTemplate, render_globals: Mapping={}):
+    def __init__(self, template: 'DefTemplate', render_globals: Mapping={}):
         """
         Creates a module out of a prepared template.
 
@@ -129,7 +129,7 @@ class Module:
         self.template = template
         self.render_globals = render_globals
 
-    def process(self, collector: SourceCollector) -> RenderableModule:
+    def process(self, collector: 'SourceCollector') -> 'RenderableModule':
         return RenderableModule(
             collector, id(self), self.template, process(self.render_globals, collector))
 
@@ -140,7 +140,7 @@ class RenderableModule:
     """
 
     def __init__(
-            self, collector: SourceCollector, module_id: int,
+            self, collector: 'SourceCollector', module_id: int,
             template: DefTemplate, render_globals: Mapping):
         self.module_id = module_id
         self.collector = collector

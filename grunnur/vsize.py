@@ -33,7 +33,7 @@ class PrimeFactors:
         self.factors = factors
 
     @classmethod
-    def decompose(cls, num: int) -> PrimeFactors:
+    def decompose(cls, num: int) -> 'PrimeFactors':
         factors_list = factorize(num)
         factors = Counter(factors_list)
         return cls(dict(factors))
@@ -49,7 +49,7 @@ class PrimeFactors:
         exponents = [self.factors[base] for base in bases]
         return bases, exponents
 
-    def div_by(self, other: PrimeFactors) -> PrimeFactors:
+    def div_by(self, other: 'PrimeFactors') -> 'PrimeFactors':
         # assumes that `self` is a multiple of `other`
         factors = dict(self.factors)
         for o_pwr, o_exp in other.factors.items():
@@ -307,54 +307,54 @@ class VsizeModules:
     Should be used instead of regular group/thread id functions.
     """
 
-    local_id: Module
+    local_id: 'grunnur.Module'
     """
     Provides the function ``VSIZE_T ${local_id}(int dim)``
     returning the local id of the current thread.
     """
 
-    local_size: Module
+    local_size: 'grunnur.Module'
     """
     Provides the function ``VSIZE_T ${local_size}(int dim)``
     returning the size of the current group.
     """
 
-    group_id: Module
+    group_id: 'grunnur.Module'
     """
     Provides the function ``VSIZE_T ${group_id}(int dim)``
     returning the group id of the current thread.
     """
 
-    num_groups: Module
+    num_groups: 'grunnur.Module'
     """
     Provides the function ``VSIZE_T ${num_groups}(int dim)``
     returning the number of groups in dimension  ``dim``.
     """
 
-    global_id: Module
+    global_id: 'grunnur.Module'
     """
     Provides the function ``VSIZE_T ${global_id}(int dim)``
     returning the global id of the current thread.
     """
 
-    global_size: Module
+    global_size: 'grunnur.Module'
     """
     Provides the function ``VSIZE_T ${global_size}(int dim)``
     returning the global size along dimension ``dim``."""
 
-    global_flat_id: Module
+    global_flat_id: 'grunnur.Module'
     """
     Provides the function ``VSIZE_T ${global_flat_id}()``
     returning the global id of the current thread with all dimensions flattened.
     """
 
-    global_flat_size: Module
+    global_flat_size: 'grunnur.Module'
     """
     Provides the function ``VSIZE_T ${global_flat_size}()``.
     returning the global size of with all dimensions flattened.
     """
 
-    begin: Module
+    begin: 'grunnur.Module'
     """
     Provides the statement ``${begin}`` that should be used
     at the start of a static kernel function.

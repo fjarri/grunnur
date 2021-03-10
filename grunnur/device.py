@@ -13,14 +13,14 @@ class Device:
     A generalized GPGPU device.
     """
 
-    platform: Platform
+    platform: 'Platform'
     """The :py:class:`~grunnur.Platform` object this device belongs to."""
 
     name: str
     """This device's name."""
 
     @classmethod
-    def all(cls, platform: Platform) -> List[Device]:
+    def all(cls, platform: 'Platform') -> List['Device']:
         """
         Returns a list of devices available for the given platform.
 
@@ -33,12 +33,12 @@ class Device:
     @classmethod
     def all_by_masks(
             cls,
-            platform: Platform,
+            platform: 'Platform',
             include_masks: Optional[Sequence[str]]=None,
             exclude_masks: Optional[Sequence[str]]=None,
             unique_only: bool=False,
-            include_pure_parallel_devices: bool=False) \
-            -> List[Device]:
+            include_pure_parallel_devices: bool=False
+            ) -> List['Device']:
         """
         Returns a list of all devices satisfying the given criteria.
 
@@ -73,7 +73,7 @@ class Device:
         return devices
 
     @classmethod
-    def from_backend_device(cls, obj) -> Device:
+    def from_backend_device(cls, obj) -> 'Device':
         """
         Wraps a backend device object into a Grunnur device object.
         """
@@ -85,7 +85,7 @@ class Device:
         raise TypeError(f"{obj} was not recognized as a device object by any available API")
 
     @classmethod
-    def from_index(cls, platform: Platform, device_idx: int) -> Device:
+    def from_index(cls, platform: 'Platform', device_idx: int) -> 'Device':
         """
         Creates a device based on its index in the list returned by the API.
 

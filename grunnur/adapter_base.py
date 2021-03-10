@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Tuple, Mapping, Iterable, Dict
@@ -238,7 +236,7 @@ class ContextAdapter(ABC):
 
     @classmethod
     @abstractmethod
-    def from_device_adapters(cls, device_adapters) -> ContextAdapter:
+    def from_device_adapters(cls, device_adapters) -> 'ContextAdapter':
         """
         Creates a context based on one or several (distinct) :py:class:`OclDeviceAdapter` objects.
         """
@@ -352,7 +350,7 @@ class AdapterCompilationError(RuntimeError):
 class ProgramAdapter(ABC):
 
     @abstractmethod
-    def __getattr__(self, kernel_name: str) -> KernelAdapter:
+    def __getattr__(self, kernel_name: str) -> 'KernelAdapter':
         pass
 
 

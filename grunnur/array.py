@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import Optional, Callable, Tuple, Sequence, Union, Iterable, Dict, TypeVar
 
@@ -16,7 +18,7 @@ class Array:
     Array on a single device.
     """
 
-    context: Context
+    context: 'Context'
     """Context this array is allocated on."""
 
     shape: Tuple[int, ...]
@@ -29,7 +31,7 @@ class Array:
     """Array strides."""
 
     @classmethod
-    def from_host(cls, queue: Queue, host_arr: numpy.ndarray) -> 'Array':
+    def from_host(cls, queue: 'Queue', host_arr: numpy.ndarray) -> 'Array':
         """
         Creates an array object from a host array.
 
@@ -42,8 +44,8 @@ class Array:
 
     @classmethod
     def empty(
-            cls, context: Context, shape: Sequence[int],
-            dtype: numpy.dtype, allocator: Callable[[int, int], Buffer]=None,
+            cls, context: 'Context', shape: Sequence[int],
+            dtype: numpy.dtype, allocator: Callable[[int, int], 'Buffer']=None,
             device_idx: Optional[int]=None) -> 'Array':
         """
         Creates an empty array.
@@ -96,7 +98,7 @@ class Array:
         data = self.data.get_sub_region(origin, size)
         return Array(self.context, new_metadata, data)
 
-    def set(self, queue: Queue, array: Union[numpy.ndarray, 'Array'], no_async: bool=False):
+    def set(self, queue: 'Queue', array: Union[numpy.ndarray, 'Array'], no_async: bool=False):
         """
         Copies the contents of the host array to the array.
 
@@ -120,7 +122,7 @@ class Array:
 
         self.data.set(queue, array_data, no_async=no_async)
 
-    def get(self, queue: Queue, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
+    def get(self, queue: 'Queue', dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -142,13 +144,17 @@ class Array:
 
 class BaseSplay(ABC):
     """
-    Base class for splay strategies for :py:class:`MultiArray`.
+    Base class for splay strategies for :py:class:`~grunnur.MultiArray`.
     """
 
     ArrayLike = TypeVar("ArrayLike")
+    """
+    The type of an array-like object (the one having a ``shape``
+    and supporting views via ``__getitem__()``)
+    """
 
     @abstractmethod
-    def __call__(self, arr: ArrayLike, devices: Dict[int, Device]) -> Dict[int, ArrayLike]:
+    def __call__(self, arr: 'ArrayLike', devices: Dict[int, 'grunnur.Device']) -> Dict[int, 'ArrayLike']:
         """
         Creates a dictionary of views of an array-like object for each of the given devices.
 
@@ -195,7 +201,7 @@ class MultiArray:
     An array on multiple devices.
     """
 
-    context: Context
+    context: 'Context'
     """Context this array is allocated on."""
 
     shape: Tuple[int, ...]
@@ -211,14 +217,20 @@ class MultiArray:
     CloneSplay = CloneSplay
 
     @classmethod
-    def from_host(cls, mqueue: MultiQueue, host_arr: numpy.ndarray, splay: BaseSplay=EqualSplay()) -> 'MultiArray':
+    def from_host(
+            cls, mqueue: 'MultiQueue', host_arr: numpy.ndarray,
+            splay: Optional['grunnur.array.BaseSplay']=None
+            ) -> 'MultiArray':
         """
         Creates an array object from a host array.
 
         :param mqueue: the queue to use for the transfer.
         :param host_arr: the source array.
-        :param splay: the splay strategy.
+        :param splay: the splay strategy (if ``None``, an :py:class:`EqualSplay` object is used).
         """
+
+        if splay is None:
+            splay = EqualSplay()
 
         host_subarrays = splay(host_arr, mqueue.devices)
 
@@ -231,10 +243,10 @@ class MultiArray:
 
     @classmethod
     def empty(
-            cls, context: Context, shape: Sequence[int],
-            dtype: numpy.dtype, allocator: Callable[[int, int], Buffer]=None,
+            cls, context: 'Context', shape: Sequence[int],
+            dtype: numpy.dtype, allocator: Callable[[int, int], 'Buffer']=None,
             device_idxs: Optional[Iterable[int]]=None,
-            splay: BaseSplay=EqualSplay(),
+            splay: Optional['grunnur.array.BaseSplay']=None,
             ) -> 'MultiArray':
         """
         Creates an empty array.
@@ -245,8 +257,11 @@ class MultiArray:
             (buffer size in bytes, and the device to allocate it on)
             and returning a :py:class:`Buffer` object.
         :param device_idx: the index of the device on which to allocate the array.
-        :param splay: the splay strategy.
+        :param splay: the splay strategy (if ``None``, an :py:class:`EqualSplay` object is used).
         """
+
+        if splay is None:
+            splay = EqualSplay()
 
         if device_idxs is None:
             device_idxs = list(range(len(context.devices)))
@@ -274,7 +289,7 @@ class MultiArray:
         self._devices = {device_idx: self.context.devices[device_idx] for device_idx in self.subarrays}
         self._splay = splay
 
-    def get(self, mqueue: MultiQueue, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
+    def get(self, mqueue: 'MultiQueue', dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -293,7 +308,7 @@ class MultiArray:
 
         return dest
 
-    def set(self, mqueue: MultiQueue, array: Union[numpy.ndarray, 'MultiArray'], no_async: bool=False):
+    def set(self, mqueue: 'MultiQueue', array: Union[numpy.ndarray, 'MultiArray'], no_async: bool=False):
         """
         Copies the contents of the host array to the array.
 

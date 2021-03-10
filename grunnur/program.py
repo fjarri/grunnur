@@ -135,19 +135,19 @@ class Program:
     A compiled program on device(s).
     """
 
-    context: Context
+    context: 'Context'
     """The context this program was compiled for."""
 
     sources: Dict[int, str]
     """Source files used for each device."""
 
-    kernel: KernelHub
+    kernel: 'grunnur.program.KernelHub'
     """An object whose attributes are :py:class:`~grunnur.program.Kernel` objects with the corresponding names."""
 
     def __init__(
             self,
-            context: Context,
-            template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
+            context: 'Context',
+            template_src: Union[str, Callable[..., str], 'DefTemplate', 'Snippet'],
             device_idxs: Optional[Sequence[int]]=None,
             no_prelude: bool=False,
             fast_math: bool=False,
@@ -201,7 +201,7 @@ class Program:
         self.kernel = KernelHub(self)
 
     def set_constant_array(
-            self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
+            self, queue: 'Queue', name: str, arr: Union['Array', numpy.ndarray]):
         """
         Uploads a constant array to the context's devices (**CUDA only**).
 
@@ -223,7 +223,7 @@ class KernelHub:
     def __init__(self, program: Program):
         self._program_ref = weakref.ref(program)
 
-    def __getattr__(self, kernel_name: str) -> Kernel:
+    def __getattr__(self, kernel_name: str) -> 'Kernel':
         """
         Returns a :py:class:`~grunnur.program.Kernel` object for a function (CUDA)/kernel (OpenCL)
         with the name ``kernel_name``.
@@ -286,7 +286,7 @@ class PreparedKernel:
 
         self._context = context
 
-    def __call__(self, queue: Union[Queue, MultiQueue], *args, **kwds):
+    def __call__(self, queue: Union['grunnur.Queue', 'grunnur.MultiQueue'], *args, **kwds):
         """
         Enqueues the kernel on the devices in the given queue.
         The kernel must have been prepared for all of these devices.
@@ -365,7 +365,7 @@ class Kernel:
             self,
             global_size: Union[int, Sequence[int], Dict[int, Union[int, Sequence[int]]]],
             local_size: Union[int, Sequence[int], None, Dict[int, Union[int, Sequence[int], None]]]=None,
-            ) -> PreparedKernel:
+            ) -> 'PreparedKernel':
         """
         Prepares the kernel for execution.
 
@@ -378,7 +378,8 @@ class Kernel:
 
         :param global_size: the total number of threads (CUDA)/work items (OpenCL) in each dimension
             (column-major). Note that there may be a maximum size in each dimension as well
-            as the maximum number of dimensions. See :py:class:`DeviceParameters` for details.
+            as the maximum number of dimensions. See :py:class:`~grunnur.adapter_base.DeviceParameters`
+            for details.
         :param local_size: the number of threads in a block (CUDA)/work items in a
             work group (OpenCL) in each dimension (column-major).
             If ``None``, it will be chosen automatically.
@@ -397,7 +398,7 @@ class Kernel:
 
     def __call__(
             self,
-            queue: Union[Queue, MultiQueue],
+            queue: Union['grunnur.Queue', 'grunnur.MultiQueue'],
             global_size: Union[int, Sequence[int], Dict[int, Union[int, Sequence[int]]]],
             local_size: Union[int, Sequence[int], None, Dict[int, Union[int, Sequence[int], None]]]=None,
             *args,

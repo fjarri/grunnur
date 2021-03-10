@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections import namedtuple, Counter
-from collections.abc import Iterable
-from typing import Set, Dict, Optional, cast
+from collections.abc import Iterable as IterableBase
+from typing import Set, Dict, Optional, Iterable, cast
 import weakref
 from weakref import ReferenceType
 
@@ -24,7 +24,7 @@ def extract_dependencies(dependencies) -> Set[int]:
         return extract_dependencies(dependencies._buffer_adapter)
     if isinstance(dependencies, Array):
         return extract_dependencies(dependencies.data)
-    if isinstance(dependencies, Iterable):
+    if isinstance(dependencies, IterableBase):
         results = set()
         for dep in dependencies:
             results.update(extract_dependencies(dep))
@@ -43,7 +43,7 @@ class VirtualAllocator:
     Encapsulates the dependencies (as identifiers, doesn't hold references for actual objects).
     """
 
-    def __init__(self, manager: VirtualManager, dependencies: Set[int]):
+    def __init__(self, manager: 'VirtualManager', dependencies: Set[int]):
         self.manager = manager
         self.dependencies = dependencies
 
@@ -56,7 +56,7 @@ class VirtualBufferAdapter(BufferAdapter):
     A virtual buffer object.
     """
 
-    def __init__(self, manager: VirtualManager, size: int, id_: int):
+    def __init__(self, manager: 'VirtualManager', size: int, id_: int):
         self._manager = manager
         self._id = id_
         self._size = size
@@ -95,7 +95,7 @@ class VirtualManager:
     :param context: an instance of :py:class:`~grunnur.Context`.
     """
 
-    def __init__(self, context: Context):
+    def __init__(self, context: 'grunnur.Context'):
         self.context = context
         self._id_counter = 0
         self._virtual_buffers: Dict[int, ReferenceType[VirtualBufferAdapter]] = {}
@@ -154,7 +154,7 @@ class VirtualManager:
         self._pack_specific(queue)
         self._update_all()
 
-    def statistics(self) -> VirtualAllocationStatistics:
+    def statistics(self) -> 'VirtualAllocationStatistics':
         """
         Returns allocation statistics.
         """
@@ -207,8 +207,7 @@ class VirtualAllocationStatistics:
     virtual_sizes: Dict[int, int]
     """A dictionary ``size: count`` with the counts for virtual allocations of each size."""
 
-    def __init__(
-            self, real_buffers: Iterable[Buffer], virtual_buffers: Iterable[VirtualBufferAdapter]):
+    def __init__(self, real_buffers: Buffer, virtual_buffers: VirtualBufferAdapter):
 
         real_sizes = [rb.size for rb in real_buffers]
         virtual_sizes = [vb.size for vb in virtual_buffers]

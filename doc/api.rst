@@ -74,7 +74,10 @@ Contexts
 Queues
 ------
 
-.. autoclass:: Queue()
+.. autoclass:: Queue
+    :members:
+
+.. autoclass:: MultiQueue
     :members:
 
 
@@ -89,6 +92,7 @@ Buffers and arrays
     :special-members: __getitem__
 
 .. autoclass:: grunnur.array.BaseSplay()
+    :members: ArrayLike
     :special-members: __call__
 
 .. autoclass:: MultiArray()
@@ -127,19 +131,19 @@ Static kernels
 Utilities
 ---------
 
-.. autoclass:: grunnur.Template
+.. autoclass:: Template
     :members:
 
-.. autoclass:: grunnur.DefTemplate
+.. autoclass:: DefTemplate
     :members:
 
-.. autoclass:: grunnur.RenderError
+.. autoclass:: RenderError
     :members:
 
-.. autoclass:: grunnur.Snippet
+.. autoclass:: Snippet
     :members:
 
-.. autoclass:: grunnur.Module
+.. autoclass:: Module
     :members:
 
 
@@ -224,7 +228,7 @@ The virtual allocation manager will make sure that two virtual buffers that are 
 
 .. autoclass:: VirtualAllocator
 
-.. autoclass:: VirtualAllocationStatistics
+.. autoclass:: VirtualAllocationStatistics()
     :members:
 
 

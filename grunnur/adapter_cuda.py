@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from tempfile import mkdtemp
 from typing import Iterable, Union, Tuple, Sequence
 
@@ -137,7 +135,7 @@ class CuPlatformAdapter(PlatformAdapter):
 class CuDeviceAdapter(DeviceAdapter):
 
     @classmethod
-    def from_pycuda_device(cls, pycuda_device: pycuda_driver.Device) -> CuDeviceAdapter:
+    def from_pycuda_device(cls, pycuda_device: 'pycuda_driver.Device') -> 'CuDeviceAdapter':
         """
         Creates this object from a PyCuda ``Device`` object.
         """
@@ -269,7 +267,7 @@ class CuContextAdapter(ContextAdapter):
 
     @classmethod
     def from_pycuda_devices(
-            cls, pycuda_devices: Iterable[pycuda_driver.Device]) -> CuContextAdapter:
+            cls, pycuda_devices: Iterable['pycuda_driver.Device']) -> 'CuContextAdapter':
         """
         Creates a context based on one or several (distinct) PyCuda ``Device`` objects.
         """
@@ -283,8 +281,8 @@ class CuContextAdapter(ContextAdapter):
 
     @classmethod
     def from_pycuda_contexts(
-            cls, pycuda_contexts: Sequence[pycuda_driver.Context],
-            take_ownership: bool) -> CuContextAdapter:
+            cls, pycuda_contexts: Sequence['pycuda_driver.Context'],
+            take_ownership: bool) -> 'CuContextAdapter':
         """
         Creates a context based on one or several (distinct) PyCuda ``Context`` objects.
         None of the PyCuda contexts should be pushed to the context stack.
@@ -296,7 +294,7 @@ class CuContextAdapter(ContextAdapter):
         return cls(pycuda_contexts, take_ownership)
 
     @classmethod
-    def from_device_adapters(cls, device_adapters: Sequence[CuDeviceAdapter]) -> CuContextAdapter:
+    def from_device_adapters(cls, device_adapters: Sequence[CuDeviceAdapter]) -> 'CuContextAdapter':
         """
         Creates a context based on one or several (distinct) :py:class:`CuDeviceAdapter` objects.
         """
@@ -304,7 +302,7 @@ class CuContextAdapter(ContextAdapter):
         return cls.from_pycuda_devices(
             [device_adapter.pycuda_device for device_adapter in device_adapters])
 
-    def __init__(self, pycuda_contexts: Iterable[pycuda_driver.Context], take_ownership):
+    def __init__(self, pycuda_contexts: Iterable['pycuda_driver.Context'], take_ownership):
 
         self._context_stack = _ContextStack(pycuda_contexts, take_ownership)
 
@@ -550,7 +548,7 @@ class CuKernelAdapter(KernelAdapter):
 
     def prepare(
             self, global_size: Tuple[int, ...],
-            local_size: Tuple[int, ...]) -> CuPreparedKernelAdapter:
+            local_size: Tuple[int, ...]) -> 'CuPreparedKernelAdapter':
         return CuPreparedKernelAdapter(self, global_size, local_size)
 
 

@@ -6,8 +6,7 @@ from typing import Callable, Iterable, Dict
 import re
 import warnings
 
-from mako.template import Template as MakoTemplate
-from mako.template import DefTemplate as MakoDefTemplate
+import mako.template
 
 
 _TEMPLATE_OPTIONS = dict(
@@ -66,7 +65,7 @@ class Template:
     """
 
     @classmethod
-    def from_associated_file(cls, filename: str) -> Template:
+    def from_associated_file(cls, filename: str) -> 'Template':
         """
         Returns a :py:class:`Template` object created from the file
         which has the same name as ``filename`` and the extension ``.mako``.
@@ -74,7 +73,7 @@ class Template:
         """
         path, _ext = os.path.splitext(os.path.abspath(filename))
         template_path = path + '.mako'
-        mako_template = MakoTemplate(filename=template_path, **_TEMPLATE_OPTIONS)
+        mako_template = mako.template.Template(filename=template_path, **_TEMPLATE_OPTIONS)
         return cls(mako_template)
 
     @classmethod
@@ -82,14 +81,14 @@ class Template:
         """
         Returns a :py:class:`Template` object created from source.
         """
-        mako_template = MakoTemplate(text=template_source, **_TEMPLATE_OPTIONS)
+        mako_template = mako.template.Template(text=template_source, **_TEMPLATE_OPTIONS)
         return cls(mako_template)
 
-    def __init__(self, mako_template: MakoTemplate):
+    def __init__(self, mako_template: 'mako.template.Template'):
         self._mako_template = mako_template
         self._defs: Dict[str, DefTemplate] = {}
 
-    def get_def(self, name: str) -> DefTemplate:
+    def get_def(self, name: str) -> 'DefTemplate':
         """
         Returns the template def with the name ``name``.
         """
@@ -111,7 +110,7 @@ class DefTemplate:
     """
 
     @classmethod
-    def from_callable(cls, name: str, callable_obj: Callable[..., str]) -> DefTemplate:
+    def from_callable(cls, name: str, callable_obj: Callable[..., str]) -> 'DefTemplate':
         """
         Creates a template def from a callable returning a string.
         The parameter list of the callable is used to create the pararameter list
@@ -126,7 +125,7 @@ class DefTemplate:
         return cls._from_signature_and_body(name, signature, callable_obj(*args))
 
     @classmethod
-    def from_string(cls, name: str, argnames: Iterable[str], source: str) -> DefTemplate:
+    def from_string(cls, name: str, argnames: Iterable[str], source: str) -> 'DefTemplate':
         """
         Creates a template def from a string with its body and a list of argument names.
         """
@@ -138,12 +137,12 @@ class DefTemplate:
 
     @classmethod
     def _from_signature_and_body(
-            cls, name: str, signature: inspect.Signature, body: str) -> DefTemplate:
+            cls, name: str, signature: inspect.Signature, body: str) -> 'DefTemplate':
         src = "<%def name='" + name + str(signature) + "'>\n" + body + "\n</%def>"
-        mako_def_template = MakoTemplate(text=src, **_TEMPLATE_OPTIONS).get_def(name)
+        mako_def_template = mako.template.Template(text=src, **_TEMPLATE_OPTIONS).get_def(name)
         return cls(name, mako_def_template, src)
 
-    def __init__(self, name: str, mako_def_template: MakoDefTemplate, source: str):
+    def __init__(self, name: str, mako_def_template: 'mako.template.DefTemplate', source: str):
         self.name = name
         self._mako_def_template = mako_def_template
         self.source = source

@@ -12,7 +12,7 @@ class Platform:
     A generalized GPGPU platform.
     """
 
-    api: API
+    api: 'API'
     """The :py:class:`~grunnur.API` object this platform belongs to."""
 
     name: str
@@ -25,7 +25,7 @@ class Platform:
     """The platform's version."""
 
     @classmethod
-    def all(cls, api: API) -> List[Platform]:
+    def all(cls, api: 'API') -> List['Platform']:
         """
         Returns a list of platforms available for the given API.
 
@@ -38,9 +38,9 @@ class Platform:
     @classmethod
     def all_by_masks(
             cls,
-            api: API,
+            api: 'API',
             include_masks: Optional[Sequence[str]]=None,
-            exclude_masks: Optional[Sequence[str]]=None) -> List[Platform]:
+            exclude_masks: Optional[Sequence[str]]=None) -> List['Platform']:
         """
         Returns a list of all platforms with names satisfying the given criteria.
 
@@ -57,7 +57,7 @@ class Platform:
             ]
 
     @classmethod
-    def from_backend_platform(cls, obj) -> Platform:
+    def from_backend_platform(cls, obj) -> 'Platform':
         """
         Wraps a backend platform object into a Grunnur platform object.
         """
@@ -69,7 +69,7 @@ class Platform:
         raise TypeError(f"{obj} was not recognized as a platform object by any available API")
 
     @classmethod
-    def from_index(cls, api: API, platform_idx: int) -> Platform:
+    def from_index(cls, api: 'API', platform_idx: int) -> 'Platform':
         """
         Creates a platform based on its index in the list returned by the API.
 
@@ -90,7 +90,7 @@ class Platform:
         self.version = platform_adapter.version
 
     @property
-    def devices(self):
+    def devices(self) -> List['Device']:
         """
         A list of this device's :py:class:`Device` objects.
         """

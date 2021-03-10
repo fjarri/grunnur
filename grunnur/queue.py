@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC
 from typing import Optional, Iterable, Tuple, Set, Dict
 import weakref
@@ -10,12 +12,9 @@ from .device import Device
 class MultiQueue:
     """
     A queue on multiple devices.
-
-    :param context: the context to create a queue in.
-    :param queues: single-device queues (must belong to distinct devices).
     """
 
-    context: Context
+    context: 'Context'
     """This queue's context."""
 
     device_idxs: Set[int]
@@ -24,17 +23,21 @@ class MultiQueue:
     queues: Dict[int, 'Queue']
     """Single-device queues associated with device indices."""
 
-    devices: Dict[int, Device]
+    devices: Dict[int, 'Device']
     """Device objects associated with device indices."""
 
     @classmethod
-    def on_device_idxs(cls, context: Context, device_idxs: Iterable[int]) -> 'MultiQueue':
+    def on_device_idxs(cls, context: 'Context', device_idxs: Iterable[int]) -> 'MultiQueue':
         """
         Creates a queue from provided device indexes (in the context).
         """
         return cls(context, [Queue(context, device_idx) for device_idx in device_idxs])
 
-    def __init__(self, context: Context, queues: Optional[Iterable['Queue']]=None):
+    def __init__(self, context: 'Context', queues: Optional[Iterable['Queue']]=None):
+        """
+        :param context: a context on which to create a queue.
+        :param queues: single-device queues (must belong to distinct devices).
+        """
 
         if queues is None:
             queues = [Queue(context, device_idx) for device_idx in range(len(context.devices))]
@@ -65,16 +68,21 @@ class Queue:
     A queue on a single device.
     """
 
-    context: Context
+    context: 'Context'
     """This queue's context."""
 
     device_idx: int
     """Device index this queue operates on."""
 
-    device: Device
+    device: 'Device'
     """Device object this queue operates on."""
 
-    def __init__(self, context: Context, device_idx: Optional[int]=None):
+    def __init__(self, context: 'Context', device_idx: Optional[int]=None):
+        """
+        :param context: a context on which to create a queue.
+        :param device_idx: device index in the context on which to create a queue.
+            If there is more than one device in the context, it must be specified.
+        """
 
         if device_idx is None:
             if len(context.devices) > 1:

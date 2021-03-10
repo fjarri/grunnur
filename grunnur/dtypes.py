@@ -38,7 +38,7 @@ def ctype_builtin(dtype: numpy.dtype) -> str:
     raise ValueError(f"{dtype} is not a built-in data type")
 
 
-def ctype(dtype: numpy.dtype) -> Union[str, Module]:
+def ctype(dtype: numpy.dtype) -> Union[str, 'grunnur.Module']:
     """
     Returns an object that can be passed as a global to :py:meth:`~grunnur.Program`
     and used to render a C equivalent of the given ``numpy`` dtype.
@@ -301,7 +301,7 @@ class WrappedType:
     def __init__(
             self, dtype: numpy.dtype, alignment: int,
             explicit_alignment: Optional[int]=None,
-            wrapped_fields: Dict[str, WrappedType]={},
+            wrapped_fields: Dict[str, 'WrappedType']={},
             field_alignments: Dict[str, Optional[int]]={}):
         self.dtype = dtype
 
@@ -511,7 +511,7 @@ def _get_struct_module(dtype: numpy.dtype, ignore_alignment: bool=False) -> Modu
     return Module.from_string("\n".join(lines), render_globals=kwds)
 
 
-def ctype_struct(dtype: Union[Type, numpy.dtype], ignore_alignment: bool=False) -> Module:
+def ctype_struct(dtype: Union[Type, numpy.dtype], ignore_alignment: bool=False) -> 'grunnur.Module':
     """
     For a struct type, returns a :py:class:`~grunnur.Module` object
     with the ``typedef`` of a struct corresponding to the given ``dtype``

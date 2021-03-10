@@ -52,7 +52,7 @@ class API:
     """
 
     @classmethod
-    def all_available(cls) -> List[API]:
+    def all_available(cls) -> List['API']:
         """
         Returns a list of :py:class:`~grunnur.API` objects
         for which backends are available.
@@ -63,7 +63,7 @@ class API:
             if api_factory.available]
 
     @classmethod
-    def all_by_shortcut(cls, shortcut: Optional[str]=None) -> List[API]:
+    def all_by_shortcut(cls, shortcut: Optional[str]=None) -> List['API']:
         """
         If ``shortcut`` is a string, returns a list of one :py:class:`~grunnur.API` object
         whose :py:attr:`~API.id` attribute has its
@@ -89,7 +89,7 @@ class API:
         return apis
 
     @classmethod
-    def from_api_id(cls, api_id: APIID) -> API:
+    def from_api_id(cls, api_id: APIID) -> 'API':
         """
         Creates an :py:class:`~grunnur.API` object out of an identifier.
 
@@ -104,7 +104,7 @@ class API:
         self.shortcut = self.id.shortcut
 
     @property
-    def platforms(self):
+    def platforms(self) -> List['Platform']:
         """
         A list of this API's :py:class:`Platform` objects.
         """

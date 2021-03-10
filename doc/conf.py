@@ -32,7 +32,6 @@ release = '0.1.0'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx_autodoc_typehints',
     'sphinx.ext.doctest',
 ]
 
@@ -75,4 +74,6 @@ nitpick_ignore = [
     ('py:class', 'bool'),
     ('py:class', 'numpy.dtype'),
     ('py:class', 'numpy.ndarray'),
+    ('py:class', 'mako.template.Template'),
+    ('py:class', 'mako.template.DefTemplate'),
     ]

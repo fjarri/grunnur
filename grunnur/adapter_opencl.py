@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 from tempfile import mkdtemp
 from typing import Iterable, Tuple
@@ -84,7 +82,7 @@ class OclAPIAdapter(APIAdapter):
 class OclPlatformAdapter(PlatformAdapter):
 
     @classmethod
-    def from_pyopencl_platform(cls, pyopencl_platform: pyopencl.Platform):
+    def from_pyopencl_platform(cls, pyopencl_platform: 'pyopencl.Platform'):
         """
         Creates this object from a PyOpenCL ``Platform`` object.
         """
@@ -142,7 +140,7 @@ class OclPlatformAdapter(PlatformAdapter):
 class OclDeviceAdapter(DeviceAdapter):
 
     @classmethod
-    def from_pyopencl_device(cls, pyopencl_device: pyopencl.Device) -> OclDeviceAdapter:
+    def from_pyopencl_device(cls, pyopencl_device: 'pyopencl.Device') -> 'OclDeviceAdapter':
         """
         Creates this object from a PyOpenCL ``Device`` object.
         """
@@ -272,7 +270,7 @@ class OclContextAdapter(ContextAdapter):
 
     @classmethod
     def from_pyopencl_devices(
-            cls, pyopencl_devices: Iterable[pyopencl.Device]) -> OclContextAdapter:
+            cls, pyopencl_devices: Iterable['pyopencl.Device']) -> 'OclContextAdapter':
         """
         Creates a context based on one or several (distinct) PyOpenCL ``Device`` objects.
         """
@@ -280,14 +278,14 @@ class OclContextAdapter(ContextAdapter):
         return cls(pyopencl.Context(pyopencl_devices), pyopencl_devices=pyopencl_devices)
 
     @classmethod
-    def from_pyopencl_context(cls, pyopencl_context: pyopencl.Context) -> OclContextAdapter:
+    def from_pyopencl_context(cls, pyopencl_context: 'pyopencl.Context') -> 'OclContextAdapter':
         """
         Creates a context based on a (possibly multi-device) PyOpenCL ``Context`` object.
         """
         return cls(pyopencl_context)
 
     @classmethod
-    def from_device_adapters(cls, device_adapters: Iterable[OclDeviceAdapter]) -> OclContextAdapter:
+    def from_device_adapters(cls, device_adapters: Iterable[OclDeviceAdapter]) -> 'OclContextAdapter':
         """
         Creates a context based on one or several (distinct) :py:class:`OclDeviceAdapter` objects.
         """
@@ -295,7 +293,7 @@ class OclContextAdapter(ContextAdapter):
         return cls.from_pyopencl_devices(
             [device_adapter.pyopencl_device for device_adapter in device_adapters])
 
-    def __init__(self, pyopencl_context: pyopencl.Context, pyopencl_devices=None):
+    def __init__(self, pyopencl_context: 'pyopencl.Context', pyopencl_devices=None):
         if pyopencl_devices is None:
             pyopencl_devices = pyopencl_context.devices
 
@@ -461,7 +459,7 @@ class OclKernelAdapter(KernelAdapter):
 
     def prepare(
             self, global_size: Tuple[int, ...],
-            local_size: Tuple[int, ...]) -> OclPreparedKernelAdapter:
+            local_size: Tuple[int, ...]) -> 'OclPreparedKernelAdapter':
         return OclPreparedKernelAdapter(self, global_size, local_size)
 
     @property
