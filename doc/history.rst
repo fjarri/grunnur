@@ -2,8 +2,8 @@ Version history
 ===============
 
 
-Current development version
----------------------------
+0.2.0 (10 Mar 2021)
+-------------------
 
 * (CHANGED) Arrays don't hold queues any more; they are passed explicitly to ``get()`` or ``set()``.
 * (CHANGED) Prepared kernels don't hold queues any more; they are passed on call.
