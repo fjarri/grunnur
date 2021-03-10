@@ -101,6 +101,7 @@ def test_multi_device_from_host(mock_or_real_multi_device_context):
 def test_multi_device_empty(mock_or_real_multi_device_context):
     context, _mocked = mock_or_real_multi_device_context
     mqueue = MultiQueue(context)
+
     arr_dev = MultiArray.empty(context, 100, numpy.int32)
     arr = arr_dev.get(mqueue)
     assert arr.shape == (100,)
@@ -112,6 +113,14 @@ def test_multi_device_empty(mock_or_real_multi_device_context):
     arr = arr_dev.get(mqueue)
     assert arr.shape == (100,)
     assert arr.dtype == numpy.int32
+
+    # explicit splay
+    arr_dev = MultiArray.empty(context, 100, numpy.int32, splay=MultiArray.EqualSplay())
+    arr = arr_dev.get(mqueue)
+    assert arr.shape == (100,)
+    assert arr.dtype == numpy.int32
+    assert (arr_dev.subarrays[0].get(mqueue.queues[0]) == arr[:50]).all()
+    assert (arr_dev.subarrays[1].get(mqueue.queues[1]) == arr[50:]).all()
 
 
 def test_multi_device_mismatched_set(mock_or_real_multi_device_context):
@@ -128,6 +137,11 @@ def test_equal_splay(mock_or_real_multi_device_context):
     mqueue = MultiQueue(context)
     arr = numpy.arange(101)
     arr_dev = MultiArray.from_host(mqueue, arr, splay=MultiArray.EqualSplay())
+    assert (arr_dev.subarrays[0].get(mqueue.queues[0]) == arr[:51]).all()
+    assert (arr_dev.subarrays[1].get(mqueue.queues[1]) == arr[51:]).all()
+
+    # Check that the default splay is EqualSplay
+    arr_dev = MultiArray.from_host(mqueue, arr)
     assert (arr_dev.subarrays[0].get(mqueue.queues[0]) == arr[:51]).all()
     assert (arr_dev.subarrays[1].get(mqueue.queues[1]) == arr[51:]).all()
 
