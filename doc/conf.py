@@ -18,11 +18,11 @@ sys.path.insert(0, os.path.abspath('../'))
 # -- Project information -----------------------------------------------------
 
 project = 'grunnur'
-copyright = '2020, Bogdan Opanchuk'
+copyright = '2020–now, Bogdan Opanchuk'
 author = 'Bogdan Opanchuk'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.0'
+release = '0.1.1'
 
 
 # -- General configuration ---------------------------------------------------
