@@ -6,19 +6,41 @@
 Grunnur, a generalized API for CUDA and OpenCL
 ==============================================
 
+Grunnur is a thin layer on top of `PyCUDA <http://documen.tician.de/pycuda>`_ and `PyOpenCL <http://documen.tician.de/pyopencl>`_ that makes it easier to write platform-agnostic programs.
+It is a reworked ``cluda`` submodule of `Reikna <http://reikna.publicfields.net>`_, extracted into a separate module.
+
+
+Main features
+-------------
+
+* For the majority of cases, allows one to write platform-independent code.
+* Simple usage of multiple GPUs (in particular, no need to worry about context switching for CUDA).
+* A way to split kernel code into modules with dependencies between them (see :py:class:`~grunnur.Module` and :py:class:`~grunnur.Snippet`).
+* Various mathematical functions (with complex numbers support) organized as modules.
+* Static kernels, where you can use global/local shapes with any kinds of dimensions without worrying about assembling array indices from ``blockIdx`` and ``gridIdx``.
+* A temporary buffer manager that can pack several virtual buffers into the same physical one depending on the declared dependencies between them.
+
+
+Where to get help
+-----------------
+
+For the purposes of a discussion forum and usage questions please use `the issue tracker <https://github.com/fjarri/grunnur/issues>`_, marking your issue with the ``discussion`` label.
+
+
+Table of contents
+-----------------
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
-   manual
+   introduction
    modules
    api
    history
 
 
-
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`

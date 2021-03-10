@@ -1,5 +1,5 @@
-Manual
-======
+Introduction
+============
 
 Grunnur is an abstraction layer on top of PyCUDA/PyOpenCL.
 Its main purpose is to provide a uniform API for high-level GPGPU algorithms
