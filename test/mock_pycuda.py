@@ -472,7 +472,8 @@ def make_function_class(backend):
             for arg, param in zip(args, self._kernel.parameters):
                 if param is None:
                     # Checks validity on creation
-                    backend.pycuda_driver.DeviceAllocation._from_kernel_arg(arg)
+                    buf = backend.pycuda_driver.DeviceAllocation._from_kernel_arg(arg)
+                    assert buf._context == current_context
                 elif isinstance(arg, numpy.number):
                     assert arg.dtype == param
                 else:
