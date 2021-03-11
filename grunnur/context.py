@@ -58,7 +58,7 @@ class Context:
         """
         Creates a context from a single or several backend device contexts.
         If ``take_ownership`` is ``True``, this object will be responsible for the lifetime
-        of backend context objects (important for CUDA backend).
+        of backend context objects (only important for the CUDA backend).
         """
         backend_contexts = wrap_in_tuple(backend_contexts)
         for api in API.all_available():
