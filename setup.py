@@ -40,8 +40,8 @@ EXTRAS = {
     'dev': [
         'pytest>=4',
         'pytest-cov',
-        'sphinx>=2',
-        'sphinx_autodoc_typehints',
+        'sphinx>=3',
+        'furo',
         ]
     }
 
