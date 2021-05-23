@@ -5,7 +5,7 @@ from typing import Union, Optional
 import numpy
 
 from .adapter_base import BufferAdapter
-from .context import Context
+from .context import BoundDevice
 from .queue import Queue
 
 
@@ -14,34 +14,23 @@ class Buffer:
     A memory buffer on device.
     """
 
-    context: 'Context'
-    """Context this buffer is allocated on."""
-
-    device_idx: int
-    """The index of the device this buffer is allocated on."""
+    device: 'grunnur.context.BoundDevice'
+    """Device on which this buffer is allocated."""
 
     @classmethod
-    def allocate(cls, context: 'Context', size: int, device_idx: Optional[int]=None) -> 'Buffer':
+    def allocate(cls, device: 'grunnur.context.BoundDevice', size: int) -> 'Buffer':
         """
         Allocate a buffer of ``size`` bytes.
 
-        :param context: the context to use.
+        :param device: the device on which this buffer will be allocated.
         :param size: the buffer's size in bytes.
-        :param device_idx: the device to allocate on (can be omitted in a single-device context).
         """
-        if device_idx is None:
-            if len(context.devices) == 1:
-                device_idx = 0
-            else:
-                raise ValueError("device_idx must be specified in a multi-device context")
+        buffer_adapter = device.context._context_adapter.allocate(device._device_adapter, size)
+        return cls(device, buffer_adapter)
 
-        buffer_adapter = context._context_adapter.allocate(size, device_idx)
-        return cls(context, device_idx, buffer_adapter)
-
-    def __init__(self, context: Context, device_idx: int, buffer_adapter: BufferAdapter):
-        self.context = context
+    def __init__(self, device: 'BoundDevice', buffer_adapter: BufferAdapter):
+        self.device = device
         self._buffer_adapter = buffer_adapter
-        self.device_idx = device_idx
 
     @property
     def kernel_arg(self):
@@ -72,10 +61,10 @@ class Buffer:
         :param buf: the source - ``numpy`` array or a :py:class:`Buffer` object.
         :param no_async: if `True`, the transfer blocks until completion.
         """
-        if queue.device_idx != self.device_idx:
+        if queue.device != self.device:
             raise ValueError(
-                f"Mismatched devices: queue on device {queue.device_idx}, "
-                f"buffer on device {self.device_idx}")
+                f"Mismatched devices: queue on device {queue.device}, "
+                f"buffer on device {self.device}")
 
         if isinstance(buf, numpy.ndarray):
             buf_adapter = numpy.ascontiguousarray(buf)
@@ -94,10 +83,10 @@ class Buffer:
         :param host_array: the destination array.
         :param async_: if `True`, the transfer is performed asynchronously.
         """
-        if queue.device_idx != self.device_idx:
+        if queue.device != self.device:
             raise ValueError(
-                f"Mismatched devices: queue on device {queue.device_idx}, "
-                f"buffer on device {self.device_idx}")
+                f"Mismatched devices: queue on device {queue.device}, "
+                f"buffer on device {self.device}")
 
         self._buffer_adapter.get(queue._queue_adapter, host_array, async_=async_)
 
@@ -108,4 +97,4 @@ class Buffer:
         :param origin: the offset of the subregion.
         :param size: the size of the subregion.
         """
-        return Buffer(self.context, self.device_idx, self._buffer_adapter.get_sub_region(origin, size))
+        return Buffer(self.device, self._buffer_adapter.get_sub_region(origin, size))

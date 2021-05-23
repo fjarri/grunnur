@@ -39,9 +39,9 @@ def test_single_device(device_idx, full_len, benchmark=False):
     a = numpy.arange(full_len).astype(numpy.uint64)
 
     context = Context.from_devices([api.platforms[0].devices[device_idx]])
-    queue = Queue(context)
+    queue = Queue(context.device)
 
-    program = Program(context, src)
+    program = Program(context.device, src)
     a_dev = Array.from_host(queue, a)
 
     queue.synchronize()
@@ -65,9 +65,9 @@ def test_multi_device(device_idxs, full_len, benchmark=False):
     a = numpy.arange(full_len).astype(numpy.uint64)
 
     context = Context.from_devices([api.platforms[0].devices[device_idx] for device_idx in device_idxs])
-    mqueue = MultiQueue(context)
+    mqueue = MultiQueue.on_devices(context.devices)
 
-    program = Program(context, src)
+    program = Program(context.devices, src)
     a_dev = MultiArray.from_host(mqueue, a)
 
     mqueue.synchronize()

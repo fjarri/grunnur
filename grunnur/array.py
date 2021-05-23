@@ -6,7 +6,7 @@ from typing import Optional, Callable, Tuple, Sequence, Union, Iterable, Dict, T
 import numpy
 
 from .array_metadata import ArrayMetadata
-from .context import Context
+from .context import Context, BoundDevice, BoundMultiDevice
 from .device import Device
 from .queue import Queue, MultiQueue
 from .buffer import Buffer
@@ -18,8 +18,8 @@ class Array:
     Array on a single device.
     """
 
-    context: 'Context'
-    """Context this array is allocated on."""
+    device: 'grunnur.context.BoundDevice'
+    """Device this array is allocated on."""
 
     shape: Tuple[int, ...]
     """Array shape."""
@@ -38,46 +38,36 @@ class Array:
         :param queue: the queue to use for the transfer.
         :param host_arr: the source array.
         """
-        array = cls.empty(queue.context, host_arr.shape, host_arr.dtype, device_idx=queue.device_idx)
+        array = cls.empty(queue.device, host_arr.shape, host_arr.dtype)
         array.set(queue, host_arr)
         return array
 
     @classmethod
     def empty(
-            cls, context: 'Context', shape: Sequence[int],
-            dtype: numpy.dtype, allocator: Callable[[int, int], 'Buffer']=None,
-            device_idx: Optional[int]=None) -> 'Array':
+            cls, device: 'BoundDevice', shape: Sequence[int],
+            dtype: numpy.dtype, allocator: Callable[[BoundDevice, int], 'Buffer']=Buffer.allocate
+            ) -> 'Array':
         """
         Creates an empty array.
 
+        :param device: device on which this array will be allocated.
         :param shape: array shape.
         :param dtype: array data type.
-        :param allocator: an optional callable taking two integer arguments
-            (buffer size in bytes, and the device to allocate it on)
+        :param allocator: an optional callable taking two arguments
+            (the bound device, and the buffer size in bytes)
             and returning a :py:class:`Buffer` object.
-        :param device_idx: the index of the device on which to allocate the array.
         """
-        if device_idx is None:
-            if len(context.devices) == 1:
-                device_idx = 0
-            else:
-                raise ValueError("device_idx must be specified in a multi-device context")
-
         metadata = ArrayMetadata(shape, dtype)
         size = metadata.buffer_size
+        data = allocator(device, size)
 
-        if allocator is None:
-            data = Buffer.allocate(context, size, device_idx=device_idx)
-        else:
-            data = allocator(size, device_idx)
+        return cls(metadata, data)
 
-        return cls(context, metadata, data)
-
-    def __init__(self, context: Context, array_metadata: ArrayMetadata, data: Buffer):
+    def __init__(self, array_metadata: ArrayMetadata, data: Buffer):
 
         self._metadata = array_metadata
 
-        self.context = context
+        self.device = data.device
         self.shape = self._metadata.shape
         self.dtype = self._metadata.dtype
         self.strides = self._metadata.strides
@@ -96,7 +86,7 @@ class Array:
 
         origin, size, new_metadata = new_metadata.minimal_subregion()
         data = self.data.get_sub_region(origin, size)
-        return Array(self.context, new_metadata, data)
+        return Array(new_metadata, data)
 
     def set(self, queue: 'Queue', array: Union[numpy.ndarray, 'Array'], no_async: bool=False):
         """
@@ -154,12 +144,12 @@ class BaseSplay(ABC):
     """
 
     @abstractmethod
-    def __call__(self, arr: 'ArrayLike', devices: Dict[int, 'grunnur.Device']) -> Dict[int, 'ArrayLike']:
+    def __call__(self, arr: 'ArrayLike', devices: 'grunnur.context.BoundMultiDevice') -> Dict[int, 'ArrayLike']:
         """
         Creates a dictionary of views of an array-like object for each of the given devices.
 
         :param arr: an array-like object.
-        :param devices: a dictionary of device indices matched to device objects.
+        :param devices: a multi-device object.
         """
         pass
 
@@ -179,9 +169,9 @@ class EqualSplay(BaseSplay):
 
         subarrays = {}
         ptr = 0
-        for part, device_idx in enumerate(sorted(devices)):
+        for part, device in enumerate(devices):
             l = chunk_size if rem == 0 or part < rem else chunk_size - 1
-            subarrays[device_idx] = arr[ptr:ptr+l]
+            subarrays[device] = arr[ptr:ptr+l]
             ptr += l
 
         return subarrays
@@ -193,7 +183,7 @@ class CloneSplay(BaseSplay):
     """
 
     def __call__(self, arr, devices):
-        return {device_idx: arr for device_idx in devices}
+        return {device: arr for device in devices}
 
 
 class MultiArray:
@@ -201,8 +191,8 @@ class MultiArray:
     An array on multiple devices.
     """
 
-    context: 'Context'
-    """Context this array is allocated on."""
+    devices: 'grunnur.context.BoundMultiDevice'
+    """Devices on which the sub-arrays are allocated"""
 
     shape: Tuple[int, ...]
     """Array shape."""
@@ -235,58 +225,50 @@ class MultiArray:
         host_subarrays = splay(host_arr, mqueue.devices)
 
         subarrays = {
-            device_idx: Array.from_host(mqueue.queues[device_idx], host_subarrays[device_idx])
-            for device_idx in mqueue.devices
+            device: Array.from_host(mqueue.queues[device], host_subarrays[device])
+            for device in mqueue.devices
         }
 
-        return cls(mqueue.context, host_arr.shape, host_arr.dtype, subarrays, splay)
+        return cls(mqueue.devices, host_arr.shape, host_arr.dtype, subarrays, splay)
 
     @classmethod
     def empty(
-            cls, context: 'Context', shape: Sequence[int],
-            dtype: numpy.dtype, allocator: Callable[[int, int], 'Buffer']=None,
-            device_idxs: Optional[Iterable[int]]=None,
+            cls, devices: 'BoundMultiDevice', shape: Sequence[int],
+            dtype: numpy.dtype, allocator: Callable[[BoundDevice, int], 'Buffer']=Buffer.allocate,
             splay: Optional['grunnur.array.BaseSplay']=None,
             ) -> 'MultiArray':
         """
         Creates an empty array.
 
+        :param devices: devices on which the sub-arrays will be allocated.
         :param shape: array shape.
         :param dtype: array data type.
         :param allocator: an optional callable taking two integer arguments
             (buffer size in bytes, and the device to allocate it on)
             and returning a :py:class:`Buffer` object.
-        :param device_idx: the index of the device on which to allocate the array.
         :param splay: the splay strategy (if ``None``, an :py:class:`EqualSplay` object is used).
         """
 
         if splay is None:
             splay = EqualSplay()
 
-        if device_idxs is None:
-            device_idxs = list(range(len(context.devices)))
-
-        devices = {device_idx: context.devices[device_idx] for device_idx in device_idxs}
-
         metadata = ArrayMetadata(shape, dtype)
         submetadatas = splay(metadata, devices)
 
         subarrays = {
-            device_idx: Array.empty(
-                context, submetadata.shape, submetadata.dtype, allocator=allocator, device_idx=device_idx)
-            for device_idx, submetadata in submetadatas.items()
+            device: Array.empty(device, submetadata.shape, submetadata.dtype, allocator=allocator)
+            for device, submetadata in submetadatas.items()
             }
 
-        return cls(context, shape, dtype, subarrays, splay)
+        return cls(devices, shape, dtype, subarrays, splay)
 
-    def __init__(self, context, shape, dtype, subarrays, splay):
-        self.context = context
+    def __init__(self, devices, shape, dtype, subarrays, splay):
+        self.devices = devices
         self.shape = shape
         self.dtype = dtype
         self.subarrays = subarrays
-        self.shapes = {device_idx: subarray.shape for device_idx, subarray in self.subarrays.items()}
+        self.shapes = {device: subarray.shape for device, subarray in self.subarrays.items()}
 
-        self._devices = {device_idx: self.context.devices[device_idx] for device_idx in self.subarrays}
         self._splay = splay
 
     def get(self, mqueue: 'MultiQueue', dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
@@ -301,10 +283,10 @@ class MultiArray:
         if dest is None:
             dest = numpy.empty(self.shape, self.dtype)
 
-        dest_subarrays = self._splay(dest, self._devices)
+        dest_subarrays = self._splay(dest, self.devices)
 
-        for device_idx, subarray in self.subarrays.items():
-            subarray.get(mqueue.queues[device_idx], dest_subarrays[device_idx], async_=async_)
+        for device, subarray in self.subarrays.items():
+            subarray.get(mqueue.queues[device], dest_subarrays[device], async_=async_)
 
         return dest
 
@@ -318,13 +300,13 @@ class MultiArray:
         """
 
         if isinstance(array, numpy.ndarray):
-            subarrays = self._splay(array, self._devices)
+            subarrays = self._splay(array, self.devices)
         else:
             subarrays = array.subarrays
 
         if self.subarrays.keys() != subarrays.keys():
             raise ValueError("Mismatched device sets in the source and the destination")
 
-        for device_idx in self.subarrays:
-            self.subarrays[device_idx].set(
-                mqueue.queues[device_idx], subarrays[device_idx], no_async=no_async)
+        for device in self.subarrays:
+            self.subarrays[device].set(
+                mqueue.queues[device], subarrays[device], no_async=no_async)

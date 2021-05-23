@@ -51,7 +51,7 @@ def test_contract(context, valloc_cls, pack):
     dtype = numpy.int32
 
     program = Program(
-        context,
+        context.device,
         """
         KERNEL void fill(GLOBAL_MEM ${ctype} *dest, ${ctype} val)
         {
@@ -62,13 +62,13 @@ def test_contract(context, valloc_cls, pack):
         render_globals=dict(ctype=dtypes.ctype(dtype)))
     fill = program.kernel.fill
 
-    queue = Queue(context)
-    virtual_alloc = valloc_cls(context)
+    queue = Queue(context.device)
+    virtual_alloc = valloc_cls(context.device)
 
     buffers_metadata, arrays = allocate_test_set(
         virtual_alloc,
         # Bump size to make sure buffer alignment doesn't hide any out-of-bounds access
-        lambda allocator, size: Array.empty(context, size * 100, dtype, allocator=allocator))
+        lambda allocator, size: Array.empty(context.device, size * 100, dtype, allocator=allocator))
     dependencies = {id_: deps for id_, _, deps in buffers_metadata}
 
     if pack:
@@ -94,11 +94,11 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
     # Using PyCUDA backend here because it tracks the allocations.
 
     context = mock_context_pycuda
-    queue = Queue(context)
-    virtual_alloc = valloc_cls(context)
+    queue = Queue(context.device)
+    virtual_alloc = valloc_cls(context.device)
 
     buffers_metadata, buffers = allocate_test_set(
-        virtual_alloc, lambda allocator, size: allocator(size, 0))
+        virtual_alloc, lambda allocator, size: allocator(context.device, size))
 
     for name, size, deps in buffers_metadata:
         # Virtual buffer size should be exactly as requested
@@ -130,11 +130,11 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
 
 def test_extract_dependencies(mock_context):
 
-    queue = Queue(mock_context)
-    virtual_alloc = TrivialManager(mock_context).allocator()
+    queue = Queue(mock_context.device)
+    virtual_alloc = TrivialManager(mock_context.device).allocator()
 
-    vbuf = virtual_alloc(100, 0)
-    varr = Array.empty(mock_context, 100, numpy.int32, allocator=virtual_alloc)
+    vbuf = virtual_alloc(mock_context.device, 100)
+    varr = Array.empty(mock_context.device, 100, numpy.int32, allocator=virtual_alloc)
 
     assert extract_dependencies(vbuf) == {vbuf._buffer_adapter._id}
     assert extract_dependencies(varr) == {varr.data._buffer_adapter._id}
@@ -162,11 +162,11 @@ def check_statistics(buffers_metadata, stats):
 def test_statistics(mock_context, valloc_cls):
 
     context = mock_context
-    queue = Queue(context)
-    virtual_alloc = valloc_cls(context)
+    queue = Queue(context.device)
+    virtual_alloc = valloc_cls(context.device)
 
     buffers_metadata, buffers = allocate_test_set(
-        virtual_alloc, lambda allocator, size: allocator(size, 0))
+        virtual_alloc, lambda allocator, size: allocator(context.device, size))
 
     stats = virtual_alloc.statistics()
     check_statistics(buffers_metadata, stats)
@@ -185,9 +185,9 @@ def test_statistics(mock_context, valloc_cls):
 
 def test_non_existent_dependencies(mock_context, valloc_cls):
     context = mock_context
-    virtual_alloc = valloc_cls(context)
+    virtual_alloc = valloc_cls(context.device)
     with pytest.raises(ValueError, match="12345"):
-        virtual_alloc._allocate_virtual(100, {12345}, 0)
+        virtual_alloc._allocate_virtual(100, {12345})
 
 
 def test_virtual_buffer(mock_4_device_context_pyopencl):
@@ -195,21 +195,31 @@ def test_virtual_buffer(mock_4_device_context_pyopencl):
     # Using an OpenCL mock context here because it keeps track of buffer migrations
 
     context = mock_4_device_context_pyopencl
-    mqueue = MultiQueue(context)
-    virtual_alloc = TrivialManager(context)
+    mqueue = MultiQueue.on_devices(context.devices)
+    dev0 = context.devices[0]
+
+    virtual_alloc = TrivialManager(dev0)
 
     allocator = virtual_alloc.allocator()
-    vbuf = allocator(100, 0)
+    vbuf = allocator(dev0, 100)
 
     assert vbuf.size == 100
     assert isinstance(vbuf.kernel_arg._buffer, bytes)
-    assert vbuf.context is context
+    assert vbuf.device == dev0
     with pytest.raises(NotImplementedError):
         vbuf.get_sub_region(0, 50)
     assert vbuf.offset == 0
 
     arr = numpy.arange(100).astype(numpy.uint8)
-    vbuf.set(mqueue.queues[0], arr)
+    vbuf.set(mqueue.queues[dev0], arr)
     res = numpy.empty_like(arr)
-    vbuf.get(mqueue.queues[0], res)
+    vbuf.get(mqueue.queues[dev0], res)
     assert (arr == res).all()
+
+
+def test_virtual_alloc_device_check(mock_4_device_context_pyopencl):
+    context = mock_4_device_context_pyopencl
+    virtual_alloc = TrivialManager(context.devices[0])
+    alloc = virtual_alloc.allocator()
+    with pytest.raises(ValueError, match="This allocator is attached to device"):
+        alloc(context.devices[1], 100)

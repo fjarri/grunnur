@@ -15,10 +15,10 @@ Consider the following example, which is very similar to the one from the index 
     N = 256
 
     context = Context.from_devices([any_api.platforms[0].devices[0]])
-    queue = Queue(context)
+    queue = Queue(context.device)
 
     program = Program(
-        context,
+        context.device,
         """
         KERNEL void multiply_them(
             GLOBAL_MEM float *dest,
@@ -36,7 +36,7 @@ Consider the following example, which is very similar to the one from the index 
     b = numpy.random.randn(N).astype(numpy.float32)
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
-    dest_dev = Array.empty(context, a.shape, a.dtype)
+    dest_dev = Array.empty(context.device, a.shape, a.dtype)
 
     multiply_them(queue, N, None, dest_dev, a_dev, b_dev)
     print((dest_dev.get(queue) - a * b == 0).all())
@@ -65,13 +65,13 @@ The template engine of choice in ``grunnur`` is `Mako <http://www.makotemplates.
     from grunnur import any_api, Context, Queue, Program, Array
 
     context = Context.from_devices([any_api.platforms[0].devices[0]])
-    queue = Queue(context)
+    queue = Queue(context.device)
 
     N = 256
     dtype = numpy.complex64
 
     program = Program(
-        context, """
+        context.device, """
         KERNEL void multiply_them(
             GLOBAL_MEM ${ctype} *dest,
             GLOBAL_MEM ${ctype} *a,
@@ -93,7 +93,7 @@ The template engine of choice in ``grunnur`` is `Mako <http://www.makotemplates.
     b = r1 - 1j * r2
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
-    dest_dev = Array.empty(context, a.shape, a.dtype)
+    dest_dev = Array.empty(context.device, a.shape, a.dtype)
 
     multiply_them(queue, N, None, dest_dev, a_dev, b_dev)
     print(norm(dest_dev.get(queue) - a * b) / norm(a * b) <= 1e-6)

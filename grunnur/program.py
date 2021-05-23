@@ -14,7 +14,7 @@ from .utils import wrap_in_tuple, update_dict
 from .array import Array, MultiArray
 from .buffer import Buffer
 from .queue import Queue, MultiQueue
-from .context import Context
+from .context import Context, BoundDevice, BoundMultiDevice
 from .api import cuda_api_id
 from .template import DefTemplate
 from .modules import Snippet
@@ -27,20 +27,22 @@ class CompilationError(RuntimeError):
         self.backend_exception = backend_exception
 
 
+def _check_set_constant_array(queue: Queue, program_devices: BoundMultiDevice):
+    if queue.device.context.api.id != cuda_api_id():
+        raise ValueError("Constant arrays are only supported for CUDA API")
+    if queue.device.context != program_devices.context:
+        raise ValueError("The provided queue must belong to the same context as this program uses")
+    if queue.device not in program_devices:
+        raise ValueError(
+            f"The program was not compiled for the device this queue uses ({queue.device})")
+
+
 def _set_constant_array(
         queue: Queue, program_adapter: ProgramAdapter, name: str, arr: Union[Array, Buffer, numpy.ndarray]):
     """
     Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
     """
-    device_idx = program_adapter._device_idx
     queue_adapter = queue._queue_adapter
-
-    if queue_adapter._context_adapter is not program_adapter._context_adapter:
-        raise ValueError(
-            "The provided queue must belong to the same context as this program uses")
-    if device_idx != queue.device_idx:
-        raise ValueError(
-            f"The provided queue must run on the device this program uses ({device_idx})")
 
     constant_data: Union[BufferAdapter, numpy.ndarray]
 
@@ -63,19 +65,18 @@ class SingleDeviceProgram:
 
     def __init__(
             self,
-            context: Context,
-            device_idx: int,
+            device: BoundDevice,
             template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
             no_prelude: bool=False,
             fast_math: bool=False,
             render_args: Union[Tuple, List]=[],
             render_globals: Dict={},
+            constant_arrays: Dict={},
             **kwds):
         """
         Renders and compiles the given template on a single device.
 
-        :param context:
-        :param device_idx: the number of the device to compile on.
+        :param device:
         :param template_src: see :py:meth:`compile`.
         :param no_prelude: see :py:meth:`compile`.
         :param fast_math: see :py:meth:`compile`.
@@ -83,17 +84,19 @@ class SingleDeviceProgram:
         :param render_globals: see :py:meth:`compile`.
         :param kwds: additional parameters for compilation, see :py:func:`compile`.
         """
-        self.context = context
-        self._device_idx = device_idx
+        if device.context.api.id != cuda_api_id() and len(constant_arrays) > 0:
+            raise ValueError("Compile-time constant arrays are only supported by CUDA API")
+
+        self.device = device
 
         render_globals = update_dict(
-            render_globals, dict(device_params=context.devices[device_idx].params),
+            render_globals, dict(device_params=device.params),
             error_msg="'device_params' is a reserved global name and cannot be used")
 
         src = render_with_modules(
             template_src, render_args=render_args, render_globals=render_globals)
 
-        context_adapter = context._context_adapter
+        context_adapter = device.context._context_adapter
 
         if no_prelude:
             prelude = ""
@@ -102,9 +105,10 @@ class SingleDeviceProgram:
 
         try:
             self._sd_program_adapter = context_adapter.compile_single_device(
-                device_idx, prelude, src, fast_math=fast_math, **kwds)
+                device._device_adapter, prelude, src,
+                fast_math=fast_math, constant_arrays=constant_arrays, **kwds)
         except AdapterCompilationError as e:
-            print(f"Failed to compile on device {device_idx} ({context.devices[device_idx]})")
+            print(f"Failed to compile on {device}")
 
             lines = e.source.split("\n")
             max_num_len = int(log10(len(lines))) + 1
@@ -135,8 +139,8 @@ class Program:
     A compiled program on device(s).
     """
 
-    context: 'Context'
-    """The context this program was compiled for."""
+    devices: 'grunnur.context.BoundMultiDevice'
+    """The devices on which this program was compiled."""
 
     sources: Dict[int, str]
     """Source files used for each device."""
@@ -146,9 +150,8 @@ class Program:
 
     def __init__(
             self,
-            context: 'Context',
+            devices: Union['grunnur.context.BoundDevice', 'grunnur.context.BoundMultiDevice'],
             template_src: Union[str, Callable[..., str], 'DefTemplate', 'Snippet'],
-            device_idxs: Optional[Sequence[int]]=None,
             no_prelude: bool=False,
             fast_math: bool=False,
             render_args: Union[List, Tuple]=[],
@@ -157,10 +160,8 @@ class Program:
             keep: bool=False,
             constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={}):
         """
-        :param context: context to compile the program on.
+        :param devices: a single- or a multi-device object on which to compile this program.
         :param template_src: a string with the source code, or a Mako template source to render.
-        :param device_idxs: a list of device numbers to compile on.
-            If ``None``, compile on all context's devices.
         :param no_prelude: do not add prelude to the rendered source.
         :param fast_math: compile using fast (but less accurate) math functions.
         :param render_args: a list of positional args to pass to the template.
@@ -170,20 +171,16 @@ class Program:
         :param constant_arrays: (**CUDA only**) a dictionary ``name: (size, dtype)``
             of global constant arrays to be declared in the program.
         """
-        if device_idxs is None:
-            device_idxs = range(len(context.devices))
-        else:
-            device_idxs = sorted(device_idxs)
-
-        if context.api.id != cuda_api_id() and len(constant_arrays) > 0:
-            raise ValueError("Compile-time constant arrays are only supported by CUDA API")
-
         sd_programs = {}
         sources = {}
-        for device_idx in device_idxs:
+
+        if isinstance(devices, BoundDevice):
+            devices = BoundMultiDevice.from_bound_devices([devices])
+
+        for device in devices:
             sd_program = SingleDeviceProgram(
-                context,
-                device_idx, template_src,
+                device,
+                template_src,
                 no_prelude=no_prelude,
                 fast_math=fast_math,
                 render_args=render_args,
@@ -191,13 +188,15 @@ class Program:
                 compiler_options=compiler_options,
                 keep=keep,
                 constant_arrays=constant_arrays)
-            sd_programs[device_idx] = sd_program
-            sources[device_idx] = sd_program.source
+            sd_programs[device] = sd_program
+            sources[device] = sd_program.source
 
         self._sd_programs = sd_programs
         self.sources = sources
-        self.context = context
+        self.devices = devices
 
+        # TODO: create dynamically, in case someone wants to hold a reference to it and
+        # discard this Program object
         self.kernel = KernelHub(self)
 
     def set_constant_array(
@@ -209,10 +208,8 @@ class Program:
         :param name: the name of the constant array symbol in the code.
         :param arr: either a device or a host array.
         """
-        if self.context.api.id != cuda_api_id():
-            raise ValueError("Constant arrays are only supported for CUDA API")
-        for sd_program in self._sd_programs.values():
-            sd_program.set_constant_array(queue, name, arr)
+        _check_set_constant_array(queue, self.devices)
+        self._sd_programs[queue.device].set_constant_array(queue, name, arr)
 
 
 class KernelHub:
@@ -230,16 +227,16 @@ class KernelHub:
         """
         program = self._program_ref()
         sd_kernel_adapters = {
-            device_idx: sd_program.get_kernel_adapter(kernel_name)
-            for device_idx, sd_program in program._sd_programs.items()}
+            device: sd_program.get_kernel_adapter(kernel_name)
+            for device, sd_program in program._sd_programs.items()}
         return Kernel(program, sd_kernel_adapters)
 
 
-def extract_single_device_arg(arg, device_idx):
+def extract_single_device_arg(arg, device):
     if isinstance(arg, dict):
-        return arg[device_idx]
+        return arg[device]
     elif isinstance(arg, MultiArray):
-        return arg.subarrays[device_idx]
+        return arg.subarrays[device]
     else:
         return arg
 
@@ -260,10 +257,10 @@ class PreparedKernel:
 
     def __init__(
             self,
-            context: Context,
-            sd_kernel_adapters: Dict[int, KernelAdapter],
-            global_sizes: Union[int, Sequence[int]],
-            local_sizes: Union[int, Sequence[int], None],
+            devices: BoundMultiDevice,
+            sd_kernel_adapters: Dict[BoundDevice, KernelAdapter],
+            global_sizes,
+            local_sizes,
             hold_reference=None):
 
         # If this object can be used by itself (e.g. when created from `Kernel.prepare()`),
@@ -275,16 +272,16 @@ class PreparedKernel:
 
         self._prepared_kernel_adapters = {}
 
-        for device_idx in sd_kernel_adapters:
-            _kernel_ls = local_sizes[device_idx]
+        for device in sd_kernel_adapters:
+            _kernel_ls = local_sizes[device]
             kernel_ls = wrap_in_tuple(_kernel_ls) if _kernel_ls is not None else _kernel_ls
-            kernel_gs = wrap_in_tuple(global_sizes[device_idx])
+            kernel_gs = wrap_in_tuple(global_sizes[device])
 
-            pkernel = sd_kernel_adapters[device_idx].prepare(kernel_gs, kernel_ls)
+            pkernel = sd_kernel_adapters[device].prepare(kernel_gs, kernel_ls)
 
-            self._prepared_kernel_adapters[device_idx] = pkernel
+            self._prepared_kernel_adapters[device] = pkernel
 
-        self._context = context
+        self._devices = devices
 
     def __call__(self, queue: Union['grunnur.Queue', 'grunnur.MultiQueue'], *args, **kwds):
         """
@@ -308,38 +305,48 @@ class PreparedKernel:
         :returns: a list of ``Event`` objects for enqueued kernels in case of PyOpenCL.
         """
         if isinstance(queue, Queue):
-            queue = MultiQueue(self._context, [queue])
+            queue = MultiQueue([queue])
 
-        available_device_idxs = set(self._prepared_kernel_adapters)
-        if not queue.device_idxs.issubset(available_device_idxs):
+        # Technically this would be caught by `issubset()`, but it'll help to provide
+        # a more specific error to the user.
+        if queue.devices.context != self._devices.context:
+            raise ValueError("The provided queue must belong to the same context this program uses")
+
+        if not queue.devices.issubset(self._devices):
             raise ValueError(
-                f"Requested execution on devices {queue.device_idxs}; "
-                f"only compiled for {available_device_idxs}")
+                f"Requested execution on devices {queue.devices}; "
+                f"only compiled for {self._devices}")
 
         ret_vals = []
-        for device_idx in queue.device_idxs:
+        for device in queue.devices:
             kernel_args = [
-                extract_backend_arg(extract_single_device_arg(arg, device_idx)) for arg in args]
+                extract_backend_arg(extract_single_device_arg(arg, device)) for arg in args]
 
-            single_queue = queue.queues[device_idx]
+            single_queue = queue.queues[device]
 
-            pkernel = self._prepared_kernel_adapters[device_idx]
+            pkernel = self._prepared_kernel_adapters[device]
             ret_val = pkernel(single_queue._queue_adapter, *kernel_args, **kwds)
             ret_vals.append(ret_val)
 
         return ret_vals
 
 
-def normalize_sizes(available_device_idxs, global_size, local_size):
+def normalize_sizes(devices, global_size, local_size):
     if not isinstance(global_size, dict):
-        global_size = {device_idx: global_size for device_idx in available_device_idxs}
+        global_size = {device: global_size for device in devices}
     if not isinstance(local_size, dict):
-        local_size = {device_idx: local_size for device_idx in available_device_idxs}
+        local_size = {device: local_size for device in devices}
 
-    if local_size.keys() != global_size.keys():
-        raise ValueError("global_size and local_size must be specified for the same set of devices")
+    if global_size.keys() != local_size.keys():
+        raise ValueError(
+            "Mismatched device sets for global and local sizes: "
+            f"local sizes have {list(local_size.keys())}, "
+            f"global sizes have {list(global_size.keys())}")
 
-    return global_size, local_size
+    devices_subset = BoundMultiDevice.from_bound_devices(
+        [device for device in devices if device in global_size])
+
+    return devices_subset, global_size, local_size
 
 
 class Kernel:
@@ -358,8 +365,8 @@ class Kernel:
         for this kernel.
         """
         return {
-            device_idx: sd_kernel_adapter.max_total_local_size
-            for device_idx, sd_kernel_adapter in self._sd_kernel_adapters.items()}
+            device: sd_kernel_adapter.max_total_local_size
+            for device, sd_kernel_adapter in self._sd_kernel_adapters.items()}
 
     def prepare(
             self,
@@ -384,17 +391,15 @@ class Kernel:
             work group (OpenCL) in each dimension (column-major).
             If ``None``, it will be chosen automatically.
         """
-        context = self._program.context
+        devices, global_size, local_size = normalize_sizes(self._program.devices, global_size, local_size)
 
-        available_device_idxs = set(self._sd_kernel_adapters)
-        global_size, local_size = normalize_sizes(available_device_idxs, global_size, local_size)
-
+        # Filter out only the kernel adapters mentioned in global/local_size
         sd_kernel_adapters = {
-            device_idx: self._sd_kernel_adapters[device_idx]
-            for device_idx in global_size}
+            device: self._sd_kernel_adapters[device]
+            for device in devices}
 
         return PreparedKernel(
-            context, sd_kernel_adapters, global_size, local_size, hold_reference=self)
+            devices, sd_kernel_adapters, global_size, local_size, hold_reference=self)
 
     def __call__(
             self,

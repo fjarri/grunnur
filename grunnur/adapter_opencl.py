@@ -302,26 +302,36 @@ class OclContextAdapter(ContextAdapter):
         # from the trusted classmethods, which already ensure that.
 
         self._pyopencl_context = pyopencl_context
-        self._pyopencl_devices = pyopencl_devices
 
-        self._device_adapters = tuple(
-            OclDeviceAdapter.from_pyopencl_device(device) for device in self._pyopencl_devices)
-        self.platform_adapter = self.device_adapters[0].platform_adapter
+        device_adapters = [
+            OclDeviceAdapter.from_pyopencl_device(device)
+            for device in pyopencl_devices]
+
+        self._device_order = [device_adapter.device_idx for device_adapter in device_adapters]
+
+        self._pyopencl_devices = dict(zip(self._device_order, pyopencl_devices))
+
+        self._device_adapters = {
+            device_adapter.device_idx: device_adapter
+            for device_adapter in device_adapters}
+
+        self.platform_adapter = device_adapters[0].platform_adapter
 
         # On an Apple platform, in a multi-device context with nVidia cards it is necessary to have
         # any created OpenCL buffers allocated on the host (with ALLOC_HOST_PTR flag).
         # If it is not the case, using a subregion of such a buffer leads to a crash.
-        is_multi_device = len(self._pyopencl_devices) > 1
-        is_apple_platform = self._pyopencl_devices[0].platform.name == 'Apple'
-        has_geforce_device = any('GeForce' in device.name for device in self._pyopencl_devices)
+        is_multi_device = len(pyopencl_devices) > 1
+        is_apple_platform = pyopencl_devices[0].platform.name == 'Apple'
+        has_geforce_device = any('GeForce' in device.name for device in pyopencl_devices)
         self._buffers_host_allocation = is_multi_device and is_apple_platform and has_geforce_device
 
     @property
     def device_adapters(self) -> Tuple[OclDeviceAdapter, ...]:
         return self._device_adapters
 
-    def deactivate(self):
-        pass
+    @property
+    def device_order(self):
+        return self._device_order
 
     @staticmethod
     def render_prelude(fast_math=False):
@@ -330,7 +340,7 @@ class OclContextAdapter(ContextAdapter):
             dtypes=dtypes)
 
     def compile_single_device(
-            self, device_idx, prelude, src,
+            self, device_adapter, prelude, src,
             keep=False, fast_math=False, compiler_options=[], constant_arrays={}):
 
         # Sanity check: should have been caught in compile()
@@ -359,13 +369,15 @@ class OclContextAdapter(ContextAdapter):
 
         try:
             pyopencl_program.build(
-                devices=[self._pyopencl_devices[device_idx]], options=options, cache_dir=temp_dir)
+                devices=[self._pyopencl_devices[device_adapter.device_idx]],
+                options=options,
+                cache_dir=temp_dir)
         except pyopencl.RuntimeError as e:
             raise AdapterCompilationError(e, full_src)
 
-        return OclProgramAdapter(self, device_idx, pyopencl_program, full_src)
+        return OclProgramAdapter(self, device_adapter.device_idx, pyopencl_program, full_src)
 
-    def allocate(self, size, device_idx):
+    def allocate(self, device_adapter, size):
         flags = pyopencl.mem_flags.READ_WRITE
         if self._buffers_host_allocation:
             flags |= pyopencl.mem_flags.ALLOC_HOST_PTR
@@ -374,18 +386,19 @@ class OclContextAdapter(ContextAdapter):
 
         queue = pyopencl.CommandQueue(
             self._pyopencl_context,
-            device=self._device_adapters[device_idx].pyopencl_device)
+            device=self._device_adapters[device_adapter.device_idx].pyopencl_device)
         pyopencl.enqueue_migrate_mem_objects(
             queue, [pyopencl_buffer],
             flags=pyopencl.mem_migration_flags.CONTENT_UNDEFINED)
 
-        return OclBufferAdapter(self, device_idx, pyopencl_buffer)
+        return OclBufferAdapter(self, device_adapter.device_idx, pyopencl_buffer)
 
-    def make_queue_adapter(self, device_idx):
+    def make_queue_adapter(self, device_adapter):
         queue = pyopencl.CommandQueue(
-            self._pyopencl_context, device=self._device_adapters[device_idx].pyopencl_device)
+            self._pyopencl_context,
+            device=self._device_adapters[device_adapter.device_idx].pyopencl_device)
 
-        return OclQueueAdapter(self, device_idx, queue)
+        return OclQueueAdapter(self, device_adapter.device_idx, queue)
 
 
 class OclBufferAdapter(BufferAdapter):

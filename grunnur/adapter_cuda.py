@@ -241,7 +241,26 @@ class _ContextStack:
     """
 
     def __init__(self, pycuda_contexts, take_ownership):
-        self._pycuda_contexts = pycuda_contexts
+
+        # A shortcut for the case when we're given a single external context
+        # and told not to take ownership.
+        dont_push = len(pycuda_contexts) == 1 and not take_ownership
+
+        self.device_order = []
+        self.device_adapters = {}
+        self._pycuda_contexts = {}
+        for context in pycuda_contexts:
+            if not dont_push:
+                context.push()
+            device = context.get_device()
+            if not dont_push:
+                context.pop()
+
+            device_adapter = CuDeviceAdapter.from_pycuda_device(device)
+            self.device_adapters[device_adapter.device_idx] = device_adapter
+            self._pycuda_contexts[device_adapter.device_idx] = context
+            self.device_order.append(device_adapter.device_idx)
+
         self._active_context = None
         self._owns_contexts = take_ownership
 
@@ -285,7 +304,9 @@ class CuContextAdapter(ContextAdapter):
             take_ownership: bool) -> 'CuContextAdapter':
         """
         Creates a context based on one or several (distinct) PyCuda ``Context`` objects.
-        None of the PyCuda contexts should be pushed to the context stack.
+        If ``take_ownership`` is ``False``, and there is only one context given,
+        it should be pushed to the top of the context stack.
+        Otherwise, none of the PyCuda contexts should be pushed to the context stack.
         """
         if len(pycuda_contexts) > 1 and not take_ownership:
             raise ValueError(
@@ -303,23 +324,20 @@ class CuContextAdapter(ContextAdapter):
             [device_adapter.pycuda_device for device_adapter in device_adapters])
 
     def __init__(self, pycuda_contexts: Iterable['pycuda_driver.Context'], take_ownership):
-
         self._context_stack = _ContextStack(pycuda_contexts, take_ownership)
+        self._device_adapters = self._context_stack.device_adapters
+        self._device_order = self._context_stack.device_order
 
-        self._pycuda_devices = []
-        for context_num, context in enumerate(pycuda_contexts):
-            self.activate_device(context_num)
-            self._pycuda_devices.append(context.get_device())
-
-        self._device_adapters = tuple(
-            CuDeviceAdapter.from_pycuda_device(device) for device in self._pycuda_devices)
-        self._device_idxs = list(range(len(self._device_adapters)))
-
-        self.activate_device(0)
+        # Eager activation to help some tests.
+        self._context_stack.activate(next(iter(self._device_order)))
 
     @property
     def device_adapters(self) -> Tuple[CuDeviceAdapter, ...]:
         return self._device_adapters
+
+    @property
+    def device_order(self):
+        return self._device_order
 
     def activate_device(self, device_idx: int):
         """
@@ -340,7 +358,7 @@ class CuContextAdapter(ContextAdapter):
             constant_arrays=constant_arrays)
 
     def compile_single_device(
-            self, device_idx, prelude, src, keep=False, fast_math=False, compiler_options=[],
+            self, device_adapter, prelude, src, keep=False, fast_math=False, compiler_options=[],
             constant_arrays={}):
 
         constant_arrays = normalize_constant_arrays(constant_arrays)
@@ -350,7 +368,7 @@ class CuContextAdapter(ContextAdapter):
 
         options = compiler_options + (['-use_fast_math'] if fast_math else [])
         full_src = prelude + constant_arrays_src + src
-        self.activate_device(device_idx)
+        self.activate_device(device_adapter.device_idx)
 
         # For some reason, `keep=True` does not work without an explicit `cache_dir`.
         # A new temporary dir is still created, and everything is placed there,
@@ -366,15 +384,15 @@ class CuContextAdapter(ContextAdapter):
         except pycuda_driver.CompileError as e:
             raise AdapterCompilationError(e, full_src)
 
-        return CuProgramAdapter(self, device_idx, module, full_src)
+        return CuProgramAdapter(self, device_adapter.device_idx, module, full_src)
 
-    def allocate(self, size, device_idx):
-        return CuBufferAdapter(self, size=size, device_idx=device_idx)
+    def allocate(self, device_adapter, size):
+        return CuBufferAdapter(self, device_adapter.device_idx, size)
 
-    def make_queue_adapter(self, device_idx):
-        self.activate_device(device_idx)
+    def make_queue_adapter(self, device_adapter):
+        self.activate_device(device_adapter.device_idx)
         stream = pycuda_driver.Stream()
-        return CuQueueAdapter(self, device_idx, stream)
+        return CuQueueAdapter(self, device_adapter.device_idx, stream)
 
 
 class CuBufferAdapter(BufferAdapter):

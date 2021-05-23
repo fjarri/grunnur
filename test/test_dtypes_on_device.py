@@ -11,7 +11,7 @@ def check_struct_fill(context, dtype):
     struct = dtypes.ctype_struct(dtype)
 
     program = Program(
-        context,
+        context.device,
         """
         KERNEL void test(GLOBAL_MEM ${struct} *dest, GLOBAL_MEM int *itemsizes)
         {
@@ -32,10 +32,10 @@ def check_struct_fill(context, dtype):
             dtype=dtype))
 
     test = program.kernel.test
-    queue = Queue(context)
+    queue = Queue(context.device)
 
-    a_dev = Array.empty(context, 128, dtype)
-    itemsizes_dev = Array.empty(context, 128, numpy.int32)
+    a_dev = Array.empty(context.device, 128, dtype)
+    itemsizes_dev = Array.empty(context.device, 128, numpy.int32)
     test(queue, 128, None, a_dev, itemsizes_dev)
     a = a_dev.get(queue)
     itemsizes = itemsizes_dev.get(queue)

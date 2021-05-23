@@ -69,14 +69,14 @@ def check_func(context, func_module, reference_func, out_dtype, in_dtypes, atol=
     if is_mocked:
         return
 
-    program = Program(context, full_src)
+    program = Program(context.device, full_src)
     test = program.kernel.test
 
-    queue = Queue(context)
+    queue = Queue(context.device)
 
     arrays = [get_test_array(N, dt, no_zeros=True, high=8) for dt in in_dtypes]
     arrays_dev = [Array.from_host(queue, array) for array in arrays]
-    dest_dev = Array.empty(context, N, out_dtype)
+    dest_dev = Array.empty(context.device, N, out_dtype)
 
     test(queue, N, None, dest_dev, *arrays_dev)
 
@@ -185,21 +185,21 @@ def test_pow_zero_base(context, out_code, in_codes):
     out_dtype, in_dtypes = generate_dtypes(out_code, in_codes)
     func_module = functions.pow(in_dtypes[0], exponent_dtype=in_dtypes[1], out_dtype=out_dtype)
     full_src = get_func_kernel(func_module, out_dtype, in_dtypes)
-    program = Program(context, full_src)
+    program = Program(context.device, full_src)
     test = program.kernel.test
 
-    queue = Queue(context)
+    queue = Queue(context.device)
     bases = Array.from_host(queue, numpy.zeros(N, in_dtypes[0]))
 
     # zero exponents
     exponents = Array.from_host(queue, numpy.zeros(N, in_dtypes[1]))
-    dest_dev = Array.empty(context, N, out_dtype)
+    dest_dev = Array.empty(context.device, N, out_dtype)
     test(queue, N, None, dest_dev, bases, exponents)
     assert numpy.allclose(dest_dev.get(queue), numpy.ones(N, in_dtypes[0]))
 
     # non-zero exponents
     exponents = Array.from_host(queue, numpy.ones(N, in_dtypes[1]))
-    dest_dev = Array.empty(context, N, out_dtype)
+    dest_dev = Array.empty(context.device, N, out_dtype)
     test(queue, N, None, dest_dev, bases, exponents)
     assert numpy.allclose(dest_dev.get(queue), numpy.zeros(N, in_dtypes[0]))
 

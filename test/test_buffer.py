@@ -14,7 +14,7 @@ def test_allocate_and_copy(mock_or_real_context):
 
     arr = numpy.arange(length).astype(dtype)
 
-    buf = Buffer.allocate(context, size)
+    buf = Buffer.allocate(context.device, size)
     assert buf.size == size
     assert buf.offset == 0
 
@@ -22,7 +22,7 @@ def test_allocate_and_copy(mock_or_real_context):
     # Hard to actually check it without running a kernel
     assert buf.kernel_arg is not None
 
-    queue = Queue(context)
+    queue = Queue(context.device)
     buf.set(queue, arr)
 
     # Read the whole buffer
@@ -59,7 +59,7 @@ def test_allocate_and_copy(mock_or_real_context):
         assert (res == arr).all()
 
     # Device-to-device copy
-    buf2 = Buffer.allocate(context, size * 2)
+    buf2 = Buffer.allocate(context.device, size * 2)
     buf2.set(queue, numpy.ones(length * 2, dtype))
     buf2_view = buf2.get_sub_region(50 * dtype.itemsize, 100 * dtype.itemsize)
     buf2_view.set(queue, buf)
@@ -71,7 +71,7 @@ def test_allocate_and_copy(mock_or_real_context):
     assert (res2[150:] == 1).all()
 
     # Device-to-device copy (no_async)
-    buf2 = Buffer.allocate(context, size * 2)
+    buf2 = Buffer.allocate(context.device, size * 2)
     buf2.set(queue, numpy.ones(length * 2, dtype))
     buf2_view = buf2.get_sub_region(50 * dtype.itemsize, 100 * dtype.itemsize)
     buf2_view.set(queue, buf, no_async=True)
@@ -95,42 +95,36 @@ def test_flags(mock_backend_pyopencl):
     # Multi-device on Apple platform with one of the devices being GeForce: need special Buffer flags
     api = API.from_api_id(backend.api_id)
     context = Context.from_devices([api.platforms[0].devices[0], api.platforms[0].devices[1]])
-    buf = Buffer.allocate(context, 100, device_idx=0)
+    buf = Buffer.allocate(context.devices[0], 100)
     assert buf._buffer_adapter.pyopencl_buffer.flags == special_flags
 
     # None of the devices is GeForce
     context = Context.from_devices([api.platforms[0].devices[1], api.platforms[0].devices[2]])
-    buf = Buffer.allocate(context, 100, device_idx=0)
+    buf = Buffer.allocate(context.devices[0], 100)
     assert buf._buffer_adapter.pyopencl_buffer.flags == normal_flags
 
     # Only one device
     context = Context.from_devices([api.platforms[0].devices[0]])
-    buf = Buffer.allocate(context, 100)
+    buf = Buffer.allocate(context.device, 100)
     assert buf._buffer_adapter.pyopencl_buffer.flags == normal_flags
 
     # Not an Apple platform
     context = Context.from_devices([api.platforms[1].devices[0], api.platforms[1].devices[1]])
-    buf = Buffer.allocate(context, 100, device_idx=0)
+    buf = Buffer.allocate(context.devices[0], 100)
     assert buf._buffer_adapter.pyopencl_buffer.flags == normal_flags
 
 
 def test_set_from_wrong_type(mock_context):
-    buf = Buffer.allocate(mock_context, 100)
-    queue = Queue(mock_context)
+    buf = Buffer.allocate(mock_context.device, 100)
+    queue = Queue(mock_context.device)
     with pytest.raises(TypeError, match="Cannot set from an object of type <class 'int'>"):
         buf.set(queue, 1)
 
 
-def test_create_in_multi_device_context(mock_4_device_context):
-    context = mock_4_device_context
-    with pytest.raises(ValueError, match="device_idx must be specified in a multi-device context"):
-        buf = Buffer.allocate(context, 100)
-
-
 def test_mismatched_devices(mock_4_device_context):
     context = mock_4_device_context
-    buf = Buffer.allocate(context, 100, device_idx=0)
-    queue = Queue(context, device_idx=1)
+    buf = Buffer.allocate(context.devices[0], 100)
+    queue = Queue(context.devices[1])
     arr = numpy.ones(100, numpy.uint8)
 
     with pytest.raises(ValueError, match="Mismatched devices: queue on device"):

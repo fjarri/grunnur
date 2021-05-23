@@ -1,21 +1,111 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Optional, Union, Iterable, Tuple
 
-from .utils import wrap_in_tuple, normalize_object_sequence, all_same
-from .api import API
+from .adapter_base import DeviceAdapter, ContextAdapter
+from .api import API, cuda_api_id
 from .device import Device
 from .device_discovery import select_devices
 from .platform import Platform
+from .utils import wrap_in_tuple, normalize_object_sequence, all_same
+
+
+class BoundDevice(Device):
+    """
+    A :py:class:`~grunnur.Device` object in a :py:class:`~grunnur.Context`.
+    """
+
+    context: 'grunnur.Context'
+    """The context this device belongs to."""
+
+    def __init__(self, context, device_adapter):
+        super().__init__(device_adapter)
+        self.context = context
+
+        # A proper hashing would require `Context` to be hashable too,
+        # but `BoundDevice` objects are only ever used in small collections
+        # and with all the device indices being different.
+        # If somehow there's a hash collision, it will be taken care of by ``__eq__``.
+        self._hash = hash(device_adapter)
+
+    def as_unbound(self) -> 'Device':
+        """
+        :meta private:
+        Returns the unbound :py:class:`Device` object.
+        """
+        return Device(self._device_adapter)
+
+    def __eq__(self, other):
+        return self.context == other.context and super().__eq__(other)
+
+    def __hash__(self):
+        return self._hash
+
+    def __str__(self):
+        return super().__str__() + " in " + str(self.context)
+
+
+class BoundMultiDevice(Sequence):
+    """
+    A sequence of bound devices belonging to the same context.
+    """
+
+    context: 'grunnur.Context'
+    """The context these devices belong to."""
+
+    @classmethod
+    def from_bound_devices(cls, devices: Sequence[BoundDevice]) -> 'BoundMultiDevice':
+        """
+        Creates this object from a sequence of bound devices
+        (note that a ``BoundMultiDevice`` object itself can serve as such a sequence).
+        """
+        if not all_same(device.context for device in devices):
+            raise ValueError("All devices in a multi-device must belong to the same context")
+
+        if len(set(devices)) != len(devices):
+            raise ValueError("All devices in a multi-device must be distinct")
+
+        return cls(devices[0].context, [device._device_adapter for device in devices])
+
+    def __init__(self, context: 'Context', device_adapters: Sequence[DeviceAdapter]):
+        self.context = context
+        self._devices = [BoundDevice(context, device_adapter) for device_adapter in device_adapters]
+        self._devices_as_set = set(self._devices)
+
+    def __eq__(self, other):
+        return self.context == other.context and self._devices == other._devices
+
+    def issubset(self, devices: 'BoundMultiDevice'):
+        return self._devices_as_set.issubset(devices._devices_as_set)
+
+    def __iter__(self):
+        return iter(self._devices)
+
+    def __getitem__(self, idx) -> Union['BoundDevice', 'BoundMultiDevice']:
+        """
+        Given a single index, returns a single :py:class:`BoundDevice`.
+        Given a sequence of indices, returns a :py:class:`BoundMultiDevice` object
+        containing respective devices.
+
+        The indices correspond to the list of devices used to create this context.
+        """
+        try:
+            idxs = list(idx)
+            return BoundMultiDevice.from_bound_devices([self[idx] for idx in idxs])
+        except TypeError:
+            pass
+
+        return self._devices[idx]
+
+    def __len__(self):
+        return len(self._devices)
 
 
 class Context:
     """
     GPGPU context.
     """
-
-    devices: Tuple['Device']
-    """Devices in this context."""
 
     platform: 'Platform'
     """The platform this context is based on."""
@@ -84,15 +174,35 @@ class Context:
         devices = select_devices(api, interactive=interactive, quantity=devices_num, **device_filters)
         return cls.from_devices(devices)
 
-    def __init__(self, context_adapter):
+    def __init__(self, context_adapter: ContextAdapter):
         self._context_adapter = context_adapter
-        self.devices = tuple(
-            Device(device_adapter) for device_adapter in context_adapter.device_adapters)
-        self.platform = self.devices[0].platform
+        self._device_adapters = context_adapter.device_adapters
+        self.platform = Platform(next(iter(self._device_adapters.values())).platform_adapter)
         self.api = self.platform.api
+
+    @property
+    def devices(self) -> 'BoundMultiDevice':
+        """
+        Returns the :py:class:`~grunnur.context.BoundMultiDevice`
+        encompassing all the devices in this context.
+        """
+        # Need to create it on-demand to avoid a circular reference.
+        device_adapters = [
+            self._device_adapters[device_idx]
+            for device_idx in self._context_adapter.device_order]
+        return BoundMultiDevice(self, device_adapters)
+
+    @property
+    def device(self) -> 'BoundDevice':
+        if len(self._device_adapters) > 1:
+            raise RuntimeError("The `device` shortcut only works for single-device contexts")
+
+        return self.devices[0]
 
     def deactivate(self):
         """
         CUDA API only: deactivates this context, popping all the CUDA context objects from the stack.
         """
+        if self.api.id != cuda_api_id():
+            raise RuntimeError("`deactivate()` only works for CUDA API")
         self._context_adapter.deactivate()

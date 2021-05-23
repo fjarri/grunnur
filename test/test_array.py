@@ -5,10 +5,9 @@ from grunnur import Array, MultiArray, Buffer, Queue, MultiQueue
 from grunnur.array_metadata import ArrayMetadata
 
 
-def _check_array_operations(context, queue_cls, array_cls):
+def _check_array_operations(queue, array_cls):
 
     arr = numpy.arange(100)
-    queue = queue_cls(context)
     arr_dev = array_cls.from_host(queue, arr)
 
     # get to a new array
@@ -49,16 +48,16 @@ def _check_array_operations(context, queue_cls, array_cls):
 
 def test_single_device(mock_or_real_context):
     context, _mocked = mock_or_real_context
-    _check_array_operations(context, Queue, Array)
+    _check_array_operations(Queue(context.device), Array)
 
 
 def test_set_from_non_contiguous(mock_or_real_context):
 
     context, _mocked = mock_or_real_context
 
-    queue = Queue(context)
-    arr = Array.empty(context, (10, 20), numpy.int32)
-    arr2 = Array.empty(context, (20, 20), numpy.int32)
+    queue = Queue(context.device)
+    arr = Array.empty(context.device, (10, 20), numpy.int32)
+    arr2 = Array.empty(context.device, (20, 20), numpy.int32)
 
     with pytest.raises(ValueError, match="Setting from a non-contiguous device array is not supported"):
         arr.set(queue, arr2[::2, :])
@@ -70,7 +69,7 @@ def test_set_from_non_contiguous(mock_or_real_context):
 
 def test_from_host(mock_or_real_context):
     context, _mocked = mock_or_real_context
-    queue = Queue(context)
+    queue = Queue(context.device)
     arr = numpy.arange(100)
     arr_dev = Array.from_host(queue, arr)
     assert (arr_dev.get(queue) == arr).all()
@@ -78,8 +77,8 @@ def test_from_host(mock_or_real_context):
 
 def test_empty(mock_or_real_context):
     context, _mocked = mock_or_real_context
-    queue = Queue(context)
-    arr_dev = Array.empty(context, 100, numpy.int32)
+    queue = Queue(context.device)
+    arr_dev = Array.empty(context.device, 100, numpy.int32)
     arr = arr_dev.get(queue)
     assert arr.shape == (100,)
     assert arr.dtype == numpy.int32
@@ -87,12 +86,12 @@ def test_empty(mock_or_real_context):
 
 def test_multi_device(mock_or_real_multi_device_context):
     context, _mocked = mock_or_real_multi_device_context
-    _check_array_operations(context, MultiQueue, MultiArray)
+    _check_array_operations(MultiQueue.on_devices([context.devices[0]]), MultiArray)
 
 
 def test_multi_device_from_host(mock_or_real_multi_device_context):
     context, _mocked = mock_or_real_multi_device_context
-    mqueue = MultiQueue(context)
+    mqueue = MultiQueue.on_devices(context.devices)
     arr = numpy.arange(100)
     arr_dev = MultiArray.from_host(mqueue, arr)
     assert (arr_dev.get(mqueue) == arr).all()
@@ -100,69 +99,75 @@ def test_multi_device_from_host(mock_or_real_multi_device_context):
 
 def test_multi_device_empty(mock_or_real_multi_device_context):
     context, _mocked = mock_or_real_multi_device_context
-    mqueue = MultiQueue(context)
+    mqueue = MultiQueue.on_devices(context.devices)
 
-    arr_dev = MultiArray.empty(context, 100, numpy.int32)
+    arr_dev = MultiArray.empty(context.devices, 100, numpy.int32)
     arr = arr_dev.get(mqueue)
     assert arr.shape == (100,)
     assert arr.dtype == numpy.int32
 
-    # explicit device_idxs
-    arr_dev = MultiArray.empty(context, 100, numpy.int32, device_idxs=[0])
-    assert list(arr_dev.subarrays.keys()) == [0]
+    # explicit device
+    arr_dev = MultiArray.empty(context.devices[0:1], 100, numpy.int32)
+    assert list(arr_dev.subarrays.keys()) == [context.devices[0]]
     arr = arr_dev.get(mqueue)
     assert arr.shape == (100,)
     assert arr.dtype == numpy.int32
 
     # explicit splay
-    arr_dev = MultiArray.empty(context, 100, numpy.int32, splay=MultiArray.EqualSplay())
+    arr_dev = MultiArray.empty(context.devices, 100, numpy.int32, splay=MultiArray.EqualSplay())
     arr = arr_dev.get(mqueue)
     assert arr.shape == (100,)
     assert arr.dtype == numpy.int32
-    assert (arr_dev.subarrays[0].get(mqueue.queues[0]) == arr[:50]).all()
-    assert (arr_dev.subarrays[1].get(mqueue.queues[1]) == arr[50:]).all()
+
+    device0, device1 = context.devices
+    assert (arr_dev.subarrays[device0].get(mqueue.queues[device0]) == arr[:50]).all()
+    assert (arr_dev.subarrays[device1].get(mqueue.queues[device1]) == arr[50:]).all()
 
 
 def test_multi_device_mismatched_set(mock_or_real_multi_device_context):
     context, _mocked = mock_or_real_multi_device_context
-    mqueue = MultiQueue(context)
-    arr_dev = MultiArray.empty(context, 100, numpy.int32)
-    arr_dev2 = MultiArray.empty(context, 100, numpy.int32, device_idxs=[0])
+    mqueue = MultiQueue.on_devices(context.devices)
+    arr_dev = MultiArray.empty(context.devices, 100, numpy.int32)
+    arr_dev2 = MultiArray.empty(context.devices[0:1], 100, numpy.int32)
     with pytest.raises(ValueError, match="Mismatched device sets in the source and the destination"):
         arr_dev.set(mqueue, arr_dev2)
 
 
 def test_equal_splay(mock_or_real_multi_device_context):
     context, _mocked = mock_or_real_multi_device_context
-    mqueue = MultiQueue(context)
+    mqueue = MultiQueue.on_devices(context.devices)
     arr = numpy.arange(101)
     arr_dev = MultiArray.from_host(mqueue, arr, splay=MultiArray.EqualSplay())
-    assert (arr_dev.subarrays[0].get(mqueue.queues[0]) == arr[:51]).all()
-    assert (arr_dev.subarrays[1].get(mqueue.queues[1]) == arr[51:]).all()
+
+    device0, device1 = context.devices
+
+    assert (arr_dev.subarrays[device0].get(mqueue.queues[device0]) == arr[:51]).all()
+    assert (arr_dev.subarrays[device1].get(mqueue.queues[device1]) == arr[51:]).all()
 
     # Check that the default splay is EqualSplay
     arr_dev = MultiArray.from_host(mqueue, arr)
-    assert (arr_dev.subarrays[0].get(mqueue.queues[0]) == arr[:51]).all()
-    assert (arr_dev.subarrays[1].get(mqueue.queues[1]) == arr[51:]).all()
+    assert (arr_dev.subarrays[device0].get(mqueue.queues[device0]) == arr[:51]).all()
+    assert (arr_dev.subarrays[device1].get(mqueue.queues[device1]) == arr[51:]).all()
 
 
 def test_clone_splay(mock_or_real_multi_device_context):
     context, _mocked = mock_or_real_multi_device_context
-    mqueue = MultiQueue(context)
+    mqueue = MultiQueue.on_devices(context.devices)
     arr = numpy.arange(101)
     arr_dev = MultiArray.from_host(mqueue, arr, splay=MultiArray.CloneSplay())
-    assert (arr_dev.subarrays[0].get(mqueue.queues[0]) == arr).all()
-    assert (arr_dev.subarrays[1].get(mqueue.queues[1]) == arr).all()
+    device0, device1 = context.devices
+    assert (arr_dev.subarrays[device0].get(mqueue.queues[device0]) == arr).all()
+    assert (arr_dev.subarrays[device1].get(mqueue.queues[device1]) == arr).all()
 
 
 def test_custom_allocator(mock_context):
     context = mock_context
-    queue = Queue(context)
+    queue = Queue(context.device)
     allocated = []
-    def allocator(size, device_idx):
+    def allocator(device, size):
         allocated.append(size)
-        return Buffer.allocate(context, size, device_idx=device_idx)
-    arr_dev = Array.empty(context, 100, numpy.int32, allocator=allocator)
+        return Buffer.allocate(device, size)
+    arr_dev = Array.empty(context.device, 100, numpy.int32, allocator=allocator)
     arr = arr_dev.get(queue)
     assert arr.shape == (100,)
     assert arr.dtype == numpy.int32
@@ -171,27 +176,27 @@ def test_custom_allocator(mock_context):
 
 def test_custom_buffer(mock_context):
     context = mock_context
-    queue = Queue(context)
+    queue = Queue(context.device)
 
     arr = numpy.arange(100).astype(numpy.int32)
     metadata = ArrayMetadata.from_arraylike(arr)
 
-    data = Buffer.allocate(context, 100)
+    data = Buffer.allocate(context.device, 100)
     with pytest.raises(ValueError, match="Provided data buffer is not big enough to hold the array"):
-        Array(context, metadata, data=data)
+        Array(metadata, data)
 
-    bigger_data = Buffer.allocate(context, arr.size * arr.dtype.itemsize)
+    bigger_data = Buffer.allocate(context.device, arr.size * arr.dtype.itemsize)
     bigger_data.set(queue, arr)
 
-    arr_dev = Array(context, metadata, data=bigger_data)
+    arr_dev = Array(metadata, bigger_data)
     res = arr_dev.get(queue)
     assert (res == arr).all()
 
 
 def test_set_checks_shape(mock_context):
     context = mock_context
-    queue = Queue(context)
-    arr = Array.empty(context, (10, 20), numpy.int32)
+    queue = Queue(context.device)
+    arr = Array.empty(context.device, (10, 20), numpy.int32)
 
     with pytest.raises(ValueError, match="Shape mismatch: expected \\(10, 20\\), got \\(10, 30\\)"):
         arr.set(queue, numpy.zeros((10, 30), numpy.int32))
@@ -202,13 +207,7 @@ def test_set_checks_shape(mock_context):
 
 def test_set_from_wrong_type(mock_context):
     context = mock_context
-    queue = Queue(context)
-    arr = Array.empty(context, (10, 20), numpy.int32)
+    queue = Queue(context.device)
+    arr = Array.empty(context.device, (10, 20), numpy.int32)
     with pytest.raises(TypeError, match="Cannot set from an object of type <class 'int'>"):
         arr.set(queue, 1)
-
-
-def test_empty_in_multi_device_context(mock_4_device_context):
-    context = mock_4_device_context
-    with pytest.raises(ValueError, match="device_idx must be specified in a multi-device context"):
-        Array.empty(context, (10, 20), numpy.int32)

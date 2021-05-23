@@ -11,7 +11,7 @@ from .sorted_list import SortedList
 from .adapter_base import BufferAdapter
 from .buffer import Buffer
 from .array import Array
-from .context import Context
+from .context import BoundDevice
 
 
 def extract_dependencies(dependencies) -> Set[int]:
@@ -47,8 +47,14 @@ class VirtualAllocator:
         self.manager = manager
         self.dependencies = dependencies
 
-    def __call__(self, size: int, device_idx: int) -> Buffer:
-        return self.manager._allocate_virtual(size, self.dependencies, device_idx)
+    def __call__(self, device, size: int) -> Buffer:
+        # TODO: seems redundant to pass a device here,
+        # but it must mimic the API of ``Buffer.allocate()``.
+        if device != self.manager.device:
+            raise ValueError(
+                f"This allocator is attached to device {self.manager.device}, "
+                f"but was asked to allocate on {device}")
+        return self.manager._allocate_virtual(size, self.dependencies)
 
 
 class VirtualBufferAdapter(BufferAdapter):
@@ -95,8 +101,8 @@ class VirtualManager:
     :param context: an instance of :py:class:`~grunnur.Context`.
     """
 
-    def __init__(self, context: 'grunnur.Context'):
-        self.context = context
+    def __init__(self, device: 'grunnur.context.BoundDevice'):
+        self.device = device
         self._id_counter = 0
         self._virtual_buffers: Dict[int, ReferenceType[VirtualBufferAdapter]] = {}
 
@@ -113,7 +119,7 @@ class VirtualManager:
         dependencies = extract_dependencies(dependencies)
         return VirtualAllocator(self, dependencies)
 
-    def _allocate_virtual(self, size: int, dependencies: Set[int], device_idx: int) -> Buffer:
+    def _allocate_virtual(self, size: int, dependencies: Set[int]) -> Buffer:
 
         new_id = self._id_counter
         self._id_counter += 1
@@ -124,9 +130,9 @@ class VirtualManager:
             raise ValueError(
                 f"Some of the declared dependencies (with IDs {missing_deps}) do not exist")
 
-        self._allocate_specific(new_id, size, device_idx, dependencies)
+        self._allocate_specific(new_id, size, dependencies)
         vbuf = VirtualBufferAdapter(self, size, new_id)
-        buf = Buffer(self.context, device_idx, vbuf)
+        buf = Buffer(self.device, vbuf)
         self._virtual_buffers[new_id] = weakref.ref(vbuf, lambda _: self._free(new_id))
         self._update_buffer(new_id)
 
@@ -164,7 +170,7 @@ class VirtualManager:
             [cast(VirtualBufferAdapter, vb()) for vb in self._virtual_buffers.values()])
 
     @abstractmethod
-    def _allocate_specific(self, new_id: int, size: int, device_idx: int, dependencies: Set[int]):
+    def _allocate_specific(self, new_id: int, size: int, dependencies: Set[int]):
         pass
 
     @abstractmethod
@@ -245,8 +251,8 @@ class TrivialManager(VirtualManager):
         VirtualManager.__init__(self, *args, **kwds)
         self._rbuffers = {}
 
-    def _allocate_specific(self, new_id, size, device_idx, _dependencies):
-        buf = Buffer.allocate(self.context, size, device_idx=device_idx)
+    def _allocate_specific(self, new_id, size, _dependencies):
+        buf = Buffer.allocate(self.device, size)
         self._rbuffers[new_id] = buf
 
     def _get_real_buffer(self, id_):
@@ -283,7 +289,7 @@ class ZeroOffsetManager(VirtualManager):
         self._real_allocations = {} # real_id -> RealAllocation
         self._real_id_counter = 0
 
-    def _allocate_specific(self, new_id, size, device_idx, dependencies):
+    def _allocate_specific(self, new_id, size, dependencies):
 
         # Dependencies should be bidirectional.
         # So if some new allocation says it depends on earlier ones,
@@ -319,7 +325,7 @@ class ZeroOffsetManager(VirtualManager):
                 break
         else:
             # If no suitable real allocation is found, create a new one.
-            buf = Buffer.allocate(self.context, size)
+            buf = Buffer.allocate(self.device, size)
             real_id = self._real_id_counter
             self._real_id_counter += 1
 

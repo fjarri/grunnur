@@ -255,10 +255,6 @@ class ContextAdapter(ABC):
     def allocate(self, size, device_idx):
         pass
 
-    @abstractmethod
-    def deactivate(self):
-        pass
-
     @staticmethod
     @abstractmethod
     def render_prelude(fast_math: bool=False) -> str:

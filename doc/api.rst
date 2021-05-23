@@ -70,6 +70,14 @@ Contexts
 .. autoclass:: Context()
     :members:
 
+.. autoclass:: grunnur.context.BoundDevice()
+    :members:
+
+.. autoclass:: grunnur.context.BoundMultiDevice()
+    :show-inheritance:
+    :members:
+    :special-members: __iter__, __getitem__, __len__
+
 
 Queues
 ------

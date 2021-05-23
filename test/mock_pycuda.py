@@ -343,8 +343,11 @@ def make_context_class(backend):
         def push(self):
             self._backend.push_context(self)
 
+        def is_stacked(self):
+            return self._backend.is_stacked(self)
+
         def __del__(self):
-            if self._backend.is_stacked(self):
+            if self.is_stacked():
                 raise RuntimeError("Context was deleted while still being in the context stack")
 
     return Context
