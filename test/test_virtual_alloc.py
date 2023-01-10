@@ -112,7 +112,7 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
 
     # Clear all buffers
     for name, _, _ in buffers_metadata:
-        mock_fill(buffers[name], -1)
+        mock_fill(buffers[name], 255)
 
     for i, metadata in enumerate(buffers_metadata):
         name, size, deps = metadata

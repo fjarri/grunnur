@@ -242,13 +242,17 @@ class _ContextStack:
 
     def __init__(self, pycuda_contexts, take_ownership):
 
+        self._active_context = None
+        self._owns_contexts = take_ownership
+        self._pycuda_contexts = {}
+
+        self.device_order = []
+        self.device_adapters = {}
+
         # A shortcut for the case when we're given a single external context
         # and told not to take ownership.
         dont_push = len(pycuda_contexts) == 1 and not take_ownership
 
-        self.device_order = []
-        self.device_adapters = {}
-        self._pycuda_contexts = {}
         for context in pycuda_contexts:
             if not dont_push:
                 context.push()
@@ -261,8 +265,6 @@ class _ContextStack:
             self._pycuda_contexts[device_adapter.device_idx] = context
             self.device_order.append(device_adapter.device_idx)
 
-        self._active_context = None
-        self._owns_contexts = take_ownership
 
     def deactivate(self):
         if self._active_context is not None and self._owns_contexts:

@@ -330,6 +330,13 @@ def test_wrong_context(mock_backend):
     with pytest.raises(ValueError, match="The provided queue must belong to the same context this program uses"):
         program.kernel.multiply(queue, 8, None, res_dev)
 
+    # If we don't do anything here, contexts may be deactivated in an incorrect order
+    # (on drop of the corresponding `Context` objects).
+    # Grunnur cannot resolve this, so we need to deactivate the currently active context
+    # (the second one) manually, and the first one will be deactivated on drop.
+
+    context2.deactivate()
+
 
 def test_set_constant_array_errors(mock_4_device_context):
 

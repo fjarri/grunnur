@@ -90,6 +90,10 @@ def test_from_backend_contexts_cuda_single_device(mock_backend_pycuda, take_owne
 
     assert [device.name for device in context.devices] == ['Device2']
 
+    if not take_ownership:
+        # Clean up - we didn't take ownership of the context, so someone else has to pop it.
+        backend.pycuda_driver.Context.pop()
+
 
 def test_from_backend_contexts_cuda_multi_device(mock_backend_pycuda):
     # CUDA style - a context per device
@@ -226,8 +230,8 @@ def test_deactivate(mock_backend_pyopencl, mock_backend_pycuda):
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
     context = Context.from_devices(api.platforms[0].devices[0])
-    with pytest.raises(RuntimeError, match="`deactivate\\(\\)` only works for CUDA API"):
-        context.deactivate()
+    # Does nothing in OpenCL, but we can still call this for the sake of being generic
+    context.deactivate()
 
     backend_context = mock_backend_pycuda.pycuda_driver.Device(0).make_context()
     backend_context.pop()

@@ -8,7 +8,7 @@ from grunnur.modules import render_with_modules
 def test_normalize_type():
     dtype = dtypes.normalize_type(numpy.int32)
     assert dtype == numpy.int32
-    assert type(dtype) == numpy.dtype
+    assert isinstance(dtype, numpy.dtype)
 
 
 def test_ctype_builtin():

@@ -325,7 +325,7 @@ def make_context_class(backend):
     class Context:
 
         # Since we need the backend in __del__(),
-        # we want to make sure that it alive as long as a this object is alive.
+        # we want to make sure that it is alive as long as a this object is alive.
         _backend = backend
 
         def __init__(self, device_idx):

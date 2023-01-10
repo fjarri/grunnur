@@ -203,6 +203,5 @@ class Context:
         """
         CUDA API only: deactivates this context, popping all the CUDA context objects from the stack.
         """
-        if self.api.id != cuda_api_id():
-            raise RuntimeError("`deactivate()` only works for CUDA API")
-        self._context_adapter.deactivate()
+        if self.api.id == cuda_api_id():
+            self._context_adapter.deactivate()
