@@ -44,8 +44,12 @@ class Array:
 
     @classmethod
     def empty(
-            cls, device: 'BoundDevice', shape: Sequence[int],
-            dtype: numpy.dtype, allocator: Callable[[BoundDevice, int], 'Buffer']=Buffer.allocate
+            cls, device: 'BoundDevice',
+            shape: Sequence[int],
+            dtype: numpy.dtype,
+            strides: Optional[Sequence[int]]=None,
+            first_element_offset: int=0,
+            allocator: Callable[[BoundDevice, int], 'Buffer']=Buffer.allocate
             ) -> 'Array':
         """
         Creates an empty array.
@@ -57,7 +61,7 @@ class Array:
             (the bound device, and the buffer size in bytes)
             and returning a :py:class:`Buffer` object.
         """
-        metadata = ArrayMetadata(shape, dtype)
+        metadata = ArrayMetadata(shape, dtype, strides=strides, first_element_offset=first_element_offset)
         size = metadata.buffer_size
         data = allocator(device, size)
 
