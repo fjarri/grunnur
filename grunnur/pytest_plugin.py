@@ -95,16 +95,19 @@ def get_multi_device_sets(config):
     return [device_set for device_set in device_sets if len(device_set) > 1]
 
 
-@pytest.fixture(scope='function')
-def context(request):
-    device = request.param
+@pytest.fixture
+def context(device):
     yield Context.from_devices(device)
 
 
-@pytest.fixture(scope='function')
-def multi_device_context(request):
-    devices = request.param
-    yield Context.from_devices(devices)
+@pytest.fixture
+def some_context(some_device):
+    yield Context.from_devices(some_device)
+
+
+@pytest.fixture
+def multi_device_context(device_set):
+    yield Context.from_devices(device_set)
 
 
 def pytest_generate_tests(metafunc):
@@ -123,21 +126,20 @@ def pytest_generate_tests(metafunc):
 
     for name, vals in fixtures:
         if name in metafunc.fixturenames:
-            metafunc.parametrize(name, vals, ids=['no_' + name] if len(vals) == 0 else str)
+            metafunc.parametrize(name, vals, ids=['no_' + name] if len(vals) == 0 else lambda obj: obj.shortcut)
 
-    if 'context' in metafunc.fixturenames:
+    if 'some_device' in metafunc.fixturenames:
         metafunc.parametrize(
-            'context', devices,
-            ids=['no_device'] if len(devices) == 0 else lambda device: device.shortcut,
-            indirect=True)
+            'some_device',
+            devices if len(devices) == 0 else [devices[0]],
+            ids=['no_device'] if len(devices) == 0 else lambda device: device.shortcut)
 
-    if 'multi_device_context' in metafunc.fixturenames:
+    if 'device_set' in metafunc.fixturenames:
         device_sets = get_multi_device_sets(metafunc.config)
         ids = ["+".join(device.shortcut for device in device_set) for device_set in device_sets]
         metafunc.parametrize(
-            'multi_device_context', device_sets,
-            ids=['no_multi_device'] if len(device_sets) == 0 else ids,
-            indirect=True)
+            'device_set', device_sets,
+            ids=['no_multi_device'] if len(device_sets) == 0 else ids)
 
 
 def pytest_report_header(config):

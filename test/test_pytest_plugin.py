@@ -25,22 +25,22 @@ def test_api(mock_backend_factory, capsys):
     captured = capsys.readouterr()
     assert 'device(cuda,0,0): nVidia CUDA, Device1' in captured.out
     assert 'device(opencl,0,0): Bar, Device2' in captured.out
-    assert '::test_api_fixture[api(cuda)]' in captured.out
-    assert '::test_api_fixture[api(opencl)]' in captured.out
+    assert '::test_api_fixture[cuda]' in captured.out
+    assert '::test_api_fixture[opencl]' in captured.out
 
     run_tests(['--api=cuda', '-k', 'test_api_fixture'])
     captured = capsys.readouterr()
     assert 'device(cuda,0,0): nVidia CUDA, Device1' in captured.out
     assert 'device(opencl,0,0): Bar, Device2' not in captured.out
-    assert '::test_api_fixture[api(cuda)]' in captured.out
-    assert '::test_api_fixture[api(opencl)]' not in captured.out
+    assert '::test_api_fixture[cuda]' in captured.out
+    assert '::test_api_fixture[opencl]' not in captured.out
 
     run_tests(['--api=opencl', '-k', 'test_api_fixture'])
     captured = capsys.readouterr()
     assert 'device(cuda,0,0): nVidia CUDA, Device1' not in captured.out
     assert 'device(opencl,0,0): Bar, Device2' in captured.out
-    assert '::test_api_fixture[api(cuda)]' not in captured.out
-    assert '::test_api_fixture[api(opencl)]' in captured.out
+    assert '::test_api_fixture[cuda]' not in captured.out
+    assert '::test_api_fixture[opencl]' in captured.out
 
 
 def test_no_api(mock_backend_factory, capsys):
@@ -63,22 +63,22 @@ def test_platform(mock_backend_factory, capsys):
     captured = capsys.readouterr()
     assert 'device(opencl,0,0): Foo, Device1' in captured.out
     assert 'device(opencl,1,0): Bar, Device2' in captured.out
-    assert '::test_platform_fixture[platform(opencl,0)]' in captured.out
-    assert '::test_platform_fixture[platform(opencl,1)]' in captured.out
+    assert '::test_platform_fixture[opencl,0]' in captured.out
+    assert '::test_platform_fixture[opencl,1]' in captured.out
 
     run_tests(['--platform-include-mask=Bar', '-k', 'test_platform_fixture'])
     captured = capsys.readouterr()
     assert 'device(opencl,0,0): Foo, Device1' not in captured.out
     assert 'device(opencl,1,0): Bar, Device2' in captured.out
-    assert '::test_platform_fixture[platform(opencl,0)]' not in captured.out
-    assert '::test_platform_fixture[platform(opencl,1)]' in captured.out
+    assert '::test_platform_fixture[opencl,0]' not in captured.out
+    assert '::test_platform_fixture[opencl,1]' in captured.out
 
     run_tests(['--platform-exclude-mask=Bar', '-k', 'test_platform_fixture'])
     captured = capsys.readouterr()
     assert 'device(opencl,0,0): Foo, Device1' in captured.out
     assert 'device(opencl,1,0): Bar, Device2' not in captured.out
-    assert '::test_platform_fixture[platform(opencl,0)]' in captured.out
-    assert '::test_platform_fixture[platform(opencl,1)]' not in captured.out
+    assert '::test_platform_fixture[opencl,0]' in captured.out
+    assert '::test_platform_fixture[opencl,1]' not in captured.out
 
 
 def test_no_platform(mock_backend_factory, capsys):
@@ -103,10 +103,10 @@ def test_device(mock_backend_factory, capsys):
     assert 'device(opencl,0,1): Foo, Device2' in captured.out
     assert 'device(opencl,1,0): Bar, Device2' in captured.out
     assert 'device(opencl,1,1): Bar, Device3' in captured.out
-    assert '::test_device_fixture[device(opencl,0,0)]' in captured.out
-    assert '::test_device_fixture[device(opencl,0,1)]' in captured.out
-    assert '::test_device_fixture[device(opencl,1,0)]' in captured.out
-    assert '::test_device_fixture[device(opencl,1,1)]' in captured.out
+    assert '::test_device_fixture[opencl,0,0]' in captured.out
+    assert '::test_device_fixture[opencl,0,1]' in captured.out
+    assert '::test_device_fixture[opencl,1,0]' in captured.out
+    assert '::test_device_fixture[opencl,1,1]' in captured.out
 
     run_tests(['--device-include-mask=Device2', '-k', 'test_device_fixture'])
     captured = capsys.readouterr()
@@ -114,10 +114,10 @@ def test_device(mock_backend_factory, capsys):
     assert 'device(opencl,0,1): Foo, Device2' in captured.out
     assert 'device(opencl,1,0): Bar, Device2' in captured.out
     assert 'device(opencl,1,1): Bar, Device3' not in captured.out
-    assert '::test_device_fixture[device(opencl,0,0)]' not in captured.out
-    assert '::test_device_fixture[device(opencl,0,1)]' in captured.out
-    assert '::test_device_fixture[device(opencl,1,0)]' in captured.out
-    assert '::test_device_fixture[device(opencl,1,1)]' not in captured.out
+    assert '::test_device_fixture[opencl,0,0]' not in captured.out
+    assert '::test_device_fixture[opencl,0,1]' in captured.out
+    assert '::test_device_fixture[opencl,1,0]' in captured.out
+    assert '::test_device_fixture[opencl,1,1]' not in captured.out
 
     run_tests(['--device-exclude-mask=Device2', '-k', 'test_device_fixture'])
     captured = capsys.readouterr()
@@ -125,10 +125,10 @@ def test_device(mock_backend_factory, capsys):
     assert 'device(opencl,0,1): Foo, Device2' not in captured.out
     assert 'device(opencl,1,0): Bar, Device2' not in captured.out
     assert 'device(opencl,1,1): Bar, Device3' in captured.out
-    assert '::test_device_fixture[device(opencl,0,0)]' in captured.out
-    assert '::test_device_fixture[device(opencl,0,1)]' not in captured.out
-    assert '::test_device_fixture[device(opencl,1,0)]' not in captured.out
-    assert '::test_device_fixture[device(opencl,1,1)]' in captured.out
+    assert '::test_device_fixture[opencl,0,0]' in captured.out
+    assert '::test_device_fixture[opencl,0,1]' not in captured.out
+    assert '::test_device_fixture[opencl,1,0]' not in captured.out
+    assert '::test_device_fixture[opencl,1,1]' in captured.out
 
 
 def test_duplicate_devices(mock_backend_factory, capsys):
@@ -140,18 +140,18 @@ def test_duplicate_devices(mock_backend_factory, capsys):
     assert 'device(opencl,0,0): Foo, Device1' in captured.out
     assert 'device(opencl,0,1): Foo, Device1' not in captured.out
     assert 'device(opencl,0,2): Foo, Device2' in captured.out
-    assert '::test_device_fixture[device(opencl,0,0)]' in captured.out
-    assert '::test_device_fixture[device(opencl,0,1)]' not in captured.out
-    assert '::test_device_fixture[device(opencl,0,2)]' in captured.out
+    assert '::test_device_fixture[opencl,0,0]' in captured.out
+    assert '::test_device_fixture[opencl,0,1]' not in captured.out
+    assert '::test_device_fixture[opencl,0,2]' in captured.out
 
     run_tests(['--include-duplicate-devices', '-k', 'test_device_fixture'])
     captured = capsys.readouterr()
     assert 'device(opencl,0,0): Foo, Device1' in captured.out
     assert 'device(opencl,0,1): Foo, Device1' in captured.out
     assert 'device(opencl,0,2): Foo, Device2' in captured.out
-    assert '::test_device_fixture[device(opencl,0,0)]' in captured.out
-    assert '::test_device_fixture[device(opencl,0,1)]' in captured.out
-    assert '::test_device_fixture[device(opencl,0,2)]' in captured.out
+    assert '::test_device_fixture[opencl,0,0]' in captured.out
+    assert '::test_device_fixture[opencl,0,1]' in captured.out
+    assert '::test_device_fixture[opencl,0,2]' in captured.out
 
 
 def test_no_device(mock_backend_factory, capsys):
