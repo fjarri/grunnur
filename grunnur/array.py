@@ -31,13 +31,17 @@ class Array:
     """Array strides."""
 
     @classmethod
-    def from_host(cls, queue: 'Queue', host_arr: numpy.ndarray) -> 'Array':
+    def from_host(cls, queue_or_device: Union['Queue', 'BoundDevice'], host_arr: numpy.ndarray) -> 'Array':
         """
         Creates an array object from a host array.
 
         :param queue: the queue to use for the transfer.
         :param host_arr: the source array.
         """
+        if isinstance(queue_or_device, BoundDevice):
+            queue = Queue(queue_or_device)
+        else:
+            queue = queue_or_device
         array = cls.empty(queue.device, host_arr.shape, host_arr.dtype)
         array.set(queue, host_arr)
         return array
