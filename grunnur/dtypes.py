@@ -14,6 +14,7 @@ from .modules import Module
 
 
 _DTYPE_TO_BUILTIN_CTYPE = {
+    bool: "bool",
     numpy.dtype('bool'): "bool",
     numpy.dtype('int8'): "char",
     numpy.dtype('uint8'): "unsigned char",
