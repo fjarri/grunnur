@@ -84,7 +84,7 @@ class SingleDeviceProgram:
         :param render_globals: see :py:meth:`compile`.
         :param kwds: additional parameters for compilation, see :py:func:`compile`.
         """
-        if device.context.api.id != cuda_api_id() and len(constant_arrays) > 0:
+        if device.context.api.id != cuda_api_id() and constant_arrays and len(constant_arrays) > 0:
             raise ValueError("Compile-time constant arrays are only supported by CUDA API")
 
         self.device = device
@@ -156,9 +156,9 @@ class Program:
             fast_math: bool=False,
             render_args: Union[List, Tuple]=[],
             render_globals: Dict={},
-            compiler_options: Iterable[str]=[],
+            compiler_options: Iterable[str]=None,
             keep: bool=False,
-            constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={}):
+            constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]=None):
         """
         :param devices: a single- or a multi-device object on which to compile this program.
         :param template_src: a string with the source code, or a Mako template source to render.

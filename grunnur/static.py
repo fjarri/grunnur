@@ -46,6 +46,7 @@ class StaticKernel:
             name: str,
             global_size: Union[int, Sequence[int], Dict[int, Union[int, Sequence[int]]]],
             local_size: Union[int, Sequence[int], None, Dict[int, Union[int, Sequence[int], None]]]=None,
+            render_args: Sequence=[],
             render_globals: Dict={},
             constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={},
             **kwds):
@@ -103,7 +104,9 @@ class StaticKernel:
 
                 # Try to compile the kernel with the corresponding virtual size functions
                 program = SingleDeviceProgram(
-                    device, template_src, render_globals=new_render_globals,
+                    device, template_src,
+                    render_args=render_args,
+                    render_globals=new_render_globals,
                     constant_arrays=constant_arrays, **kwds)
                 kernel_adapter = program.get_kernel_adapter(name)
 

@@ -341,7 +341,7 @@ class OclContextAdapter(ContextAdapter):
 
     def compile_single_device(
             self, device_adapter, prelude, src,
-            keep=False, fast_math=False, compiler_options=[], constant_arrays={}):
+            keep=False, fast_math=False, compiler_options=None, constant_arrays=None):
 
         # Sanity check: should have been caught in compile()
         assert not constant_arrays
@@ -359,6 +359,9 @@ class OclContextAdapter(ContextAdapter):
 
         else:
             temp_dir = None
+
+        if compiler_options is None:
+            compiler_options = []
 
         options = (
             compiler_options +

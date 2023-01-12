@@ -360,13 +360,16 @@ class CuContextAdapter(ContextAdapter):
             constant_arrays=constant_arrays)
 
     def compile_single_device(
-            self, device_adapter, prelude, src, keep=False, fast_math=False, compiler_options=[],
-            constant_arrays={}):
+            self, device_adapter, prelude, src, keep=False, fast_math=False, compiler_options=None,
+            constant_arrays=None):
 
         constant_arrays = normalize_constant_arrays(constant_arrays)
         constant_arrays_src = _CONSTANT_ARRAYS_DEF.render(
             dtypes=dtypes,
             constant_arrays=constant_arrays)
+
+        if compiler_options is None:
+            compiler_options = []
 
         options = compiler_options + (['-use_fast_math'] if fast_math else [])
         full_src = prelude + constant_arrays_src + src
@@ -474,6 +477,9 @@ class CuBufferAdapter(BufferAdapter):
 
 
 def normalize_constant_arrays(constant_arrays):
+    if constant_arrays is None:
+        constant_arrays = {}
+
     normalized = {}
     for name, metadata in constant_arrays.items():
         if isinstance(metadata, (list, tuple)):
