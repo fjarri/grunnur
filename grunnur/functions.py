@@ -36,7 +36,7 @@ def derive_out_dtype(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=N
     return out_dtype
 
 
-def cast(in_dtype: numpy.dtype, out_dtype: numpy.dtype) -> 'grunnur.Module':
+def cast(in_dtype: numpy.dtype, out_dtype: numpy.dtype) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that casts values of ``in_dtype`` to ``out_dtype``.
@@ -49,7 +49,7 @@ def cast(in_dtype: numpy.dtype, out_dtype: numpy.dtype) -> 'grunnur.Module':
         render_globals=dict(dtypes=dtypes, out_dtype=out_dtype, in_dtype=in_dtype))
 
 
-def add(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> 'grunnur.Module':
+def add(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> Module:
     """
     Returns a :py:class:`~grunnur.Module`  with a function of
     ``len(in_dtypes)`` arguments that adds values of types ``in_dtypes``.
@@ -68,7 +68,7 @@ def add(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> 'grun
         render_globals=dict(dtypes=dtypes, op='add', out_dtype=out_dtype, in_dtypes=in_dtypes))
 
 
-def mul(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> 'grunnur.Module':
+def mul(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> Module:
     """
     Returns a :py:class:`~grunnur.Module`  with a function of
     ``len(in_dtypes)`` arguments that multiplies values of types ``in_dtypes``.
@@ -85,7 +85,7 @@ def mul(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> 'grun
 
 def div(
         dividend_dtype: numpy.dtype, divisor_dtype: numpy.dtype,
-        out_dtype: Optional[numpy.dtype]=None) -> 'grunnur.Module':
+        out_dtype: Optional[numpy.dtype]=None) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that divides a value of type ``dividend_dtype`` by a value of type ``divisor_dtype``.
@@ -103,7 +103,7 @@ def div(
             dividend_dtype=dividend_dtype, divisor_dtype=divisor_dtype))
 
 
-def conj(dtype: numpy.dtype) -> 'grunnur.Module':
+def conj(dtype: numpy.dtype) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that conjugates the value of type ``dtype``
@@ -116,7 +116,7 @@ def conj(dtype: numpy.dtype) -> 'grunnur.Module':
         render_globals=dict(dtypes=dtypes, dtype=dtype))
 
 
-def polar_unit(dtype: numpy.dtype) -> 'grunnur.Module':
+def polar_unit(dtype: numpy.dtype) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that returns a complex number ``exp(i * theta) == (cos(theta), sin(theta))``
@@ -132,7 +132,7 @@ def polar_unit(dtype: numpy.dtype) -> 'grunnur.Module':
         render_globals=dict(dtypes=dtypes, dtype=dtype))
 
 
-def norm(dtype: numpy.dtype) -> 'grunnur.Module':
+def norm(dtype: numpy.dtype) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that returns the 2-norm of the value of type ``dtype``
@@ -145,7 +145,7 @@ def norm(dtype: numpy.dtype) -> 'grunnur.Module':
         render_globals=dict(dtypes=dtypes, dtype=dtype))
 
 
-def exp(dtype: numpy.dtype) -> 'grunnur.Module':
+def exp(dtype: numpy.dtype) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that exponentiates the value of type ``dtype``
@@ -168,7 +168,7 @@ def exp(dtype: numpy.dtype) -> 'grunnur.Module':
 
 def pow(
         base_dtype: numpy.dtype, exponent_dtype: Optional[numpy.dtype]=None,
-        out_dtype: Optional[numpy.dtype]=None) -> 'grunnur.Module':
+        out_dtype: Optional[numpy.dtype]=None) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that raises the first argument of type ``base_dtype``
@@ -217,7 +217,7 @@ def pow(
     return Module(TEMPLATE.get_def('pow'), render_globals=kwds)
 
 
-def polar(dtype: numpy.dtype) -> 'grunnur.Module':
+def polar(dtype: numpy.dtype) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that returns the complex-valued ``rho * exp(i * theta)``

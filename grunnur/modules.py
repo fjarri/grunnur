@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Mapping, Callable, Union, Tuple, List, Dict
+from typing import Iterable, Mapping, Sequence, Callable, Union, Tuple, List, Dict, Any
 
 from .template import DefTemplate, RenderError
 from .utils import update_dict
@@ -206,7 +206,7 @@ def process(obj, collector: SourceCollector):
 
 def render_with_modules(
         src: Union[str, Callable[..., str], DefTemplate, Snippet],
-        render_args: Union[Tuple, List]=[], render_globals: Dict={}) -> str:
+        render_args: Sequence[Any]=[], render_globals: Mapping[str, Any]={}) -> str:
     """
     Renders the given source traversing the arguments and globals processing modules.
     If a module is attempted to be rendered, its source is prepended to the resulting source,

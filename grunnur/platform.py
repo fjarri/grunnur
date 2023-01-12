@@ -25,7 +25,7 @@ class Platform:
     """The platform's version."""
 
     @classmethod
-    def all(cls, api: 'API') -> List['Platform']:
+    def all(cls, api: API) -> List['Platform']:
         """
         Returns a list of platforms available for the given API.
 
@@ -38,7 +38,7 @@ class Platform:
     @classmethod
     def all_by_masks(
             cls,
-            api: 'API',
+            api: API,
             include_masks: Optional[Sequence[str]]=None,
             exclude_masks: Optional[Sequence[str]]=None) -> List['Platform']:
         """
@@ -69,7 +69,7 @@ class Platform:
         raise TypeError(f"{obj} was not recognized as a platform object by any available API")
 
     @classmethod
-    def from_index(cls, api: 'API', platform_idx: int) -> 'Platform':
+    def from_index(cls, api: API, platform_idx: int) -> 'Platform':
         """
         Creates a platform based on its index in the list returned by the API.
 

@@ -14,14 +14,14 @@ class MultiQueue:
     A queue on multiple devices.
     """
 
-    devices: 'grunnur.context.BoundMultiDevice'
+    devices: BoundMultiDevice
     """Device indices (in the context) on which this queue operates."""
 
-    queues: Dict['grunnur.context.BoundDevice', 'Queue']
+    queues: Dict[BoundDevice, 'Queue']
     """Single-device queues associated with device indices."""
 
     @classmethod
-    def on_devices(cls, devices: Iterable['grunnur.context.BoundDevice']) -> 'MultiQueue':
+    def on_devices(cls, devices: Iterable[BoundDevice]) -> 'MultiQueue':
         """
         Creates a queue from provided devices (belonging to the same context).
         """
@@ -47,10 +47,10 @@ class Queue:
     A queue on a single device.
     """
 
-    device: 'grunnur.context.BoundDevice'
+    device: BoundDevice
     """Device on which this queue operates."""
 
-    def __init__(self, device: 'grunnur.context.BoundDevice'):
+    def __init__(self, device: BoundDevice):
         """
         :param device: a device on which to create a queue.
         """

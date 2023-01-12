@@ -8,7 +8,7 @@ import numpy
 
 from grunnur import cuda_api_id
 from grunnur.dtypes import normalize_type
-from grunnur.utils import prod, wrap_in_tuple
+from grunnur.utils import prod
 
 from .mock_base import MockSource
 

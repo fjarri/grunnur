@@ -3,7 +3,6 @@ from typing import Tuple, Optional, Sequence, Union
 import numpy
 
 from .dtypes import normalize_type
-from .utils import wrap_in_tuple
 
 
 class ArrayMetadata:
@@ -32,12 +31,14 @@ class ArrayMetadata:
             strides=getattr(array, 'strides', None))
 
     def __init__(
-            self, shape: Union[int, Sequence[int]], dtype: numpy.dtype,
+            self,
+            shape: Sequence[int],
+            dtype: numpy.dtype,
             strides: Optional[Sequence[int]]=None,
             first_element_offset: int=0,
             buffer_size: Optional[int]=None):
 
-        shape = wrap_in_tuple(shape)
+        shape = tuple(shape)
         dtype = normalize_type(dtype)
 
         default_strides = get_strides(shape, dtype.itemsize)
@@ -90,7 +91,8 @@ class ArrayMetadata:
         return subregion_origin, subregion_size, new_metadata
 
     def __getitem__(self, slices):
-        slices = wrap_in_tuple(slices)
+        if isinstance(slices, slice):
+            slices = [slices]
         if len(slices) < len(self.shape):
             slices += (slice(None),) * (len(self.shape) - len(slices))
         new_fe_offset, new_shape, new_strides = get_view(self.shape, self.strides, slices)

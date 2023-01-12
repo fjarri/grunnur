@@ -51,7 +51,7 @@ def test_contract(context, valloc_cls, pack):
     dtype = numpy.int32
 
     program = Program(
-        context.device,
+        [context.device],
         """
         KERNEL void fill(GLOBAL_MEM ${ctype} *dest, ${ctype} val)
         {
@@ -68,7 +68,7 @@ def test_contract(context, valloc_cls, pack):
     buffers_metadata, arrays = allocate_test_set(
         virtual_alloc,
         # Bump size to make sure buffer alignment doesn't hide any out-of-bounds access
-        lambda allocator, size: Array.empty(context.device, size * 100, dtype, allocator=allocator))
+        lambda allocator, size: Array.empty(context.device, [size * 100], dtype, allocator=allocator))
     dependencies = {id_: deps for id_, _, deps in buffers_metadata}
 
     if pack:
@@ -134,7 +134,7 @@ def test_extract_dependencies(mock_context):
     virtual_alloc = TrivialManager(mock_context.device).allocator()
 
     vbuf = virtual_alloc(mock_context.device, 100)
-    varr = Array.empty(mock_context.device, 100, numpy.int32, allocator=virtual_alloc)
+    varr = Array.empty(mock_context.device, [100], numpy.int32, allocator=virtual_alloc)
 
     assert extract_dependencies(vbuf) == {vbuf._buffer_adapter._id}
     assert extract_dependencies(varr) == {varr.data._buffer_adapter._id}

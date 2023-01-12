@@ -101,7 +101,7 @@ class VirtualManager:
     :param context: an instance of :py:class:`~grunnur.Context`.
     """
 
-    def __init__(self, device: 'grunnur.context.BoundDevice'):
+    def __init__(self, device: BoundDevice):
         self.device = device
         self._id_counter = 0
         self._virtual_buffers: Dict[int, ReferenceType[VirtualBufferAdapter]] = {}
@@ -213,7 +213,7 @@ class VirtualAllocationStatistics:
     virtual_sizes: Dict[int, int]
     """A dictionary ``size: count`` with the counts for virtual allocations of each size."""
 
-    def __init__(self, real_buffers: Buffer, virtual_buffers: VirtualBufferAdapter):
+    def __init__(self, real_buffers: Iterable[Buffer], virtual_buffers: Iterable[VirtualBufferAdapter]):
 
         real_sizes = [rb.size for rb in real_buffers]
         virtual_sizes = [vb.size for vb in virtual_buffers]

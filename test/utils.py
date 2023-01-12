@@ -3,11 +3,9 @@ import numpy
 from grunnur import API
 from grunnur.device_discovery import select_devices
 import grunnur.dtypes as dtypes
-from grunnur.utils import wrap_in_tuple
 
 
 def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=None):
-    shape = wrap_in_tuple(shape)
     dtype = dtypes.normalize_type(dtype)
 
     if offset != 0:

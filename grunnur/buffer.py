@@ -14,11 +14,11 @@ class Buffer:
     A memory buffer on device.
     """
 
-    device: 'grunnur.context.BoundDevice'
+    device: BoundDevice
     """Device on which this buffer is allocated."""
 
     @classmethod
-    def allocate(cls, device: 'grunnur.context.BoundDevice', size: int) -> 'Buffer':
+    def allocate(cls, device: BoundDevice, size: int) -> 'Buffer':
         """
         Allocate a buffer of ``size`` bytes.
 
@@ -28,7 +28,7 @@ class Buffer:
         buffer_adapter = device.context._context_adapter.allocate(device._device_adapter, size)
         return cls(device, buffer_adapter)
 
-    def __init__(self, device: 'BoundDevice', buffer_adapter: BufferAdapter):
+    def __init__(self, device: BoundDevice, buffer_adapter: BufferAdapter):
         self.device = device
         self._buffer_adapter = buffer_adapter
 
@@ -53,7 +53,7 @@ class Buffer:
         """
         return self._buffer_adapter.size
 
-    def set(self, queue: 'Queue', buf: Union[numpy.ndarray, 'Buffer'], no_async: bool=False):
+    def set(self, queue: Queue, buf: Union[numpy.ndarray, 'Buffer'], no_async: bool=False):
         """
         Copy the contents of the host array or another buffer to this buffer.
 
@@ -66,6 +66,7 @@ class Buffer:
                 f"Mismatched devices: queue on device {queue.device}, "
                 f"buffer on device {self.device}")
 
+        buf_adapter: Union[numpy.ndarray, BufferAdapter]
         if isinstance(buf, numpy.ndarray):
             buf_adapter = numpy.ascontiguousarray(buf)
         elif isinstance(buf, Buffer):
@@ -75,7 +76,7 @@ class Buffer:
 
         self._buffer_adapter.set(queue._queue_adapter, buf_adapter, no_async=no_async)
 
-    def get(self, queue: 'Queue', host_array: numpy.ndarray, async_: bool=False):
+    def get(self, queue: Queue, host_array: numpy.ndarray, async_: bool=False):
         """
         Copy the contents of the buffer to the host array.
 

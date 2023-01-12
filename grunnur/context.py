@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Optional, Union, Iterable, Tuple
+from typing import Any, Optional, Union, Iterable, Tuple, Sequence, overload
 
 from .adapter_base import DeviceAdapter, ContextAdapter
 from .api import API, cuda_api_id
 from .device import Device
 from .device_discovery import select_devices
 from .platform import Platform
-from .utils import wrap_in_tuple, normalize_object_sequence, all_same
+from .utils import normalize_object_sequence, all_same
 
 
 class BoundDevice(Device):
@@ -16,7 +16,7 @@ class BoundDevice(Device):
     A :py:class:`~grunnur.Device` object in a :py:class:`~grunnur.Context`.
     """
 
-    context: 'grunnur.Context'
+    context: 'Context'
     """The context this device belongs to."""
 
     def __init__(self, context, device_adapter):
@@ -46,12 +46,12 @@ class BoundDevice(Device):
         return super().__str__() + " in " + str(self.context)
 
 
-class BoundMultiDevice(Sequence):
+class BoundMultiDevice(Sequence[BoundDevice]):
     """
     A sequence of bound devices belonging to the same context.
     """
 
-    context: 'grunnur.Context'
+    context: 'Context'
     """The context these devices belong to."""
 
     @classmethod
@@ -60,6 +60,7 @@ class BoundMultiDevice(Sequence):
         Creates this object from a sequence of bound devices
         (note that a ``BoundMultiDevice`` object itself can serve as such a sequence).
         """
+
         if not all_same(device.context for device in devices):
             raise ValueError("All devices in a multi-device must belong to the same context")
 
@@ -82,7 +83,13 @@ class BoundMultiDevice(Sequence):
     def __iter__(self):
         return iter(self._devices)
 
-    def __getitem__(self, idx) -> Union['BoundDevice', 'BoundMultiDevice']:
+    @overload
+    def __getitem__(self, idx: int) -> BoundDevice: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> 'BoundMultiDevice': ...
+
+    def __getitem__(self, idx):
         """
         Given a single index, returns a single :py:class:`BoundDevice`.
         Given a sequence of indices, returns a :py:class:`BoundMultiDevice` object
@@ -107,20 +114,19 @@ class Context:
     GPGPU context.
     """
 
-    platform: 'Platform'
+    platform: Platform
     """The platform this context is based on."""
 
-    api: 'API'
+    api: API
     """The API this context is based on."""
 
     @classmethod
-    def from_devices(cls, devices: Union['Device', Iterable['Device']]) -> 'Context':
+    def from_devices(cls, devices: Sequence['Device']) -> 'Context':
         """
         Creates a context from a device or an iterable of devices.
 
         :param devices: one or several devices to use.
         """
-        devices = wrap_in_tuple(devices)
         devices = normalize_object_sequence(devices, Device)
 
         platforms = [device.platform for device in devices]
@@ -135,22 +141,20 @@ class Context:
         return cls(context_adapter)
 
     @classmethod
-    def from_backend_devices(cls, backend_devices) -> 'Context':
+    def from_backend_devices(cls, backend_devices: Sequence[Any]) -> 'Context':
         """
         Creates a context from a single or several backend device objects.
         """
-        backend_devices = wrap_in_tuple(backend_devices)
         devices = [Device.from_backend_device(backend_device) for backend_device in backend_devices]
         return cls.from_devices(devices)
 
     @classmethod
-    def from_backend_contexts(cls, backend_contexts, take_ownership: bool=False) -> 'Context':
+    def from_backend_contexts(cls, backend_contexts: Sequence[Any], take_ownership: bool=False) -> 'Context':
         """
         Creates a context from a single or several backend device contexts.
         If ``take_ownership`` is ``True``, this object will be responsible for the lifetime
         of backend context objects (only important for the CUDA backend).
         """
-        backend_contexts = wrap_in_tuple(backend_contexts)
         for api in API.all_available():
             if api._api_adapter.isa_backend_context(backend_contexts[0]):
                 context_adapter = api._api_adapter.make_context_adapter_from_backend_contexts(

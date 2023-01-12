@@ -9,11 +9,6 @@ import warnings
 import mako.template
 
 
-_TEMPLATE_OPTIONS = dict(
-    strict_undefined=True,
-    imports=['import numpy'])
-
-
 class RenderError(Exception):
     """
     A custom wrapper for Mako template render errors, to facilitate debugging.
@@ -59,6 +54,12 @@ def _extract_def_source(source, name):
     return match.group(1)
 
 
+def _make_template(filename=None, text=None):
+    return mako.template.Template(
+        text=text, filename=filename, strict_undefined=True,
+        imports=['import numpy'])
+
+
 class Template:
     """
     A wrapper for mako ``Template`` objects.
@@ -73,7 +74,7 @@ class Template:
         """
         path, _ext = os.path.splitext(os.path.abspath(filename))
         template_path = path + '.mako'
-        mako_template = mako.template.Template(filename=template_path, **_TEMPLATE_OPTIONS)
+        mako_template = _make_template(filename=template_path)
         return cls(mako_template)
 
     @classmethod
@@ -81,7 +82,7 @@ class Template:
         """
         Returns a :py:class:`Template` object created from source.
         """
-        mako_template = mako.template.Template(text=template_source, **_TEMPLATE_OPTIONS)
+        mako_template = _make_template(text=template_source)
         return cls(mako_template)
 
     def __init__(self, mako_template: 'mako.template.Template'):
@@ -139,7 +140,7 @@ class DefTemplate:
     def _from_signature_and_body(
             cls, name: str, signature: inspect.Signature, body: str) -> 'DefTemplate':
         src = "<%def name='" + name + str(signature) + "'>\n" + body + "\n</%def>"
-        mako_def_template = mako.template.Template(text=src, **_TEMPLATE_OPTIONS).get_def(name)
+        mako_def_template = _make_template(text=src).get_def(name)
         return cls(name, mako_def_template, src)
 
     def __init__(self, name: str, mako_def_template: 'mako.template.DefTemplate', source: str):

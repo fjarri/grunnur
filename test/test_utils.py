@@ -1,7 +1,7 @@
 import pytest
 
 from grunnur.utils import (
-    all_same, all_different, wrap_in_tuple, min_blocks, log2, bounding_power_of_2, prod,
+    all_same, all_different, min_blocks, log2, bounding_power_of_2, prod,
     string_matches_masks, normalize_object_sequence, max_factor, find_local_size, get_launch_size,
     update_dict)
 
@@ -14,14 +14,6 @@ def test_all_same():
 def test_all_different():
     assert all_different([1, 1, 3]) == False
     assert all_different([1, 2, 3]) == True
-
-
-def test_wrap_in_tuple():
-    with pytest.raises(ValueError):
-        wrap_in_tuple(None)
-    assert wrap_in_tuple(1) == (1,)
-    assert wrap_in_tuple([1]) == (1,)
-    assert wrap_in_tuple([1, 2]) == (1, 2)
 
 
 def test_min_blocls():
@@ -61,7 +53,6 @@ def test_string_matches_masks():
 
 
 def test_normalize_object_sequence():
-    assert normalize_object_sequence(1, int) == (1,)
     assert normalize_object_sequence([1], int) == (1,)
     assert normalize_object_sequence([1, 2], int) == (1, 2)
 

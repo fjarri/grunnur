@@ -97,12 +97,12 @@ def get_multi_device_sets(config):
 
 @pytest.fixture
 def context(device):
-    yield Context.from_devices(device)
+    yield Context.from_devices([device])
 
 
 @pytest.fixture
 def some_context(some_device):
-    yield Context.from_devices(some_device)
+    yield Context.from_devices([some_device])
 
 
 @pytest.fixture

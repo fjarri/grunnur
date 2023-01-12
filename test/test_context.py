@@ -54,7 +54,7 @@ def test_from_backend_contexts_opencl(mock_backend_pyopencl):
     with pytest.raises(ValueError, match="Cannot make one OpenCL context out of several contexts"):
         Context.from_backend_contexts([backend_context, backend_context2])
 
-    context = Context.from_backend_contexts(backend_context)
+    context = Context.from_backend_contexts([backend_context])
 
     assert context.platform.name == 'Platform2'
     assert [device.name for device in context.devices] == ['Device2', 'Device3']
@@ -75,15 +75,15 @@ def test_from_backend_contexts_cuda_single_device(mock_backend_pycuda, take_owne
 
     if not take_ownership:
         # backend context can stay in the stack
-        context = Context.from_backend_contexts(backend_context, take_ownership=False)
+        context = Context.from_backend_contexts([backend_context], take_ownership=False)
 
     else:
         # forgot to pop the backend context off the stack - error
         with pytest.raises(ValueError, match="The given context is already in the context stack"):
-            context = Context.from_backend_contexts(backend_context, take_ownership=True)
+            context = Context.from_backend_contexts([backend_context], take_ownership=True)
 
         backend.pycuda_driver.Context.pop()
-        context = Context.from_backend_contexts(backend_context, take_ownership=True)
+        context = Context.from_backend_contexts([backend_context], take_ownership=True)
 
     # CUDA has no concept of platforms, so the platform name in the mock will be ignored
     assert context.platform.name == 'nVidia CUDA'
@@ -219,7 +219,7 @@ def test_device_shortcut(mock_backend_pyopencl):
     with pytest.raises(RuntimeError, match="The `device` shortcut only works for single-device contexts"):
         context.device
 
-    context = Context.from_devices(api.platforms[0].devices[2])
+    context = Context.from_devices([api.platforms[0].devices[2]])
     assert context.device.name == 'Device3'
 
 
@@ -229,7 +229,7 @@ def test_deactivate(mock_backend_pyopencl, mock_backend_pycuda):
     mock_backend_pycuda.add_devices(['Device1'])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
-    context = Context.from_devices(api.platforms[0].devices[0])
+    context = Context.from_devices([api.platforms[0].devices[0]])
     # Does nothing in OpenCL, but we can still call this for the sake of being generic
     context.deactivate()
 
@@ -237,7 +237,7 @@ def test_deactivate(mock_backend_pyopencl, mock_backend_pycuda):
     backend_context.pop()
 
     api = API.from_api_id(mock_backend_pycuda.api_id)
-    context = Context.from_backend_contexts(backend_context, take_ownership=True)
+    context = Context.from_backend_contexts([backend_context], take_ownership=True)
     assert backend_context.is_stacked()
     context.deactivate()
     assert not backend_context.is_stacked()

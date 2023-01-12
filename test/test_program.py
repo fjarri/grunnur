@@ -1,3 +1,4 @@
+from typing import NamedTuple, Tuple
 import os.path
 import re
 
@@ -53,7 +54,7 @@ def test_compile(mock_or_real_context, no_prelude):
         else:
             src = SRC_GENERIC
 
-    program = Program(context.device, src, no_prelude=no_prelude)
+    program = Program([context.device], src, no_prelude=no_prelude)
 
     if mocked and no_prelude:
         assert program.sources[context.device].prelude.strip() == ""
@@ -70,18 +71,18 @@ def test_compile(mock_or_real_context, no_prelude):
     a_dev = Array.from_host(queue, a)
     b_dev = Array.from_host(queue, b)
 
-    res_dev = Array.empty(context.device, length, numpy.int32)
+    res_dev = Array.empty(context.device, [length], numpy.int32)
     # Check that passing both Arrays and Buffers is supported
     # Pass one of the buffers as a subregion, too.
     a_dev_view = a_dev.data.get_sub_region(0, a_dev.data.size)
-    program.kernel.multiply(queue, length, None, res_dev, a_dev_view, b_dev.data, c)
+    program.kernel.multiply(queue, [length], None, res_dev, a_dev_view, b_dev.data, c)
     res = res_dev.get(queue)
     if not mocked:
         assert (res == ref).all()
 
     # Explicit local_size
     res2_dev = Array.from_host(queue, a) # Array.empty(queue, length, numpy.int32)
-    program.kernel.multiply(queue, length, length // 2, res2_dev, a_dev, b_dev, c)
+    program.kernel.multiply(queue, [length], [length // 2], res2_dev, a_dev, b_dev, c)
     res2 = res2_dev.get(queue)
     if not mocked:
         assert (res2 == ref).all()
@@ -110,14 +111,14 @@ def test_compile_multi_device(mock_or_real_multi_device_context):
     a_dev = MultiArray.from_host(mqueue, a)
     b_dev = MultiArray.from_host(mqueue, b)
 
-    res_dev = MultiArray.empty(devices, length, numpy.int32)
+    res_dev = MultiArray.empty(devices, [length], numpy.int32)
     program.kernel.multiply(mqueue, a_dev.shapes, None, res_dev, a_dev, b_dev, c)
     res = res_dev.get(mqueue)
     if not mocked:
         assert (res == ref).all()
 
     # Test argument unpacking from dictionaries
-    res_dev = MultiArray.empty(devices, length, numpy.int32)
+    res_dev = MultiArray.empty(devices, [length], numpy.int32)
     program.kernel.multiply(
         mqueue, a_dev.shapes, {device: None for device in devices},
         res_dev, a_dev.subarrays, b_dev, c)
@@ -132,7 +133,7 @@ def test_mismatched_devices(mock_4_device_context):
     program = Program(context.devices, src)
     with pytest.raises(ValueError, match="Mismatched device sets for global and local sizes"):
         program.kernel.multiply.prepare(
-            {context.devices[0]: 10, context.devices[2]: 20},
+            {context.devices[0]: [10], context.devices[2]: [20]},
             {context.devices[0]: None, context.devices[1]: None})
 
 
@@ -194,38 +195,42 @@ def _test_constant_memory(context, mocked, is_static):
     cm1_dev = Array.from_host(queue, cm1)
     cm2_dev = Array.from_host(queue, cm2)
     cm3_dev = Array.from_host(queue, cm3)
-    res_dev = Array.empty(context.device, 16, numpy.int32)
+    res_dev = Array.empty(context.device, [16], numpy.int32)
+
+    class Metadata(NamedTuple):
+        shape: Tuple[int, ...]
+        dtype: numpy.dtype
 
     if context.api.id == cuda_api_id():
 
         # Use different forms of constant array representation
         constant_arrays=dict(
             cm1=cm1, # as an array(-like) object
-            cm2=(cm2.shape, cm2.dtype), # as a tuple of shape and dtype
+            cm2=Metadata(cm2.shape, cm2.dtype), # as a metadata-like
             cm3=cm3_dev) # as a device array
 
         if is_static:
             copy_from_cm = StaticKernel(
-                context.device, src, 'copy_from_cm',
-                global_size=16, constant_arrays=constant_arrays)
+                [context.device], src, 'copy_from_cm',
+                global_size=[16], constant_arrays=constant_arrays)
             copy_from_cm.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
             copy_from_cm.set_constant_array(queue, 'cm2', cm2) # setting from a host array
             copy_from_cm.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
         else:
-            program = Program(context.device, src, constant_arrays=constant_arrays)
+            program = Program([context.device], src, constant_arrays=constant_arrays)
             program.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
             program.set_constant_array(queue, 'cm2', cm2) # setting from a host array
             program.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
-            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, 16, None, *args)
+            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, [16], None, *args)
 
         copy_from_cm(queue, res_dev)
     else:
 
         if is_static:
-            copy_from_cm = StaticKernel(context.device, src, 'copy_from_cm', global_size=16)
+            copy_from_cm = StaticKernel([context.device], src, 'copy_from_cm', global_size=[16])
         else:
-            program = Program(context.device, src)
-            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, 16, None, *args)
+            program = Program([context.device], src)
+            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, [16], None, *args)
 
         copy_from_cm(queue, res_dev, cm1_dev, cm2_dev, cm3_dev)
 
@@ -260,7 +265,7 @@ def test_compilation_error(mock_or_real_context, capsys):
         src = SRC_COMPILE_ERROR
 
     with pytest.raises(CompilationError):
-        Program(context.device, src)
+        Program([context.device], src)
 
     captured = capsys.readouterr()
     assert "Failed to compile on device" in captured.out
@@ -283,7 +288,7 @@ def test_keep(mock_or_real_context, capsys):
     else:
         src = SRC_GENERIC
 
-    program = Program(context.device, src, keep=True)
+    program = Program([context.device], src, keep=True)
     captured = capsys.readouterr()
     path = re.match(r'\*\*\* compiler output in (.*)', captured.out).group(1)
     assert os.path.isdir(path)
@@ -305,11 +310,11 @@ def test_wrong_device_idxs(mock_4_device_context):
     context = mock_4_device_context
     program = Program(context.devices[[0, 1]], src)
     mqueue = MultiQueue.on_devices(context.devices[[2, 1]])
-    res_dev = MultiArray.empty(context.devices[[2, 1]], 16, numpy.int32)
+    res_dev = MultiArray.empty(context.devices[[2, 1]], [16], numpy.int32)
 
     # Using all the queue's devices (1, 2)
     with pytest.raises(ValueError, match="Requested execution on devices"):
-        program.kernel.multiply(mqueue, 8, None, res_dev)
+        program.kernel.multiply(mqueue, [8], None, res_dev)
 
 
 def test_wrong_context(mock_backend):
@@ -319,16 +324,16 @@ def test_wrong_context(mock_backend):
     src = MockDefTemplate(kernels=[MockKernel('multiply', [None])])
 
     api = API.from_api_id(mock_backend.api_id)
-    context = Context.from_devices(api.platforms[0].devices[0])
-    context2 = Context.from_devices(api.platforms[0].devices[0])
+    context = Context.from_devices([api.platforms[0].devices[0]])
+    context2 = Context.from_devices([api.platforms[0].devices[0]])
 
-    res_dev = Array.empty(context.device, 16, numpy.int32)
+    res_dev = Array.empty(context.device, [16], numpy.int32)
 
-    program = Program(context.device, src)
+    program = Program([context.device], src)
     queue = Queue(context2.device)
 
     with pytest.raises(ValueError, match="The provided queue must belong to the same context this program uses"):
-        program.kernel.multiply(queue, 8, None, res_dev)
+        program.kernel.multiply(queue, [8], None, res_dev)
 
     # If we don't do anything here, contexts may be deactivated in an incorrect order
     # (on drop of the corresponding `Context` objects).
@@ -392,9 +397,9 @@ def test_set_constant_array_errors(mock_4_device_context):
             program.set_constant_array(queue, 'cm1', cm1)
 
         with pytest.raises(ValueError, match="Compile-time constant arrays are only supported by CUDA API"):
-            sk = StaticKernel(context.devices, src, 'kernel', 1024, constant_arrays=dict(cm1=cm1))
+            sk = StaticKernel(context.devices, src, 'kernel', [1024], constant_arrays=dict(cm1=cm1))
 
-        sk = StaticKernel(context.devices, src, 'kernel', 1024)
+        sk = StaticKernel(context.devices, src, 'kernel', [1024])
         with pytest.raises(ValueError, match="Constant arrays are only supported for CUDA API"):
             sk.set_constant_array(queue, 'cm1', cm1)
 
@@ -418,7 +423,7 @@ def test_max_total_local_sizes(mock_backend):
 def test_cannot_override_builtin_globals(mock_context):
     with pytest.raises(ValueError, match="'device_params' is a reserved global name and cannot be used"):
         Program(
-            mock_context.device,
+            [mock_context.device],
             MockDefTemplate(kernels=[MockKernel('test', [None])]),
             render_globals=dict(device_params=None))
 

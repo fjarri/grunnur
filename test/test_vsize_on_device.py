@@ -109,7 +109,7 @@ def test_ids(context, vstest):
         virtual_local_size=vstest.local_size)
 
     program = Program(
-        context.device,
+        [context.device],
         """
         KERNEL void get_ids(
             GLOBAL_MEM int *local_ids,
@@ -162,7 +162,7 @@ def test_sizes(context, vstest):
     vdims = len(vstest.global_size)
 
     program = Program(
-        context.device,
+        [context.device],
         """
         KERNEL void get_sizes(GLOBAL_MEM int *sizes)
         {
@@ -182,7 +182,7 @@ def test_sizes(context, vstest):
     get_sizes = program.kernel.get_sizes
 
     queue = Queue(context.device)
-    sizes = Array.empty(context.device, vdims * 3 + 1, numpy.int32)
+    sizes = Array.empty(context.device, [vdims * 3 + 1], numpy.int32)
     get_sizes(queue, vs.real_global_size, vs.real_local_size, sizes)
 
     sizes = sizes.get(queue)

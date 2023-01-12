@@ -39,7 +39,7 @@ def ctype_builtin(dtype: numpy.dtype) -> str:
     raise ValueError(f"{dtype} is not a built-in data type")
 
 
-def ctype(dtype: numpy.dtype) -> Union[str, 'grunnur.Module']:
+def ctype(dtype: numpy.dtype) -> Union[str, Module]:
     """
     Returns an object that can be passed as a global to :py:meth:`~grunnur.Program`
     and used to render a C equivalent of the given ``numpy`` dtype.
@@ -197,13 +197,13 @@ def complex_ctr(dtype: numpy.dtype) -> str:
     return 'COMPLEX_CTR(' + ctype_builtin(dtype) + ')'
 
 
-def cast(dtype: numpy.dtype) -> Callable[[Any], Any]:
+def cast(dtype: numpy.dtype) -> Callable[[Any], numpy.ndarray]:
     """
     Returns function that takes one argument and casts it to ``dtype``.
 
     :param dtype:
     """
-    def _cast(val) -> numpy.dtype:
+    def _cast(val: Any) -> numpy.ndarray:
         # Numpy cannot handle casts to struct dtypes (#4148),
         # so we're avoiding unnecessary casts.
         if not hasattr(val, 'dtype'):
@@ -512,7 +512,7 @@ def _get_struct_module(dtype: numpy.dtype, ignore_alignment: bool=False) -> Modu
     return Module.from_string("\n".join(lines), render_globals=kwds)
 
 
-def ctype_struct(dtype: Union[Type, numpy.dtype], ignore_alignment: bool=False) -> 'grunnur.Module':
+def ctype_struct(dtype: Union[Type, numpy.dtype], ignore_alignment: bool=False) -> Module:
     """
     For a struct type, returns a :py:class:`~grunnur.Module` object
     with the ``typedef`` of a struct corresponding to the given ``dtype``

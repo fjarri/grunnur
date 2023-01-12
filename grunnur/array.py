@@ -18,7 +18,7 @@ class Array:
     Array on a single device.
     """
 
-    device: 'grunnur.context.BoundDevice'
+    device: BoundDevice
     """Device this array is allocated on."""
 
     shape: Tuple[int, ...]
@@ -31,7 +31,7 @@ class Array:
     """Array strides."""
 
     @classmethod
-    def from_host(cls, queue_or_device: Union['Queue', 'BoundDevice'], host_arr: numpy.ndarray) -> 'Array':
+    def from_host(cls, queue_or_device: Union[Queue, BoundDevice], host_arr: numpy.ndarray) -> 'Array':
         """
         Creates an array object from a host array.
 
@@ -48,12 +48,12 @@ class Array:
 
     @classmethod
     def empty(
-            cls, device: 'BoundDevice',
+            cls, device: BoundDevice,
             shape: Sequence[int],
             dtype: numpy.dtype,
             strides: Optional[Sequence[int]]=None,
             first_element_offset: int=0,
-            allocator: Callable[[BoundDevice, int], 'Buffer']=Buffer.allocate
+            allocator: Callable[[BoundDevice, int], Buffer]=Buffer.allocate
             ) -> 'Array':
         """
         Creates an empty array.
@@ -96,7 +96,7 @@ class Array:
         data = self.data.get_sub_region(origin, size)
         return Array(new_metadata, data)
 
-    def set(self, queue: 'Queue', array: Union[numpy.ndarray, 'Array'], no_async: bool=False):
+    def set(self, queue: Queue, array: Union[numpy.ndarray, 'Array'], no_async: bool=False):
         """
         Copies the contents of the host array to the array.
 
@@ -104,6 +104,7 @@ class Array:
         :param array: the source array.
         :param no_async: if `True`, the transfer blocks until completion.
         """
+        array_data: Union[numpy.ndarray, Buffer]
         if isinstance(array, numpy.ndarray):
             array_data = array
         elif isinstance(array, Array):
@@ -120,7 +121,7 @@ class Array:
 
         self.data.set(queue, array_data, no_async=no_async)
 
-    def get(self, queue: 'Queue', dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
+    def get(self, queue: Queue, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -152,7 +153,7 @@ class BaseSplay(ABC):
     """
 
     @abstractmethod
-    def __call__(self, arr: 'ArrayLike', devices: 'grunnur.context.BoundMultiDevice') -> Dict[int, 'ArrayLike']:
+    def __call__(self, arr: 'ArrayLike', devices: BoundMultiDevice) -> Dict[BoundDevice, 'ArrayLike']:
         """
         Creates a dictionary of views of an array-like object for each of the given devices.
 
@@ -199,7 +200,7 @@ class MultiArray:
     An array on multiple devices.
     """
 
-    devices: 'grunnur.context.BoundMultiDevice'
+    devices: BoundMultiDevice
     """Devices on which the sub-arrays are allocated"""
 
     shape: Tuple[int, ...]
@@ -216,8 +217,8 @@ class MultiArray:
 
     @classmethod
     def from_host(
-            cls, mqueue: 'MultiQueue', host_arr: numpy.ndarray,
-            splay: Optional['grunnur.array.BaseSplay']=None
+            cls, mqueue: MultiQueue, host_arr: numpy.ndarray,
+            splay: Optional[BaseSplay]=None
             ) -> 'MultiArray':
         """
         Creates an array object from a host array.
@@ -241,9 +242,9 @@ class MultiArray:
 
     @classmethod
     def empty(
-            cls, devices: 'BoundMultiDevice', shape: Sequence[int],
-            dtype: numpy.dtype, allocator: Callable[[BoundDevice, int], 'Buffer']=Buffer.allocate,
-            splay: Optional['grunnur.array.BaseSplay']=None,
+            cls, devices: BoundMultiDevice, shape: Sequence[int],
+            dtype: numpy.dtype, allocator: Callable[[BoundDevice, int], Buffer]=Buffer.allocate,
+            splay: Optional[BaseSplay]=None,
             ) -> 'MultiArray':
         """
         Creates an empty array.
@@ -279,7 +280,7 @@ class MultiArray:
 
         self._splay = splay
 
-    def get(self, mqueue: 'MultiQueue', dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
+    def get(self, mqueue: MultiQueue, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -298,7 +299,7 @@ class MultiArray:
 
         return dest
 
-    def set(self, mqueue: 'MultiQueue', array: Union[numpy.ndarray, 'MultiArray'], no_async: bool=False):
+    def set(self, mqueue: MultiQueue, array: Union[numpy.ndarray, 'MultiArray'], no_async: bool=False):
         """
         Copies the contents of the host array to the array.
 

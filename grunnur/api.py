@@ -105,7 +105,8 @@ class API:
 
     @property
     def platforms(self) -> List['Platform']:
-        """
+        """platforms(self) -> List[grunnur.Platform]
+
         A list of this API's :py:class:`Platform` objects.
         """
         from .platform import Platform # avoiding circular imports

@@ -124,7 +124,7 @@ def mock_or_real_context(request, monkeypatch):
     if value is None:
         pytest.skip("No GPGPU devices available")
     elif isinstance(value, Device):
-        yield (Context.from_devices(value), False)
+        yield (Context.from_devices([value]), False)
     elif isinstance(value, APIID):
         factory = MockBackendFactory(monkeypatch)
         backend = factory.mock(value)

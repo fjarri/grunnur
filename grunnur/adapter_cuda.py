@@ -1,5 +1,5 @@
 from tempfile import mkdtemp
-from typing import Iterable, Union, Tuple, Sequence
+from typing import Iterable, Union, Tuple, Sequence, Mapping, Optional, Dict
 
 import numpy
 
@@ -12,11 +12,11 @@ except ImportError: # pragma: no cover
     pycuda_driver = None
     pycuda_compiler = None
 
-from .utils import wrap_in_tuple, prod, normalize_object_sequence, get_launch_size
+from .utils import prod, normalize_object_sequence, get_launch_size
 from .template import Template
 from . import dtypes
 from .adapter_base import (
-    APIID, DeviceType, APIAdapterFactory, APIAdapter, PlatformAdapter, DeviceAdapter,
+    ArrayMetadataLike, APIID, DeviceType, APIAdapterFactory, APIAdapter, PlatformAdapter, DeviceAdapter,
     DeviceParameters, ContextAdapter, BufferAdapter, QueueAdapter, ProgramAdapter, KernelAdapter,
     AdapterCompilationError, PreparedKernelAdapter)
 
@@ -288,7 +288,7 @@ class CuContextAdapter(ContextAdapter):
 
     @classmethod
     def from_pycuda_devices(
-            cls, pycuda_devices: Iterable['pycuda_driver.Device']) -> 'CuContextAdapter':
+            cls, pycuda_devices: Sequence['pycuda_driver.Device']) -> 'CuContextAdapter':
         """
         Creates a context based on one or several (distinct) PyCuda ``Device`` objects.
         """
@@ -334,7 +334,7 @@ class CuContextAdapter(ContextAdapter):
         self._context_stack.activate(next(iter(self._device_order)))
 
     @property
-    def device_adapters(self) -> Tuple[CuDeviceAdapter, ...]:
+    def device_adapters(self) -> Mapping[int, CuDeviceAdapter]:
         return self._device_adapters
 
     @property
@@ -361,12 +361,12 @@ class CuContextAdapter(ContextAdapter):
 
     def compile_single_device(
             self, device_adapter, prelude, src, keep=False, fast_math=False, compiler_options=None,
-            constant_arrays=None):
+            constant_arrays: Optional[Mapping[str, ArrayMetadataLike]]=None):
 
-        constant_arrays = normalize_constant_arrays(constant_arrays)
+        normalized_constant_arrays = normalize_constant_arrays(constant_arrays)
         constant_arrays_src = _CONSTANT_ARRAYS_DEF.render(
             dtypes=dtypes,
-            constant_arrays=constant_arrays)
+            constant_arrays=normalized_constant_arrays)
 
         if compiler_options is None:
             compiler_options = []
@@ -476,23 +476,17 @@ class CuBufferAdapter(BufferAdapter):
             pycuda_driver.memcpy_dtoh(host_array, ptr)
 
 
-def normalize_constant_arrays(constant_arrays):
+def normalize_constant_arrays(constant_arrays: Optional[Mapping[str, ArrayMetadataLike]]
+        ) -> Dict[str, Tuple[int, numpy.dtype]]:
     if constant_arrays is None:
         constant_arrays = {}
 
     normalized = {}
     for name, metadata in constant_arrays.items():
-        if isinstance(metadata, (list, tuple)):
-            shape, dtype = metadata
-            shape = wrap_in_tuple(shape)
-            dtype = dtypes.normalize_type(dtype)
-            length = prod(shape)
-        elif hasattr(metadata, 'shape') and hasattr(metadata, 'dtype'):
-            dtype = metadata.dtype
-            length = prod(metadata.shape)
-        else:
-            raise TypeError(f"Unknown constant array metadata type: {type(metadata)}")
-
+        if not isinstance(metadata, ArrayMetadataLike):
+            raise TypeError("Unknown constant array metadata type")
+        dtype = metadata.dtype
+        length = prod(metadata.shape)
         normalized[name] = (length, dtype)
 
     return normalized
@@ -516,24 +510,31 @@ class CuProgramAdapter(ProgramAdapter):
         self._context_adapter = context_adapter
         self._device_idx = device_idx
         self._pycuda_program = pycuda_program
-        self.source = source
+        self._source = source
+
+    @property
+    def source(self) -> str:
+        return self._source
 
     def __getattr__(self, kernel_name):
         pycuda_kernel = self._pycuda_program.get_function(kernel_name)
         return CuKernelAdapter(self, self._device_idx, pycuda_kernel)
 
     def set_constant_buffer(
-            self, queue_adapter: CuQueueAdapter,
-            name: str, arr: Union[CuBufferAdapter, numpy.ndarray]):
+            self, queue_adapter: QueueAdapter,
+            name: str, arr: Union[BufferAdapter, numpy.ndarray]):
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
+        assert isinstance(queue_adapter, CuQueueAdapter)
+
         self._context_adapter.activate_device(self._device_idx)
         symbol, size = self._pycuda_program.get_global(name)
 
         pycuda_stream = queue_adapter._pycuda_stream
 
-        if isinstance(arr, CuBufferAdapter):
+        if isinstance(arr, BufferAdapter):
+            assert isinstance(arr, CuBufferAdapter)
             transfer_size = arr.size
         elif isinstance(arr, numpy.ndarray):
             transfer_size = prod(arr.shape) * arr.dtype.itemsize
@@ -568,13 +569,17 @@ class CuKernelAdapter(KernelAdapter):
         self._pycuda_function = pycuda_function
 
     @property
+    def program_adapter(self) -> CuProgramAdapter:
+        return self._program_adapter
+
+    @property
     def max_total_local_size(self) -> int:
         return self._pycuda_function.get_attribute(
             pycuda_driver.function_attribute.MAX_THREADS_PER_BLOCK)
 
     def prepare(
-            self, global_size: Tuple[int, ...],
-            local_size: Tuple[int, ...]) -> 'CuPreparedKernelAdapter':
+            self, global_size: Sequence[int],
+            local_size: Optional[Sequence[int]] = None) -> 'CuPreparedKernelAdapter':
         return CuPreparedKernelAdapter(self, global_size, local_size)
 
 
@@ -582,8 +587,8 @@ class CuPreparedKernelAdapter(PreparedKernelAdapter):
 
     def __init__(
             self, kernel_adapter: CuKernelAdapter,
-            global_size: Tuple[int, ...],
-            local_size: Tuple[int, ...]):
+            global_size: Sequence[int],
+            local_size: Optional[Sequence[int]] = None):
 
         context_adapter = kernel_adapter._context_adapter
         device_idx = kernel_adapter._device_idx
@@ -604,7 +609,10 @@ class CuPreparedKernelAdapter(PreparedKernelAdapter):
         self._context_adapter = context_adapter
         self._pycuda_function = kernel_adapter._pycuda_function
 
-    def __call__(self, queue_adapter: CuQueueAdapter, *args, local_mem: int=0):
+    def __call__(self, queue_adapter: QueueAdapter, *args, local_mem: int=0):
+
+        assert isinstance(queue_adapter, CuQueueAdapter)
+
         # Sanity check. If it happened, there's something wrong in the abstraction layer logic
         # (Program and PreparedKernel).
         assert self._device_idx == queue_adapter._device_idx

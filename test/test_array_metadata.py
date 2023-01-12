@@ -75,7 +75,7 @@ def check_metadata(meta, check_max=False):
 
 def test_metadata_constructor():
     # a scalar shape is converted into a tuple
-    check_metadata(ArrayMetadata(5, numpy.float64), check_max=True)
+    check_metadata(ArrayMetadata([5], numpy.float64), check_max=True)
 
     # strides are created automatically if not provided
     meta = ArrayMetadata((6, 7), numpy.complex128)

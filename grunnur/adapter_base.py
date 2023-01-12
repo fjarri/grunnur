@@ -1,8 +1,16 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Tuple, Mapping, Iterable, Dict
+from typing import Tuple, Mapping, Iterable, Sequence, List, Mapping, TypeVar, Union, Protocol, Optional, runtime_checkable
 
 import numpy
+
+
+@runtime_checkable
+class ArrayMetadataLike(Protocol):
+
+    shape: Tuple[int, ...]
+
+    dtype: numpy.dtype
 
 
 class DeviceType(Enum):
@@ -45,16 +53,16 @@ class APIAdapterFactory(ABC):
     """
     @property
     @abstractmethod
-    def api_id(self):
+    def api_id(self) -> "APIID":
         pass
 
     @property
     @abstractmethod
-    def available(self):
+    def available(self) -> bool:
         pass
 
     @abstractmethod
-    def make_api_adapter(self):
+    def make_api_adapter(self) -> "APIAdapter":
         pass
 
 
@@ -62,32 +70,32 @@ class APIAdapter(ABC):
 
     @property
     @abstractmethod
-    def id(self):
+    def id(self) -> APIID:
         pass
 
     @property
     @abstractmethod
-    def platform_count(self):
+    def platform_count(self) -> int:
         pass
 
     @abstractmethod
-    def get_platform_adapters(self):
+    def get_platform_adapters(self) -> Sequence["PlatformAdapter"]:
         pass
 
     @abstractmethod
-    def isa_backend_device(self, obj):
+    def isa_backend_device(self, obj) -> bool:
         pass
 
     @abstractmethod
-    def isa_backend_context(self, obj):
+    def isa_backend_context(self, obj) -> bool:
         pass
 
     @abstractmethod
-    def make_context_adapter_from_device_adapters(self, device_adapters):
+    def make_context_adapter_from_device_adapters(self, device_adapters: Sequence["DeviceAdapter"]) -> "ContextAdapter":
         pass
 
     @abstractmethod
-    def make_context_adapter_from_backend_contexts(self, backend_contexts, take_ownership):
+    def make_context_adapter_from_backend_contexts(self, backend_contexts, take_ownership: bool) -> "ContextAdapter":
         pass
 
     def __eq__(self, other):
@@ -101,36 +109,36 @@ class PlatformAdapter(ABC):
 
     @property
     @abstractmethod
-    def api_adapter(self):
+    def api_adapter(self) -> APIAdapter:
         pass
 
     @property
     @abstractmethod
-    def platform_idx(self):
+    def platform_idx(self) -> int:
         pass
 
     @property
     @abstractmethod
-    def name(self):
+    def name(self) -> str:
         pass
 
     @property
     @abstractmethod
-    def vendor(self):
+    def vendor(self) -> str:
         pass
 
     @property
     @abstractmethod
-    def version(self):
+    def version(self) -> str:
         pass
 
     @property
     @abstractmethod
-    def device_count(self):
+    def device_count(self) -> int:
         pass
 
     @abstractmethod
-    def get_device_adapters(self):
+    def get_device_adapters(self) -> List["DeviceAdapter"]:
         pass
 
 
@@ -138,22 +146,22 @@ class DeviceAdapter(ABC):
 
     @property
     @abstractmethod
-    def platform_adapter(self):
+    def platform_adapter(self) -> PlatformAdapter:
         pass
 
     @property
     @abstractmethod
-    def device_idx(self):
+    def device_idx(self) -> int:
         pass
 
     @property
     @abstractmethod
-    def name(self):
+    def name(self) -> str:
         pass
 
     @property
     @abstractmethod
-    def params(self):
+    def params(self) -> "DeviceParameters":
         pass
 
 
@@ -244,15 +252,20 @@ class ContextAdapter(ABC):
 
     @property
     @abstractmethod
-    def device_adapters(self) -> Tuple[DeviceAdapter, ...]:
+    def device_adapters(self) -> Mapping[int, DeviceAdapter]:
+        pass
+
+    @property
+    @abstractmethod
+    def device_order(self) -> List[int]:
         pass
 
     @abstractmethod
-    def make_queue_adapter(self, device_idxs):
+    def make_queue_adapter(self, device_idxs: Sequence[int]):
         pass
 
     @abstractmethod
-    def allocate(self, size, device_idx):
+    def allocate(self, size: int, device_idx: int):
         pass
 
     @staticmethod
@@ -274,8 +287,8 @@ class ContextAdapter(ABC):
             src: str,
             keep: bool=False,
             fast_math: bool=False,
-            compiler_options: Iterable[str]=[],
-            constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={}):
+            compiler_options: Optional[Iterable[str]]=None,
+            constant_arrays: Optional[Mapping[str, ArrayMetadataLike]]=None) -> "ProgramAdapter":
         """
         Compiles the given source with the given prelude on a single device.
 
@@ -349,8 +362,24 @@ class ProgramAdapter(ABC):
     def __getattr__(self, kernel_name: str) -> 'KernelAdapter':
         pass
 
+    @abstractmethod
+    def set_constant_buffer(
+            self, queue_adapter: QueueAdapter,
+            name: str, arr: Union[BufferAdapter, numpy.ndarray]):
+        pass
+
+    @property
+    @abstractmethod
+    def source(self) -> str:
+        pass
+
 
 class KernelAdapter(ABC):
+
+    @property
+    @abstractmethod
+    def program_adapter(self) -> ProgramAdapter:
+        pass
 
     @property
     @abstractmethod
@@ -358,7 +387,7 @@ class KernelAdapter(ABC):
         pass
 
     @abstractmethod
-    def prepare(self, global_size: Tuple[int, ...], local_size: Tuple[int, ...]):
+    def prepare(self, global_size: Sequence[int], local_size: Optional[Sequence[int]] = None):
         pass
 
 

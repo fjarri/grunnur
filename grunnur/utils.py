@@ -1,6 +1,6 @@
 import collections
 from functools import reduce
-from typing import Iterable, Optional, Tuple, TypeVar, Type, Sequence, Mapping
+from typing import Any, Iterable, Optional, Tuple, TypeVar, Type, Sequence, Mapping, overload
 import re
 
 
@@ -12,19 +12,6 @@ def all_same(seq: Iterable) -> bool:
 def all_different(seq: Iterable) -> bool:
     seq = list(seq)
     return len(seq) == len(set(seq))
-
-
-def wrap_in_tuple(seq_or_elem) -> Tuple:
-    """
-    If ``seq_or_elem`` is a sequence, converts it to a ``tuple``,
-    otherwise returns a tuple with a single element ``seq_or_elem``.
-    If ``seq_or_elem`` is ``None``, raises ``ValueError``.
-    """
-    if seq_or_elem is None:
-        raise ValueError("The argument must not be None")
-    if isinstance(seq_or_elem, collections.abc.Iterable):
-        return tuple(seq_or_elem)
-    return (seq_or_elem,)
 
 
 def min_blocks(length: int, block: int) -> int:
@@ -92,7 +79,7 @@ def string_matches_masks(
 _T = TypeVar('_T')
 
 
-def normalize_object_sequence(objs, expected_cls: Type[_T]) -> Tuple[_T, ...]:
+def normalize_object_sequence(objs: Sequence[Any], expected_cls: Type[_T]) -> Tuple[_T, ...]:
     """
     For a sequence of objects, or a single object, checks that:
     1) the sequence is non-empty;
@@ -101,9 +88,6 @@ def normalize_object_sequence(objs, expected_cls: Type[_T]) -> Tuple[_T, ...]:
     raising a ``ValueError`` otherwise.
     Returns a tuple of objects (1-tuple, if there was a single object).
     """
-
-    objs = wrap_in_tuple(objs)
-
     if len(objs) == 0:
         raise ValueError("The iterable of base objects for the context cannot be empty")
 
@@ -114,7 +98,7 @@ def normalize_object_sequence(objs, expected_cls: Type[_T]) -> Tuple[_T, ...]:
     if not all(issubclass(tp, expected_cls) for tp in types):
         raise TypeError(f"The iterable must contain only subclasses of {expected_cls}, got {types}")
 
-    return objs
+    return tuple(objs)
 
 
 def max_factor(x: int, y: int) -> int:
@@ -158,8 +142,8 @@ def find_local_size(
 def get_launch_size(
         max_local_sizes: Tuple[int, ...],
         max_total_local_size: int,
-        global_size: Tuple[int, ...],
-        local_size: Optional[Tuple[int, ...]]=None) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+        global_size: Sequence[int],
+        local_size: Optional[Sequence[int]]=None) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     """
     Constructs the grid and block tuples to launch a CUDA kernel
     based on the provided global and local sizes.
@@ -174,11 +158,12 @@ def get_launch_size(
         for gs, ls in zip(global_size, local_size):
             if gs % ls != 0:
                 raise ValueError("Global sizes must be multiples of corresponding local sizes")
+        local_size_tuple = tuple(local_size)
     else:
-        local_size = find_local_size(global_size, max_local_sizes, max_total_local_size)
+        local_size_tuple = find_local_size(global_size, max_local_sizes, max_total_local_size)
 
-    grid_size = tuple(gs // ls for gs, ls in zip(global_size, local_size))
-    return grid_size, local_size
+    grid_size = tuple(gs // ls for gs, ls in zip(global_size, local_size_tuple))
+    return grid_size, local_size_tuple
 
 
 _UPDATE_ERROR_TEMPLATE = "Cannot add an item '{name}' - it already exists in the old dictionary"

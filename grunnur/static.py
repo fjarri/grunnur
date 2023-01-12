@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from typing import Callable, Optional, Union, Dict, Mapping, Tuple, Sequence
+from typing import Any, Callable, Optional, Union, Dict, Mapping, Tuple, Sequence
 
 import numpy
 
+from .adapter_base import ArrayMetadataLike
+from .device import Device
 from .api import cuda_api_id
 from .template import DefTemplate
 from .modules import Snippet
 from .context import Context, BoundDevice, BoundMultiDevice
 from .queue import Queue
 from .array import Array
-from .utils import prod, wrap_in_tuple, update_dict
+from .utils import prod, update_dict
 from .vsize import VirtualSizes, VirtualSizeError
 from .program import (
     SingleDeviceProgram, PreparedKernel, normalize_sizes,
@@ -30,10 +32,10 @@ class StaticKernel:
     to be used instead of regular ones.
     """
 
-    devices: 'grunnur.context.BoundMultiDevice'
+    devices: BoundMultiDevice
     """Devices on which this kernel was compiled."""
 
-    queue: 'Queue'
+    queue: Queue
     """The queue this static kernel was compiled and prepared for."""
 
     sources: Dict[int, str]
@@ -41,14 +43,14 @@ class StaticKernel:
 
     def __init__(
             self,
-            devices: Union['grunnur.context.BoundDevice', 'grunnur.context.BoundMultiDevice'],
-            template_src: Union[str, Callable[..., str], 'DefTemplate', 'Snippet'],
+            devices: Sequence[BoundDevice],
+            template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
             name: str,
-            global_size: Union[int, Sequence[int], Dict[int, Union[int, Sequence[int]]]],
-            local_size: Union[int, Sequence[int], None, Dict[int, Union[int, Sequence[int], None]]]=None,
-            render_args: Sequence=[],
-            render_globals: Dict={},
-            constant_arrays: Mapping[str, Tuple[int, numpy.dtype]]={},
+            global_size: Union[Sequence[int], Mapping[Device, Sequence[int]]],
+            local_size: Union[Sequence[int], None, Mapping[Device, Optional[Sequence[int]]]]=None,
+            render_args: Sequence[Any]=[],
+            render_globals: Mapping[str, Any]={},
+            constant_arrays: Optional[Mapping[str, ArrayMetadataLike]]=None,
             **kwds):
         """
         :param devices: a single- or a multi-device object on which to compile this program.
@@ -60,23 +62,19 @@ class StaticKernel:
         :param constant_arrays: (**CUDA only**) a dictionary ``name: (size, dtype)``
             of global constant arrays to be declared in the program.
         """
-        if isinstance(devices, BoundDevice):
-            devices = BoundMultiDevice.from_bound_devices([devices])
+        multi_device, n_global_size, n_local_size = normalize_sizes(devices, global_size, local_size)
 
-        devices, global_size, local_size = normalize_sizes(devices, global_size, local_size)
-
-        self.devices = devices
+        self.devices = multi_device
 
         kernel_adapters = {}
         sources = {}
         vs_metadata = {}
-        for device in devices:
+        for device in multi_device:
 
             device_params = device.params
 
-            _kernel_ls = local_size[device]
-            kernel_ls = wrap_in_tuple(_kernel_ls) if _kernel_ls is not None else _kernel_ls
-            kernel_gs = wrap_in_tuple(global_size[device])
+            kernel_ls = n_local_size[device]
+            kernel_gs = n_global_size[device]
 
             # Since virtual size function require some registers,
             # they affect the maximum local size.
@@ -144,7 +142,7 @@ class StaticKernel:
         local_sizes = {device: vs.real_local_size for device, vs in self._vs_metadata.items()}
 
         self._prepared_kernel = PreparedKernel(
-            devices, kernel_adapters, global_sizes, local_sizes)
+            multi_device, kernel_adapters, global_sizes, local_sizes)
 
     def __call__(self, queue, *args):
         """
@@ -156,7 +154,7 @@ class StaticKernel:
         """
         return self._prepared_kernel(queue, *args)
 
-    def set_constant_array(self, queue: 'Queue', name: str, arr: Union['Array', numpy.ndarray]):
+    def set_constant_array(self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
         """
         Uploads a constant array to the context's devices (**CUDA only**).
 
@@ -166,4 +164,4 @@ class StaticKernel:
         """
         _check_set_constant_array(queue, self.devices)
         kernel_adapter = self._sd_kernel_adapters[queue.device]
-        _set_constant_array(queue, kernel_adapter._program_adapter, name, arr)
+        _set_constant_array(queue, kernel_adapter.program_adapter, name, arr)
