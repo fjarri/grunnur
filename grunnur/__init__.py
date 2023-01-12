@@ -21,6 +21,7 @@ from .static import StaticKernel
 from .template import Template, DefTemplate, RenderError
 from .modules import Module, Snippet
 from .vsize import VirtualSizeError
+from .virtual_alloc import VirtualManager
 
 
 def __getattr__(name):
