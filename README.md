@@ -1,13 +1,16 @@
 # Grunnur, a base layer for GPGPU
 
-[![Documentation status][docs-image]][docs-link] [![CI status][ci-image]][ci-link] [![Coverage status][cov-image]][cov-link]
+[![pypi package][pypi-image]][pypi-link] ![License][pypi-license-image] [![Docs][rtd-image]][rtd-link] [![Coverage][cov-image]][cov-link] [![Code style: black][black-image]][black-link]
 
-[docs-image]: https://readthedocs.org/projects/grunnur/badge/?version=latest
-[docs-link]: http://grunnur.readthedocs.org/en/latest/?badge=latest
-[ci-image]: https://travis-ci.org/fjarri/grunnur.svg?branch=master
-[ci-link]: https://travis-ci.org/fjarri/grunnur
-[cov-image]: https://coveralls.io/repos/github/fjarri/grunnur/badge.svg?branch=master
-[cov-link]: https://coveralls.io/github/fjarri/grunnur?branch=master
+[pypi-image]: https://img.shields.io/pypi/v/grunnur
+[pypi-link]: https://pypi.org/project/grunnur/
+[pypi-license-image]: https://img.shields.io/pypi/l/grunnur
+[rtd-image]: https://readthedocs.org/projects/grunnur/badge/?version=latest
+[rtd-link]: https://grunnur.readthedocs.io/en/latest/
+[cov-image]: https://codecov.io/gh/fjarri/grunnur/branch/master/graph/badge.svg
+[cov-link]: https://codecov.io/gh/fjarri/grunnur
+[black-image]: https://img.shields.io/badge/code%20style-black-000000.svg
+[black-link]: https://github.com/psf/black
 
 
 # What's with the name?
