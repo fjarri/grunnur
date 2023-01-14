@@ -1,0 +1,52 @@
+[project]
+name = "grunnur"
+version = "0.2"
+description = "Uniform API for PyOpenCL and PyCUDA."
+authors = [
+    {name = "Bogdan Opanchuk", email = "bogdan@opanchuk.net"},
+]
+dependencies = [
+    'numpy>=1.6',
+    'mako>=1',
+]
+requires-python = ">=3.8"
+license = "MIT"
+readme = "README.md"
+
+[project.urls]
+homepage = "https://github.com/fjarri/grunnur"
+
+[project.optional-dependencies]
+pyopencl = [
+    "pyopencl>=2019.1.1",
+]
+pycuda = [
+    "pycuda>=2019.1.1",
+]
+tests = [
+    "pytest>=6",
+    "pytest-cov",
+]
+docs = [
+    "sphinx>=4",
+    "furo",
+]
+lint = [
+    "mypy>=0.941",
+    "black",
+]
+
+[project.entry-points.pytest11]
+grunnur = "grunnur.pytest_plugin"
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+
+[tool]
+[tool.pdm]
+[tool.pdm.dev-dependencies]
+
+[build-system]
+requires = ["pdm-pep517"]
+build-backend = "pdm.pep517.api"
