@@ -32,7 +32,7 @@ jobs:
     # py-solc-x can do it too, but let's use standard system tools
     - name: Test with pytest
       run: |
-        pdm run py.test --cov=grunnur --cov-report=xml tests
+        pdm run py.test --cov=grunnur --cov-report=xml test
     - name: Upload coverage
       if: matrix.python-version == '3.10'
       run: |
