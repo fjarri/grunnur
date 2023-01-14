@@ -61,4 +61,4 @@ jobs:
     # py-solc-x can do it too, but let's use standard system tools
     - name: Doctests with sphinx
       run: |
-        pdm run sphinx-build -n docs/source build/sphinx -b doctest
+        pdm run sphinx-build -n doc build/sphinx -b doctest
