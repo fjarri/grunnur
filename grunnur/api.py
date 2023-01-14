@@ -22,11 +22,12 @@ def opencl_api_id() -> APIID:
 
 
 _ALL_API_ADAPTER_FACTORIES = {
-    factory.api_id: factory for factory in [
+    factory.api_id: factory
+    for factory in [
         CuAPIAdapterFactory(),
         OclAPIAdapterFactory(),
-        ]
-    }
+    ]
+}
 
 
 def all_api_ids() -> List[APIID]:
@@ -52,7 +53,7 @@ class API:
     """
 
     @classmethod
-    def all_available(cls) -> List['API']:
+    def all_available(cls) -> List["API"]:
         """
         Returns a list of :py:class:`~grunnur.API` objects
         for which backends are available.
@@ -60,10 +61,11 @@ class API:
         return [
             cls.from_api_id(api_id)
             for api_id, api_factory in _ALL_API_ADAPTER_FACTORIES.items()
-            if api_factory.available]
+            if api_factory.available
+        ]
 
     @classmethod
-    def all_by_shortcut(cls, shortcut: Optional[str]=None) -> List['API']:
+    def all_by_shortcut(cls, shortcut: Optional[str] = None) -> List["API"]:
         """
         If ``shortcut`` is a string, returns a list of one :py:class:`~grunnur.API` object
         whose :py:attr:`~API.id` attribute has its
@@ -89,7 +91,7 @@ class API:
         return apis
 
     @classmethod
-    def from_api_id(cls, api_id: APIID) -> 'API':
+    def from_api_id(cls, api_id: APIID) -> "API":
         """
         Creates an :py:class:`~grunnur.API` object out of an identifier.
 
@@ -104,12 +106,13 @@ class API:
         self.shortcut = self.id.shortcut
 
     @property
-    def platforms(self) -> List['Platform']:
+    def platforms(self) -> List["Platform"]:
         """platforms(self) -> List[grunnur.Platform]
 
         A list of this API's :py:class:`Platform` objects.
         """
-        from .platform import Platform # avoiding circular imports
+        from .platform import Platform  # avoiding circular imports
+
         return Platform.all(self)
 
     def __eq__(self, other):

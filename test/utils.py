@@ -19,7 +19,7 @@ def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=No
         if dtypes.is_integer(dtype):
             low = 1 if no_zeros else 0
             if high is None:
-                high = 100 # will work even with signed chars
+                high = 100  # will work even with signed chars
             get_arr = lambda: numpy.random.randint(low, high, shape).astype(dtype)
         else:
             low = 0.01 if no_zeros else 0
@@ -38,7 +38,9 @@ def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=No
     return result
 
 
-def check_select_devices(mock_stdin, mock_backend_factory, capsys, platforms_devices, inputs=None, **kwds):
+def check_select_devices(
+    mock_stdin, mock_backend_factory, capsys, platforms_devices, inputs=None, **kwds
+):
 
     # CUDA API has a single fixed platform, so using the OpenCL one
     backend = mock_backend_factory.mock_pyopencl()

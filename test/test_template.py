@@ -16,15 +16,15 @@ def test_extract_def_source():
         </%def>
     """
 
-    def_src = _extract_def_source(src, 'add')
+    def_src = _extract_def_source(src, "add")
     template = MakoTemplate(def_src)
-    assert 'add' in template.list_defs()
-    assert 'sub' not in template.list_defs()
+    assert "add" in template.list_defs()
+    assert "sub" not in template.list_defs()
 
-    def_src = _extract_def_source(src, 'sub')
+    def_src = _extract_def_source(src, "sub")
     template = MakoTemplate(def_src)
-    assert 'sub' in template.list_defs()
-    assert 'add' not in template.list_defs()
+    assert "sub" in template.list_defs()
+    assert "add" not in template.list_defs()
 
 
 def test_extract_def_source_missing_def():
@@ -42,7 +42,7 @@ def test_extract_def_source_missing_def():
     # So to model the situtation I'm just trying to find a non-existent def.
 
     with pytest.warns(SyntaxWarning):
-        def_src = _extract_def_source(src, 'sub')
+        def_src = _extract_def_source(src, "sub")
     assert def_src == src
 
 
@@ -79,8 +79,8 @@ def test_template_caching():
         </%def>
         """
     template = Template.from_string(src)
-    def1 = template.get_def('test')
-    def2 = template.get_def('test')
+    def1 = template.get_def("test")
+    def2 = template.get_def("test")
     assert def1 is def2
 
 
@@ -90,7 +90,7 @@ def test_def_template_from_callable():
 
 
 def test_def_template_from_string():
-    template = DefTemplate.from_string("test", ['x', 'y'], "${x} + ${y}")
+    template = DefTemplate.from_string("test", ["x", "y"], "${x} + ${y}")
     assert template.render(1, 2).strip() == "1 + 2"
 
 
@@ -123,7 +123,7 @@ def test_template_builtins():
     template = DefTemplate.from_callable("test", lambda numpy_ref: "${numpy == numpy_ref}")
     assert template.render(numpy).strip() == "True"
 
-    template = DefTemplate.from_string("test", ['numpy_ref'], "${numpy == numpy_ref}")
+    template = DefTemplate.from_string("test", ["numpy_ref"], "${numpy == numpy_ref}")
     assert template.render(numpy).strip() == "True"
 
     template = Template.from_string('<%def name="test(numpy_ref)">${numpy == numpy_ref}</%def>')

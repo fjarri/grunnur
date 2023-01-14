@@ -6,14 +6,23 @@ import numpy
 import pytest
 
 from grunnur import (
-    cuda_api_id, opencl_api_id, cuda_api_id,
-    Program, Queue, MultiQueue, Array, MultiArray, CompilationError, StaticKernel, API, Context,
-    )
+    cuda_api_id,
+    opencl_api_id,
+    cuda_api_id,
+    Program,
+    Queue,
+    MultiQueue,
+    Array,
+    MultiArray,
+    CompilationError,
+    StaticKernel,
+    API,
+    Context,
+)
 from grunnur.template import Template, DefTemplate
 
 from .mock_base import MockKernel, MockDefTemplate
 from .mock_pycuda import PyCUDADeviceInfo
-
 
 
 SRC_OPENCL = """
@@ -41,13 +50,13 @@ KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b,
 """
 
 
-@pytest.mark.parametrize('no_prelude', [False, True], ids=["with_prelude", "no_prelude"])
+@pytest.mark.parametrize("no_prelude", [False, True], ids=["with_prelude", "no_prelude"])
 def test_compile(mock_or_real_context, no_prelude):
 
     context, mocked = mock_or_real_context
 
     if mocked:
-        src = MockDefTemplate(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
+        src = MockDefTemplate(kernels=[MockKernel("multiply", [None, None, None, numpy.int32])])
     else:
         if no_prelude:
             src = SRC_CUDA if context.api.id == cuda_api_id() else SRC_OPENCL
@@ -81,7 +90,7 @@ def test_compile(mock_or_real_context, no_prelude):
         assert (res == ref).all()
 
     # Explicit local_size
-    res2_dev = Array.from_host(queue, a) # Array.empty(queue, length, numpy.int32)
+    res2_dev = Array.from_host(queue, a)  # Array.empty(queue, length, numpy.int32)
     program.kernel.multiply(queue, [length], [length // 2], res2_dev, a_dev, b_dev, c)
     res2 = res2_dev.get(queue)
     if not mocked:
@@ -94,7 +103,7 @@ def test_compile_multi_device(mock_or_real_multi_device_context):
     devices = context.devices[[1, 0]]
 
     if mocked:
-        src = MockDefTemplate(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
+        src = MockDefTemplate(kernels=[MockKernel("multiply", [None, None, None, numpy.int32])])
     else:
         src = SRC_GENERIC
 
@@ -120,8 +129,14 @@ def test_compile_multi_device(mock_or_real_multi_device_context):
     # Test argument unpacking from dictionaries
     res_dev = MultiArray.empty(devices, [length], numpy.int32)
     program.kernel.multiply(
-        mqueue, a_dev.shapes, {device: None for device in devices},
-        res_dev, a_dev.subarrays, b_dev, c)
+        mqueue,
+        a_dev.shapes,
+        {device: None for device in devices},
+        res_dev,
+        a_dev.subarrays,
+        b_dev,
+        c,
+    )
     res = res_dev.get(mqueue)
     if not mocked:
         assert (res == ref).all()
@@ -129,12 +144,13 @@ def test_compile_multi_device(mock_or_real_multi_device_context):
 
 def test_mismatched_devices(mock_4_device_context):
     context = mock_4_device_context
-    src = MockDefTemplate(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
+    src = MockDefTemplate(kernels=[MockKernel("multiply", [None, None, None, numpy.int32])])
     program = Program(context.devices, src)
     with pytest.raises(ValueError, match="Mismatched device sets for global and local sizes"):
         program.kernel.multiply.prepare(
             {context.devices[0]: [10], context.devices[2]: [20]},
-            {context.devices[0]: None, context.devices[1]: None})
+            {context.devices[0]: None, context.devices[1]: None},
+        )
 
 
 SRC_CONSTANT_MEM = """
@@ -178,15 +194,18 @@ def _test_constant_memory(context, mocked, is_static):
 
     if mocked:
         kernel = MockKernel(
-            'copy_from_cm',
+            "copy_from_cm",
             [None] if context.api.id == cuda_api_id() else [None, None, None, None],
-            max_total_local_sizes={0: 1024})
+            max_total_local_sizes={0: 1024},
+        )
         src = MockDefTemplate(
             constant_mem={
-                'cm1': cm1.size * cm1.dtype.itemsize,
-                'cm2': cm2.size * cm2.dtype.itemsize,
-                'cm3': cm3.size * cm3.dtype.itemsize},
-            kernels=[kernel])
+                "cm1": cm1.size * cm1.dtype.itemsize,
+                "cm2": cm2.size * cm2.dtype.itemsize,
+                "cm3": cm3.size * cm3.dtype.itemsize,
+            },
+            kernels=[kernel],
+        )
     else:
         src = SRC_CONSTANT_MEM_STATIC if is_static else SRC_CONSTANT_MEM
 
@@ -204,33 +223,44 @@ def _test_constant_memory(context, mocked, is_static):
     if context.api.id == cuda_api_id():
 
         # Use different forms of constant array representation
-        constant_arrays=dict(
-            cm1=cm1, # as an array(-like) object
-            cm2=Metadata(cm2.shape, cm2.dtype), # as a metadata-like
-            cm3=cm3_dev) # as a device array
+        constant_arrays = dict(
+            cm1=cm1,  # as an array(-like) object
+            cm2=Metadata(cm2.shape, cm2.dtype),  # as a metadata-like
+            cm3=cm3_dev,
+        )  # as a device array
 
         if is_static:
             copy_from_cm = StaticKernel(
-                [context.device], src, 'copy_from_cm',
-                global_size=[16], constant_arrays=constant_arrays)
-            copy_from_cm.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
-            copy_from_cm.set_constant_array(queue, 'cm2', cm2) # setting from a host array
-            copy_from_cm.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
+                [context.device],
+                src,
+                "copy_from_cm",
+                global_size=[16],
+                constant_arrays=constant_arrays,
+            )
+            copy_from_cm.set_constant_array(queue, "cm1", cm1_dev)  # setting from a device array
+            copy_from_cm.set_constant_array(queue, "cm2", cm2)  # setting from a host array
+            copy_from_cm.set_constant_array(
+                queue, "cm3", cm3_dev.data
+            )  # setting from a host buffer
         else:
             program = Program([context.device], src, constant_arrays=constant_arrays)
-            program.set_constant_array(queue, 'cm1', cm1_dev) # setting from a device array
-            program.set_constant_array(queue, 'cm2', cm2) # setting from a host array
-            program.set_constant_array(queue, 'cm3', cm3_dev.data) # setting from a host buffer
-            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, [16], None, *args)
+            program.set_constant_array(queue, "cm1", cm1_dev)  # setting from a device array
+            program.set_constant_array(queue, "cm2", cm2)  # setting from a host array
+            program.set_constant_array(queue, "cm3", cm3_dev.data)  # setting from a host buffer
+            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(
+                queue, [16], None, *args
+            )
 
         copy_from_cm(queue, res_dev)
     else:
 
         if is_static:
-            copy_from_cm = StaticKernel([context.device], src, 'copy_from_cm', global_size=[16])
+            copy_from_cm = StaticKernel([context.device], src, "copy_from_cm", global_size=[16])
         else:
             program = Program([context.device], src)
-            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(queue, [16], None, *args)
+            copy_from_cm = lambda queue, *args: program.kernel.copy_from_cm(
+                queue, [16], None, *args
+            )
 
         copy_from_cm(queue, res_dev, cm1_dev, cm2_dev, cm3_dev)
 
@@ -284,19 +314,19 @@ def test_keep(mock_or_real_context, capsys):
     context, mocked = mock_or_real_context
 
     if mocked:
-        src = MockDefTemplate(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
+        src = MockDefTemplate(kernels=[MockKernel("multiply", [None, None, None, numpy.int32])])
     else:
         src = SRC_GENERIC
 
     program = Program([context.device], src, keep=True)
     captured = capsys.readouterr()
-    path = re.match(r'\*\*\* compiler output in (.*)', captured.out).group(1)
+    path = re.match(r"\*\*\* compiler output in (.*)", captured.out).group(1)
     assert os.path.isdir(path)
 
     if context.api.id == opencl_api_id():
-        srcfile = os.path.join(path, 'kernel.cl')
+        srcfile = os.path.join(path, "kernel.cl")
     elif context.api.id == cuda_api_id():
-        srcfile = os.path.join(path, 'kernel.cu')
+        srcfile = os.path.join(path, "kernel.cu")
 
     with open(srcfile) as f:
         source = f.read()
@@ -306,7 +336,7 @@ def test_keep(mock_or_real_context, capsys):
 
 def test_compiler_options(mock_context):
 
-    src = MockDefTemplate(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
+    src = MockDefTemplate(kernels=[MockKernel("multiply", [None, None, None, numpy.int32])])
     program = Program([mock_context.device], src, compiler_options=["--my_option"])
 
     adapter = program._sd_programs[mock_context.device]._sd_program_adapter
@@ -318,7 +348,7 @@ def test_compiler_options(mock_context):
 
 
 def test_wrong_device_idxs(mock_4_device_context):
-    src = MockDefTemplate(kernels=[MockKernel('multiply', [None])])
+    src = MockDefTemplate(kernels=[MockKernel("multiply", [None])])
 
     context = mock_4_device_context
     program = Program(context.devices[[0, 1]], src)
@@ -332,9 +362,9 @@ def test_wrong_device_idxs(mock_4_device_context):
 
 def test_wrong_context(mock_backend):
 
-    mock_backend.add_devices(['Device0'])
+    mock_backend.add_devices(["Device0"])
 
-    src = MockDefTemplate(kernels=[MockKernel('multiply', [None])])
+    src = MockDefTemplate(kernels=[MockKernel("multiply", [None])])
 
     api = API.from_api_id(mock_backend.api_id)
     context = Context.from_devices([api.platforms[0].devices[0]])
@@ -345,7 +375,9 @@ def test_wrong_context(mock_backend):
     program = Program([context.device], src)
     queue = Queue(context2.device)
 
-    with pytest.raises(ValueError, match="The provided queue must belong to the same context this program uses"):
+    with pytest.raises(
+        ValueError, match="The provided queue must belong to the same context this program uses"
+    ):
         program.kernel.multiply(queue, [8], None, res_dev)
 
     # If we don't do anything here, contexts may be deactivated in an incorrect order
@@ -369,26 +401,28 @@ def test_set_constant_array_errors(mock_4_device_context):
         other_context.deactivate()
 
     cm1 = numpy.arange(16).astype(numpy.int32)
-    src = MockDefTemplate(kernels=[
-        MockKernel(
-            'kernel', [],
-            max_total_local_sizes={0: 1024, 1: 1024, 2: 1024, 3: 1024})],
-            constant_mem={'cm1': cm1.size * cm1.dtype.itemsize})
+    src = MockDefTemplate(
+        kernels=[
+            MockKernel("kernel", [], max_total_local_sizes={0: 1024, 1: 1024, 2: 1024, 3: 1024})
+        ],
+        constant_mem={"cm1": cm1.size * cm1.dtype.itemsize},
+    )
     queue = Queue(context.devices[0])
 
     if context.api.id == cuda_api_id():
         program = Program(context.devices, src, constant_arrays=dict(cm1=cm1))
 
         with pytest.raises(
-                ValueError,
-                match="The provided queue must belong to the same context as this program uses"):
-            program.set_constant_array(other_queue, 'cm1', cm1)
+            ValueError,
+            match="The provided queue must belong to the same context as this program uses",
+        ):
+            program.set_constant_array(other_queue, "cm1", cm1)
 
         with pytest.raises(TypeError, match="Unsupported array type"):
-            program.set_constant_array(queue, 'cm1', [1])
+            program.set_constant_array(queue, "cm1", [1])
 
         with pytest.raises(ValueError, match="Incorrect size of the constant buffer;"):
-            program.set_constant_array(queue, 'cm1', cm1[:8])
+            program.set_constant_array(queue, "cm1", cm1[:8])
 
         with pytest.raises(TypeError, match="Unknown constant array metadata type"):
             program = Program(context.devices[[0, 1, 2]], src, constant_arrays=dict(cm1=1))
@@ -397,24 +431,32 @@ def test_set_constant_array_errors(mock_4_device_context):
         queue3 = Queue(context.devices[3])
 
         with pytest.raises(
-                ValueError,
-                match="The program was not compiled for the device this queue uses"):
-            program.set_constant_array(queue3, 'cm1', cm1)
+            ValueError, match="The program was not compiled for the device this queue uses"
+        ):
+            program.set_constant_array(queue3, "cm1", cm1)
 
     else:
-        with pytest.raises(ValueError, match="Compile-time constant arrays are only supported for CUDA API"):
+        with pytest.raises(
+            ValueError, match="Compile-time constant arrays are only supported for CUDA API"
+        ):
             program = Program(context.devices, src, constant_arrays=dict(cm1=cm1))
 
         program = Program(context.devices, src)
-        with pytest.raises(RuntimeError, match="OpenCL does not allow setting constant arrays externally"):
-            program.set_constant_array(queue, 'cm1', cm1)
+        with pytest.raises(
+            RuntimeError, match="OpenCL does not allow setting constant arrays externally"
+        ):
+            program.set_constant_array(queue, "cm1", cm1)
 
-        with pytest.raises(ValueError, match="Compile-time constant arrays are only supported for CUDA API"):
-            sk = StaticKernel(context.devices, src, 'kernel', [1024], constant_arrays=dict(cm1=cm1))
+        with pytest.raises(
+            ValueError, match="Compile-time constant arrays are only supported for CUDA API"
+        ):
+            sk = StaticKernel(context.devices, src, "kernel", [1024], constant_arrays=dict(cm1=cm1))
 
-        sk = StaticKernel(context.devices, src, 'kernel', [1024])
-        with pytest.raises(RuntimeError, match="OpenCL does not allow setting constant arrays externally"):
-            sk.set_constant_array(queue, 'cm1', cm1)
+        sk = StaticKernel(context.devices, src, "kernel", [1024])
+        with pytest.raises(
+            RuntimeError, match="OpenCL does not allow setting constant arrays externally"
+        ):
+            sk.set_constant_array(queue, "cm1", cm1)
 
 
 def test_max_total_local_sizes(mock_backend):
@@ -424,43 +466,51 @@ def test_max_total_local_sizes(mock_backend):
 
     # Providing max_total_local_sizes for all possible devices to make sure
     # only the ones corresponding to the context will get picked up
-    kernel = MockKernel('test', max_total_local_sizes={0: 64, 1: 1024, 2: 512, 3: 128})
+    kernel = MockKernel("test", max_total_local_sizes={0: 64, 1: 1024, 2: 512, 3: 128})
 
     src = MockDefTemplate(kernels=[kernel])
     program = Program(context.devices, src)
 
     # The indices here correspond to the devices in the context, not in the platform
-    assert program.kernel.test.max_total_local_sizes == {context.devices[0]: 1024, context.devices[1]: 512}
+    assert program.kernel.test.max_total_local_sizes == {
+        context.devices[0]: 1024,
+        context.devices[1]: 512,
+    }
 
 
 def test_cannot_override_builtin_globals(mock_context):
-    with pytest.raises(ValueError, match="'device_params' is a reserved global name and cannot be used"):
+    with pytest.raises(
+        ValueError, match="'device_params' is a reserved global name and cannot be used"
+    ):
         Program(
             [mock_context.device],
-            MockDefTemplate(kernels=[MockKernel('test', [None])]),
-            render_globals=dict(device_params=None))
+            MockDefTemplate(kernels=[MockKernel("test", [None])]),
+            render_globals=dict(device_params=None),
+        )
 
 
 def test_builtin_globals(mock_backend_pycuda):
-    mock_backend_pycuda.add_devices([
-        PyCUDADeviceInfo(max_threads_per_block=1024),
-        PyCUDADeviceInfo(max_threads_per_block=512)])
+    mock_backend_pycuda.add_devices(
+        [PyCUDADeviceInfo(max_threads_per_block=1024), PyCUDADeviceInfo(max_threads_per_block=512)]
+    )
 
     source_template = DefTemplate.from_string(
-        'mock_source', [],
+        "mock_source",
+        [],
         """
         KERNEL void test()
         {
             int max_total_local_size = ${device_params.max_total_local_size};
         }
-        """)
+        """,
+    )
 
     api = API.from_api_id(mock_backend_pycuda.api_id)
     context = Context.from_devices([api.platforms[0].devices[0], api.platforms[0].devices[1]])
 
-    src = MockDefTemplate(kernels=[MockKernel('test', [None])], source_template=source_template)
+    src = MockDefTemplate(kernels=[MockKernel("test", [None])], source_template=source_template)
 
     program = Program(context.devices, src)
 
-    assert 'max_total_local_size = 1024' in program.sources[context.devices[0]].source
-    assert 'max_total_local_size = 512' in program.sources[context.devices[1]].source
+    assert "max_total_local_size = 1024" in program.sources[context.devices[0]].source
+    assert "max_total_local_size = 512" in program.sources[context.devices[1]].source

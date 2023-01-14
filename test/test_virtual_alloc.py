@@ -35,7 +35,7 @@ def allocate_test_set(virtual_alloc, allocate_callable):
         (7, 10, [2, 5]),
         (8, 5, [1, 6]),
         (9, 20, [2, 4, 8]),
-        ]
+    ]
 
     buffers = {}
     for name, size, deps in buffers_metadata:
@@ -45,7 +45,7 @@ def allocate_test_set(virtual_alloc, allocate_callable):
     return buffers_metadata, buffers
 
 
-@pytest.mark.parametrize('pack', [False, True], ids=['no_pack', 'pack'])
+@pytest.mark.parametrize("pack", [False, True], ids=["no_pack", "pack"])
 def test_contract(context, valloc_cls, pack):
 
     dtype = numpy.int32
@@ -59,7 +59,8 @@ def test_contract(context, valloc_cls, pack):
             dest[i] = val;
         }
         """,
-        render_globals=dict(ctype=dtypes.ctype(dtype)))
+        render_globals=dict(ctype=dtypes.ctype(dtype)),
+    )
     fill = program.kernel.fill
 
     queue = Queue(context.device)
@@ -68,7 +69,10 @@ def test_contract(context, valloc_cls, pack):
     buffers_metadata, arrays = allocate_test_set(
         virtual_alloc,
         # Bump size to make sure buffer alignment doesn't hide any out-of-bounds access
-        lambda allocator, size: Array.empty(context.device, [size * 100], dtype, allocator=allocator))
+        lambda allocator, size: Array.empty(
+            context.device, [size * 100], dtype, allocator=allocator
+        ),
+    )
     dependencies = {id_: deps for id_, _, deps in buffers_metadata}
 
     if pack:
@@ -88,7 +92,7 @@ def test_contract(context, valloc_cls, pack):
             assert (arrays[dep].get(queue) != val).all()
 
 
-@pytest.mark.parametrize('pack', [False, True], ids=['no_pack', 'pack'])
+@pytest.mark.parametrize("pack", [False, True], ids=["no_pack", "pack"])
 def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, pack):
 
     # Using PyCUDA backend here because it tracks the allocations.
@@ -98,7 +102,8 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
     virtual_alloc = valloc_cls(context.device)
 
     buffers_metadata, buffers = allocate_test_set(
-        virtual_alloc, lambda allocator, size: allocator(context.device, size))
+        virtual_alloc, lambda allocator, size: allocator(context.device, size)
+    )
 
     for name, size, deps in buffers_metadata:
         # Virtual buffer size should be exactly as requested
@@ -138,12 +143,18 @@ def test_extract_dependencies(mock_context):
 
     assert extract_dependencies(vbuf) == {vbuf._buffer_adapter._id}
     assert extract_dependencies(varr) == {varr.data._buffer_adapter._id}
-    assert extract_dependencies([vbuf, varr]) == {vbuf._buffer_adapter._id, varr.data._buffer_adapter._id}
+    assert extract_dependencies([vbuf, varr]) == {
+        vbuf._buffer_adapter._id,
+        varr.data._buffer_adapter._id,
+    }
 
     class DependencyHolder:
         __virtual_allocations__ = [vbuf, varr]
 
-    assert extract_dependencies(DependencyHolder()) == {vbuf._buffer_adapter._id, varr.data._buffer_adapter._id}
+    assert extract_dependencies(DependencyHolder()) == {
+        vbuf._buffer_adapter._id,
+        varr.data._buffer_adapter._id,
+    }
 
     # An object not having any dependencies
     assert extract_dependencies(123) == set()
@@ -166,7 +177,8 @@ def test_statistics(mock_context, valloc_cls):
     virtual_alloc = valloc_cls(context.device)
 
     buffers_metadata, buffers = allocate_test_set(
-        virtual_alloc, lambda allocator, size: allocator(context.device, size))
+        virtual_alloc, lambda allocator, size: allocator(context.device, size)
+    )
 
     stats = virtual_alloc.statistics()
     check_statistics(buffers_metadata, stats)

@@ -28,7 +28,7 @@ def test_insert():
 
     # Check that if there are several elements with the same key,
     # the new item is inserted on the left.
-    s = SortedList([2, 4, 6, 1, 5, 9], key=lambda x: x//2)
+    s = SortedList([2, 4, 6, 1, 5, 9], key=lambda x: x // 2)
     s.insert(5)
     assert list(s) == [1, 2, 5, 4, 5, 6, 9]
 

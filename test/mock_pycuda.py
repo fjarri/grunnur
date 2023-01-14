@@ -14,7 +14,6 @@ from .mock_base import MockSource
 
 
 class MockPyCUDA:
-
     def __init__(self, cuda_version=(10, 0, 0)):
         self.pycuda_driver = Mock_pycuda_driver(self, cuda_version)
         self.pycuda_compiler = Mock_pycuda_compiler(self)
@@ -73,11 +72,11 @@ class MockPyCUDA:
 
     def get_allocation_buffer(self, idx, offset, region_size):
         size, context, buf = self._allocations[idx]
-        return buf[offset:offset+region_size]
+        return buf[offset : offset + region_size]
 
     def set_allocation_buffer(self, idx, offset, data):
         size, context, buf = self._allocations[idx]
-        self._allocations[idx] = size, context, buf[:offset] + data + buf[offset+len(data):]
+        self._allocations[idx] = size, context, buf[:offset] + data + buf[offset + len(data) :]
 
     def allocation_count(self):
         return len(self._allocations)
@@ -105,8 +104,7 @@ class PycudaCompileError(Exception):
     pass
 
 
-class Mock_pycuda_compiler():
-
+class Mock_pycuda_compiler:
     def __init__(self, backend):
         self.SourceModule = make_source_module_class(backend)
 
@@ -140,7 +138,7 @@ def make_source_module_class(backend):
             # See the note in compile_single_device(). Apparently that's how PyCUDA operates.
             if keep and cache_dir is not None:
                 temp_dir = mkdtemp()
-                with open(os.path.join(temp_dir, 'kernel.cu'), 'w') as f:
+                with open(os.path.join(temp_dir, "kernel.cu"), "w") as f:
                     f.write(str(src))
                 print(f"*** compiler output in {temp_dir}")
 
@@ -155,7 +153,6 @@ def make_source_module_class(backend):
             alloc = self._backend_ref().pycuda_driver.DeviceAllocation._allocate(size)
             return alloc, size
 
-
     return SourceModule
 
 
@@ -168,7 +165,6 @@ class FunctionAttribute(Enum):
 
 
 class Mock_pycuda_driver:
-
     def __init__(self, backend, cuda_version):
 
         self._backend_ref = weakref.ref(backend)
@@ -236,21 +232,21 @@ class Mock_pycuda_driver:
 
 
 class PyCUDADeviceInfo:
-
     def __init__(
-            self,
-            name="DefaultDeviceName",
-            max_threads_per_block=1024,
-            max_block_dim_x=1024,
-            max_block_dim_y=1024,
-            max_block_dim_z=64,
-            max_grid_dim_x=2**32-1,
-            max_grid_dim_y=2**32-1,
-            max_grid_dim_z=65536,
-            warp_size=32,
-            max_shared_memory_per_block=64*1024,
-            multiprocessor_count=8,
-            compute_capability=5):
+        self,
+        name="DefaultDeviceName",
+        max_threads_per_block=1024,
+        max_block_dim_x=1024,
+        max_block_dim_y=1024,
+        max_block_dim_z=64,
+        max_grid_dim_x=2**32 - 1,
+        max_grid_dim_y=2**32 - 1,
+        max_grid_dim_z=65536,
+        warp_size=32,
+        max_shared_memory_per_block=64 * 1024,
+        multiprocessor_count=8,
+        compute_capability=5,
+    ):
         self.name = name
         self.max_threads_per_block = max_threads_per_block
         self.max_block_dim_x = max_block_dim_x
@@ -326,7 +322,6 @@ def make_device_class(backend):
 
 @lru_cache()
 def make_context_class(backend):
-
     class Context:
 
         # Since we need the backend in __del__(),
@@ -372,7 +367,6 @@ def make_stream_class(backend):
 
         def synchronize(self):
             assert self._context == self._backend_ref().current_context()
-
 
     return Stream
 
@@ -442,7 +436,6 @@ def make_device_allocation_class(backend):
             # Backend is held alive by the context object we reference.
             if self._owns_buffer:
                 self._backend_ref().free_allocation(self._idx)
-
 
     return DeviceAllocation
 

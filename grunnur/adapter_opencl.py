@@ -5,27 +5,38 @@ from typing import Iterable, Tuple, Mapping, List, Sequence, Optional, Union
 import numpy
 
 # Skipping coverage count - can't test properly
-try: # pragma: no cover
+try:  # pragma: no cover
     import pyopencl
-except ImportError: # pragma: no cover
+except ImportError:  # pragma: no cover
     pyopencl = None
 
 from .utils import normalize_object_sequence
 from .template import Template
 from . import dtypes
 from .adapter_base import (
-    DeviceType, APIID, APIAdapterFactory, APIAdapter, PlatformAdapter, DeviceAdapter,
-    DeviceParameters, ContextAdapter, BufferAdapter, QueueAdapter, ProgramAdapter, KernelAdapter,
-    AdapterCompilationError, PreparedKernelAdapter)
+    DeviceType,
+    APIID,
+    APIAdapterFactory,
+    APIAdapter,
+    PlatformAdapter,
+    DeviceAdapter,
+    DeviceParameters,
+    ContextAdapter,
+    BufferAdapter,
+    QueueAdapter,
+    ProgramAdapter,
+    KernelAdapter,
+    AdapterCompilationError,
+    PreparedKernelAdapter,
+)
 
 
-_API_ID = APIID('opencl')
+_API_ID = APIID("opencl")
 _TEMPLATE = Template.from_associated_file(__file__)
-_PRELUDE = _TEMPLATE.get_def('prelude')
+_PRELUDE = _TEMPLATE.get_def("prelude")
 
 
 class OclAPIAdapterFactory(APIAdapterFactory):
-
     @property
     def api_id(self) -> APIID:
         return _API_ID
@@ -37,13 +48,13 @@ class OclAPIAdapterFactory(APIAdapterFactory):
     def make_api_adapter(self) -> "OclAPIAdapter":
         if not self.available:
             raise ImportError(
-                "OpenCL API is not operational. Check if PyOpenCL is installed correctly.")
+                "OpenCL API is not operational. Check if PyOpenCL is installed correctly."
+            )
 
         return OclAPIAdapter()
 
 
 class OclAPIAdapter(APIAdapter):
-
     @property
     def id(self) -> APIID:
         return _API_ID
@@ -55,7 +66,8 @@ class OclAPIAdapter(APIAdapter):
     def get_platform_adapters(self) -> Sequence["OclPlatformAdapter"]:
         return [
             OclPlatformAdapter(self, platform, platform_idx)
-            for platform_idx, platform in enumerate(pyopencl.get_platforms())]
+            for platform_idx, platform in enumerate(pyopencl.get_platforms())
+        ]
 
     def isa_backend_device(self, obj) -> bool:
         return isinstance(obj, pyopencl.Device)
@@ -75,16 +87,17 @@ class OclAPIAdapter(APIAdapter):
     def make_context_adapter_from_device_adapters(self, device_adapters) -> "OclContextAdapter":
         return OclContextAdapter.from_device_adapters(device_adapters)
 
-    def make_context_adapter_from_backend_contexts(self, pyopencl_contexts, take_ownership: bool) -> "OclContextAdapter":
+    def make_context_adapter_from_backend_contexts(
+        self, pyopencl_contexts, take_ownership: bool
+    ) -> "OclContextAdapter":
         if len(pyopencl_contexts) > 1:
             raise ValueError("Cannot make one OpenCL context out of several contexts")
         return OclContextAdapter.from_pyopencl_context(pyopencl_contexts[0])
 
 
 class OclPlatformAdapter(PlatformAdapter):
-
     @classmethod
-    def from_pyopencl_platform(cls, pyopencl_platform: 'pyopencl.Platform'):
+    def from_pyopencl_platform(cls, pyopencl_platform: "pyopencl.Platform"):
         """
         Creates this object from a PyOpenCL ``Platform`` object.
         """
@@ -96,7 +109,8 @@ class OclPlatformAdapter(PlatformAdapter):
 
         # Sanity check, should not be reachable as long as `pyopencl` is consistent.
         raise RuntimeError(
-            f"{pyopencl_platform} was not found among OpenCL platforms") # pragma: no cover
+            f"{pyopencl_platform} was not found among OpenCL platforms"
+        )  # pragma: no cover
 
     def __init__(self, api_adapter: APIAdapter, pyopencl_platform, platform_idx: int):
         self._api_adapter = api_adapter
@@ -136,13 +150,13 @@ class OclPlatformAdapter(PlatformAdapter):
     def get_device_adapters(self):
         return [
             OclDeviceAdapter(self, device, device_idx)
-            for device_idx, device in enumerate(self.pyopencl_platform.get_devices())]
+            for device_idx, device in enumerate(self.pyopencl_platform.get_devices())
+        ]
 
 
 class OclDeviceAdapter(DeviceAdapter):
-
     @classmethod
-    def from_pyopencl_device(cls, pyopencl_device: 'pyopencl.Device') -> 'OclDeviceAdapter':
+    def from_pyopencl_device(cls, pyopencl_device: "pyopencl.Device") -> "OclDeviceAdapter":
         """
         Creates this object from a PyOpenCL ``Device`` object.
         """
@@ -153,7 +167,8 @@ class OclDeviceAdapter(DeviceAdapter):
 
         # Sanity check, should not be reachable as long as `pyopencl` is consistent.
         raise RuntimeError(
-            f"{pyopencl_device} was not found among OpenCL devices") # pragma: no cover
+            f"{pyopencl_device} was not found among OpenCL devices"
+        )  # pragma: no cover
 
     def __init__(self, platform_adapter, pyopencl_device, device_idx: int):
         self._platform_adapter = platform_adapter
@@ -187,13 +202,15 @@ class OclDeviceAdapter(DeviceAdapter):
 
 
 class OclDeviceParameters(DeviceParameters):
-
     def __init__(self, pyopencl_device):
         self._type = (
-            DeviceType.CPU if pyopencl_device.type == pyopencl.device_type.CPU else DeviceType.GPU)
+            DeviceType.CPU if pyopencl_device.type == pyopencl.device_type.CPU else DeviceType.GPU
+        )
 
-        if (pyopencl_device.platform.name == 'Apple' and
-                pyopencl_device.type == pyopencl.device_type.CPU):
+        if (
+            pyopencl_device.platform.name == "Apple"
+            and pyopencl_device.type == pyopencl.device_type.CPU
+        ):
             # Apple is being funny again.
             # As of MacOS 10.15.0, it reports the maximum local size as 1024 (for the device),
             # when even for the simplest kernel it turns out to be 128.
@@ -216,7 +233,7 @@ class OclDeviceParameters(DeviceParameters):
             # If NV extensions are available, use them to query info
             self._local_mem_banks = 16 if pyopencl_device.compute_capability_major_nv < 2 else 32
             self._warp_size = pyopencl_device.warp_size_nv
-        elif pyopencl_device.vendor == 'NVIDIA':
+        elif pyopencl_device.vendor == "NVIDIA":
             # nVidia device, but no extensions.
             # Must be APPLE OpenCL implementation.
             # Assuming CC>=3
@@ -269,10 +286,10 @@ class OclDeviceParameters(DeviceParameters):
 
 
 class OclContextAdapter(ContextAdapter):
-
     @classmethod
     def from_pyopencl_devices(
-            cls, pyopencl_devices: Sequence['pyopencl.Device']) -> 'OclContextAdapter':
+        cls, pyopencl_devices: Sequence["pyopencl.Device"]
+    ) -> "OclContextAdapter":
         """
         Creates a context based on one or several (distinct) PyOpenCL ``Device`` objects.
         """
@@ -280,22 +297,25 @@ class OclContextAdapter(ContextAdapter):
         return cls(pyopencl.Context(pyopencl_devices), pyopencl_devices=pyopencl_devices)
 
     @classmethod
-    def from_pyopencl_context(cls, pyopencl_context: 'pyopencl.Context') -> 'OclContextAdapter':
+    def from_pyopencl_context(cls, pyopencl_context: "pyopencl.Context") -> "OclContextAdapter":
         """
         Creates a context based on a (possibly multi-device) PyOpenCL ``Context`` object.
         """
         return cls(pyopencl_context)
 
     @classmethod
-    def from_device_adapters(cls, device_adapters: Sequence[OclDeviceAdapter]) -> 'OclContextAdapter':
+    def from_device_adapters(
+        cls, device_adapters: Sequence[OclDeviceAdapter]
+    ) -> "OclContextAdapter":
         """
         Creates a context based on one or several (distinct) :py:class:`OclDeviceAdapter` objects.
         """
         device_adapters = normalize_object_sequence(device_adapters, OclDeviceAdapter)
         return cls.from_pyopencl_devices(
-            [device_adapter.pyopencl_device for device_adapter in device_adapters])
+            [device_adapter.pyopencl_device for device_adapter in device_adapters]
+        )
 
-    def __init__(self, pyopencl_context: 'pyopencl.Context', pyopencl_devices=None):
+    def __init__(self, pyopencl_context: "pyopencl.Context", pyopencl_devices=None):
         if pyopencl_devices is None:
             pyopencl_devices = pyopencl_context.devices
 
@@ -306,16 +326,16 @@ class OclContextAdapter(ContextAdapter):
         self._pyopencl_context = pyopencl_context
 
         device_adapters = [
-            OclDeviceAdapter.from_pyopencl_device(device)
-            for device in pyopencl_devices]
+            OclDeviceAdapter.from_pyopencl_device(device) for device in pyopencl_devices
+        ]
 
         self._device_order = [device_adapter.device_idx for device_adapter in device_adapters]
 
         self._pyopencl_devices = dict(zip(self._device_order, pyopencl_devices))
 
         self._device_adapters = {
-            device_adapter.device_idx: device_adapter
-            for device_adapter in device_adapters}
+            device_adapter.device_idx: device_adapter for device_adapter in device_adapters
+        }
 
         self.platform_adapter = device_adapters[0].platform_adapter
 
@@ -323,8 +343,8 @@ class OclContextAdapter(ContextAdapter):
         # any created OpenCL buffers allocated on the host (with ALLOC_HOST_PTR flag).
         # If it is not the case, using a subregion of such a buffer leads to a crash.
         is_multi_device = len(pyopencl_devices) > 1
-        is_apple_platform = pyopencl_devices[0].platform.name == 'Apple'
-        has_geforce_device = any('GeForce' in device.name for device in pyopencl_devices)
+        is_apple_platform = pyopencl_devices[0].platform.name == "Apple"
+        has_geforce_device = any("GeForce" in device.name for device in pyopencl_devices)
         self._buffers_host_allocation = is_multi_device and is_apple_platform and has_geforce_device
 
     @property
@@ -336,23 +356,28 @@ class OclContextAdapter(ContextAdapter):
         return self._device_order
 
     @staticmethod
-    def render_prelude(fast_math: bool=False) -> str:
-        return _PRELUDE.render(
-            fast_math=fast_math,
-            dtypes=dtypes)
+    def render_prelude(fast_math: bool = False) -> str:
+        return _PRELUDE.render(fast_math=fast_math, dtypes=dtypes)
 
     def compile_single_device(
-            self, device_adapter, prelude, src,
-            keep=False, fast_math=False, compiler_options=None, constant_arrays=None):
+        self,
+        device_adapter,
+        prelude,
+        src,
+        keep=False,
+        fast_math=False,
+        compiler_options=None,
+        constant_arrays=None,
+    ):
 
         # Sanity check: should have been caught in compile()
         assert not constant_arrays
 
         if keep:
             temp_dir = mkdtemp()
-            temp_file_path = os.path.join(temp_dir, 'kernel.cl')
+            temp_file_path = os.path.join(temp_dir, "kernel.cl")
 
-            with open(temp_file_path, 'w') as f:
+            with open(temp_file_path, "w") as f:
                 # `str()` is for convenience of mocking;
                 # during a normal operation `src` is already a string
                 f.write(str(src))
@@ -365,9 +390,9 @@ class OclContextAdapter(ContextAdapter):
         if compiler_options is None:
             compiler_options = []
 
-        options = (
-            compiler_options +
-            (["-cl-mad-enable", "-cl-fast-relaxed-math"] if fast_math else []))
+        options = compiler_options + (
+            ["-cl-mad-enable", "-cl-fast-relaxed-math"] if fast_math else []
+        )
         full_src = prelude + src
 
         pyopencl_program = pyopencl.Program(self._pyopencl_context, full_src)
@@ -376,7 +401,8 @@ class OclContextAdapter(ContextAdapter):
             pyopencl_program.build(
                 devices=[self._pyopencl_devices[device_adapter.device_idx]],
                 options=options,
-                cache_dir=temp_dir)
+                cache_dir=temp_dir,
+            )
         except pyopencl.RuntimeError as e:
             raise AdapterCompilationError(e, full_src)
 
@@ -391,23 +417,24 @@ class OclContextAdapter(ContextAdapter):
 
         queue = pyopencl.CommandQueue(
             self._pyopencl_context,
-            device=self._device_adapters[device_adapter.device_idx].pyopencl_device)
+            device=self._device_adapters[device_adapter.device_idx].pyopencl_device,
+        )
         pyopencl.enqueue_migrate_mem_objects(
-            queue, [pyopencl_buffer],
-            flags=pyopencl.mem_migration_flags.CONTENT_UNDEFINED)
+            queue, [pyopencl_buffer], flags=pyopencl.mem_migration_flags.CONTENT_UNDEFINED
+        )
 
         return OclBufferAdapter(self, device_adapter.device_idx, pyopencl_buffer)
 
     def make_queue_adapter(self, device_adapter):
         queue = pyopencl.CommandQueue(
             self._pyopencl_context,
-            device=self._device_adapters[device_adapter.device_idx].pyopencl_device)
+            device=self._device_adapters[device_adapter.device_idx].pyopencl_device,
+        )
 
         return OclQueueAdapter(self, device_adapter.device_idx, queue)
 
 
 class OclBufferAdapter(BufferAdapter):
-
     def __init__(self, context_adapter, device_idx, pyopencl_buffer):
         self._context_adapter = context_adapter
         self.pyopencl_buffer = pyopencl_buffer
@@ -428,24 +455,24 @@ class OclBufferAdapter(BufferAdapter):
         # This keyword is only supported for transfers involving hosts in PyOpenCL
         kwds = {}
         if not isinstance(buf, OclBufferAdapter):
-            kwds['is_blocking'] = no_async
-        pyopencl.enqueue_copy(
-            queue_adapter._pyopencl_queue, self.pyopencl_buffer, buf_data, **kwds)
+            kwds["is_blocking"] = no_async
+        pyopencl.enqueue_copy(queue_adapter._pyopencl_queue, self.pyopencl_buffer, buf_data, **kwds)
 
     def get(self, queue_adapter, host_array, async_=False):
         assert queue_adapter._device_idx == self._device_idx
         pyopencl.enqueue_copy(
-            queue_adapter._pyopencl_queue, host_array, self.pyopencl_buffer,
-            is_blocking=not async_)
+            queue_adapter._pyopencl_queue, host_array, self.pyopencl_buffer, is_blocking=not async_
+        )
 
     def get_sub_region(self, origin, size):
         return OclBufferAdapter(
-            self._context_adapter, self._device_idx,
-            self.pyopencl_buffer.get_sub_region(origin, size))
+            self._context_adapter,
+            self._device_idx,
+            self.pyopencl_buffer.get_sub_region(origin, size),
+        )
 
 
 class OclQueueAdapter(QueueAdapter):
-
     def __init__(self, context_adapter, device_idx, pyopencl_queue):
         self._context_adapter = context_adapter
         self._device_idx = device_idx
@@ -456,7 +483,6 @@ class OclQueueAdapter(QueueAdapter):
 
 
 class OclProgramAdapter(ProgramAdapter):
-
     def __init__(self, context_adapter, device_idx, pyopencl_program, source):
         self._context_adapter = context_adapter
         self._device_idx = device_idx
@@ -472,13 +498,12 @@ class OclProgramAdapter(ProgramAdapter):
         return OclKernelAdapter(self, self._device_idx, pyopencl_kernel)
 
     def set_constant_buffer(
-            self, queue_adapter: QueueAdapter,
-            name: str, arr: Union[BufferAdapter, numpy.ndarray]):
+        self, queue_adapter: QueueAdapter, name: str, arr: Union[BufferAdapter, numpy.ndarray]
+    ):
         raise RuntimeError("OpenCL does not allow setting constant arrays externally")
 
 
 class OclKernelAdapter(KernelAdapter):
-
     def __init__(self, program_adapter: OclProgramAdapter, device_idx: int, pyopencl_kernel):
         self._program_adapter = program_adapter
         self._device_idx = device_idx
@@ -489,23 +514,27 @@ class OclKernelAdapter(KernelAdapter):
         return self._program_adapter
 
     def prepare(
-            self, global_size: Sequence[int],
-            local_size: Optional[Sequence[int]] = None) -> 'OclPreparedKernelAdapter':
+        self, global_size: Sequence[int], local_size: Optional[Sequence[int]] = None
+    ) -> "OclPreparedKernelAdapter":
         return OclPreparedKernelAdapter(self, global_size, local_size)
 
     @property
     def max_total_local_size(self) -> int:
         return self._pyopencl_kernel.get_work_group_info(
             pyopencl.kernel_work_group_info.WORK_GROUP_SIZE,
-            self._program_adapter._context_adapter.device_adapters[self._device_idx].pyopencl_device)
+            self._program_adapter._context_adapter.device_adapters[
+                self._device_idx
+            ].pyopencl_device,
+        )
 
 
 class OclPreparedKernelAdapter(PreparedKernelAdapter):
-
     def __init__(
-            self, kernel_adapter: OclKernelAdapter,
-            global_size: Sequence[int],
-            local_size: Optional[Sequence[int]] = None):
+        self,
+        kernel_adapter: OclKernelAdapter,
+        global_size: Sequence[int],
+        local_size: Optional[Sequence[int]] = None,
+    ):
         self._kernel_adapter = kernel_adapter
         self._local_size = local_size
         self._global_size = global_size
@@ -525,4 +554,5 @@ class OclPreparedKernelAdapter(PreparedKernelAdapter):
         assert self._device_idx == queue_adapter._device_idx
 
         return self._pyopencl_kernel(
-            queue_adapter._pyopencl_queue, self._global_size, self._local_size, *args)
+            queue_adapter._pyopencl_queue, self._global_size, self._local_size, *args
+        )

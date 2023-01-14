@@ -25,18 +25,16 @@ class ArrayMetadata:
 
     @classmethod
     def from_arraylike(cls, array):
-        return cls(
-            array.shape,
-            array.dtype,
-            strides=getattr(array, 'strides', None))
+        return cls(array.shape, array.dtype, strides=getattr(array, "strides", None))
 
     def __init__(
-            self,
-            shape: Sequence[int],
-            dtype: numpy.dtype,
-            strides: Optional[Sequence[int]]=None,
-            first_element_offset: int=0,
-            buffer_size: Optional[int]=None):
+        self,
+        shape: Sequence[int],
+        dtype: numpy.dtype,
+        strides: Optional[Sequence[int]] = None,
+        first_element_offset: int = 0,
+        buffer_size: Optional[int] = None,
+    ):
 
         shape = tuple(shape)
         dtype = normalize_type(dtype)
@@ -60,13 +58,15 @@ class ArrayMetadata:
         if full_min_offset < 0 or full_min_offset + dtype.itemsize > buffer_size:
             raise ValueError(
                 f"The minimum offset for given strides ({full_min_offset}) "
-                f"is outside the given buffer range ({buffer_size})")
+                f"is outside the given buffer range ({buffer_size})"
+            )
 
         full_max_offset = first_element_offset + max_offset
         if full_max_offset > buffer_size:
             raise ValueError(
                 f"The maximum offset for given strides ({full_max_offset}) "
-                f"is outside the given buffer range ({buffer_size})")
+                f"is outside the given buffer range ({buffer_size})"
+            )
 
         self.shape = shape
         self.dtype = dtype
@@ -76,7 +76,7 @@ class ArrayMetadata:
         self._full_max_offset = full_max_offset
         self.buffer_size = buffer_size
 
-    def minimal_subregion(self) -> Tuple[int, int, 'ArrayMetadata']:
+    def minimal_subregion(self) -> Tuple[int, int, "ArrayMetadata"]:
         """
         Returns the metadata for the minimal subregion that fits all the data in this view,
         along with the subgregion offset in the current buffer and the required subregion length.
@@ -84,10 +84,12 @@ class ArrayMetadata:
         subregion_origin = self._full_min_offset
         subregion_size = self._full_max_offset - self._full_min_offset
         new_metadata = ArrayMetadata(
-            self.shape, self.dtype,
+            self.shape,
+            self.dtype,
             strides=self.strides,
             first_element_offset=self.first_element_offset - self._full_min_offset,
-            buffer_size=subregion_size)
+            buffer_size=subregion_size,
+        )
         return subregion_origin, subregion_size, new_metadata
 
     def __getitem__(self, slices):
@@ -97,7 +99,8 @@ class ArrayMetadata:
             slices += (slice(None),) * (len(self.shape) - len(slices))
         new_fe_offset, new_shape, new_strides = get_view(self.shape, self.strides, slices)
         return ArrayMetadata(
-            new_shape, self.dtype, strides=new_strides, first_element_offset=new_fe_offset)
+            new_shape, self.dtype, strides=new_strides, first_element_offset=new_fe_offset
+        )
 
 
 def get_strides(shape: Sequence[int], itemsize: int) -> Tuple[int, ...]:
@@ -128,8 +131,8 @@ def normalize_slice(length: int, stride: int, slice_: slice) -> Tuple[int, int, 
 
 
 def get_view(
-        shape: Sequence[int], strides: Sequence[int], slices: Sequence[slice]) \
-        -> Tuple[int, Tuple[int, ...], Tuple[int, ...]]:
+    shape: Sequence[int], strides: Sequence[int], slices: Sequence[slice]
+) -> Tuple[int, Tuple[int, ...], Tuple[int, ...]]:
     """
     Given an array shape and strides, and a sequence of slices defining a view,
     returns a tuple of three elements: the offset of the first element of the view,
@@ -138,9 +141,12 @@ def get_view(
     assert len(slices) == len(shape)
     assert len(strides) == len(shape)
 
-    offsets, lengths, strides = zip(*[
-        normalize_slice(length, stride, slice_)
-        for length, stride, slice_ in zip(shape, strides, slices)])
+    offsets, lengths, strides = zip(
+        *[
+            normalize_slice(length, stride, slice_)
+            for length, stride, slice_ in zip(shape, strides, slices)
+        ]
+    )
 
     return sum(offsets), tuple(lengths), tuple(strides)
 

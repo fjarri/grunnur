@@ -2,8 +2,16 @@ import pytest
 
 from grunnur.utils import prod, min_blocks
 from grunnur.vsize import (
-    factorize, PrimeFactors, get_decompositions, find_local_size_decomposition, group_dimensions,
-    find_bounding_shape, ShapeGroups, VirtualSizes, VirtualSizeError)
+    factorize,
+    PrimeFactors,
+    get_decompositions,
+    find_local_size_decomposition,
+    group_dimensions,
+    find_bounding_shape,
+    ShapeGroups,
+    VirtualSizes,
+    VirtualSizeError,
+)
 
 
 def test_factorize():
@@ -112,10 +120,11 @@ def test_virtual_sizes():
     vs = VirtualSizes(
         max_total_local_size=1024,
         max_local_sizes=(1024, 1024, 64),
-        max_num_groups=(2**31-1, 65536, 65536),
+        max_num_groups=(2**31 - 1, 65536, 65536),
         local_size_multiple=16,
         virtual_global_size=(8, 16, 32, 60),
-        virtual_local_size=None)
+        virtual_local_size=None,
+    )
 
     assert vs._virtual_local_size == [4, 32, 8, 1]
     assert vs._virtual_global_size == [60, 32, 16, 8]
@@ -128,10 +137,11 @@ def test_virtual_sizes():
     vs = VirtualSizes(
         max_total_local_size=1024,
         max_local_sizes=(1024, 1024, 64),
-        max_num_groups=(2**31-1, 65536, 65536),
+        max_num_groups=(2**31 - 1, 65536, 65536),
         local_size_multiple=16,
         virtual_global_size=(8, 16),
-        virtual_local_size=None)
+        virtual_local_size=None,
+    )
 
     assert vs._virtual_local_size == [16, 8]
     assert vs._virtual_global_size == [16, 8]
@@ -144,10 +154,11 @@ def test_virtual_sizes():
     vs = VirtualSizes(
         max_total_local_size=1024,
         max_local_sizes=(1024, 1024, 64),
-        max_num_groups=(2**31-1, 65536, 65536),
+        max_num_groups=(2**31 - 1, 65536, 65536),
         local_size_multiple=16,
         virtual_global_size=(123, 345),
-        virtual_local_size=(13, 15))
+        virtual_local_size=(13, 15),
+    )
 
     assert vs._virtual_local_size == [15, 13]
     assert vs._virtual_global_size == [345, 123]
@@ -162,21 +173,23 @@ def test_vsize_errors():
         VirtualSizes(
             max_total_local_size=1024,
             max_local_sizes=(1024, 1024, 64),
-            max_num_groups=(2**31-1, 65536, 65536),
+            max_num_groups=(2**31 - 1, 65536, 65536),
             local_size_multiple=16,
             # different number of dimensions in global and local sizes
             virtual_global_size=(8, 16, 32, 60),
-            virtual_local_size=(4, 4, 4))
+            virtual_local_size=(4, 4, 4),
+        )
 
     with pytest.raises(VirtualSizeError):
         VirtualSizes(
             max_total_local_size=1024,
             max_local_sizes=(1024, 1024, 64),
-            max_num_groups=(2**31-1, 65536, 65536),
+            max_num_groups=(2**31 - 1, 65536, 65536),
             local_size_multiple=16,
             virtual_global_size=(8, 16, 32, 60),
             # Requested total local size >= max_total_local_size
-            virtual_local_size=(8, 8, 8, 8))
+            virtual_local_size=(8, 8, 8, 8),
+        )
 
     with pytest.raises(VirtualSizeError):
         VirtualSizes(
@@ -186,4 +199,5 @@ def test_vsize_errors():
             local_size_multiple=16,
             # resulting number of groups is greater than total defined by `prod(max_num_groups)`
             virtual_global_size=(8, 16, 32, 60),
-            virtual_local_size=(4, 4, 4, 4))
+            virtual_local_size=(4, 4, 4, 4),
+        )

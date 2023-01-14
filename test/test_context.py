@@ -5,7 +5,7 @@ from grunnur.context import BoundMultiDevice
 
 
 def test_from_devices(mock_backend):
-    mock_backend.add_devices(['Device2', 'Device3'])
+    mock_backend.add_devices(["Device2", "Device3"])
 
     api = API.from_api_id(mock_backend.api_id)
 
@@ -17,8 +17,8 @@ def test_from_devices(mock_backend):
 
 
 def test_from_devices_different_platforms(mock_backend_pyopencl):
-    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1', 'Device2'])
-    mock_backend_pyopencl.add_platform_with_devices('Platform2', ['Device3', 'Device4'])
+    mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2"])
+    mock_backend_pyopencl.add_platform_with_devices("Platform2", ["Device3", "Device4"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
 
@@ -29,14 +29,14 @@ def test_from_devices_different_platforms(mock_backend_pyopencl):
 def test_from_backend_devices_opencl(mock_backend_pyopencl):
     backend = mock_backend_pyopencl
 
-    backend.add_platform_with_devices('Platform1', ['Device1'])
-    backend.add_platform_with_devices('Platform2', ['Device2', 'Device3'])
+    backend.add_platform_with_devices("Platform1", ["Device1"])
+    backend.add_platform_with_devices("Platform2", ["Device2", "Device3"])
 
     backend_devices = backend.pyopencl.get_platforms()[1].get_devices()
     context = Context.from_backend_devices(backend_devices)
 
-    assert context.platform.name == 'Platform2'
-    assert [device.name for device in context.devices] == ['Device2', 'Device3']
+    assert context.platform.name == "Platform2"
+    assert [device.name for device in context.devices] == ["Device2", "Device3"]
 
 
 def test_from_backend_contexts_opencl(mock_backend_pyopencl):
@@ -44,8 +44,8 @@ def test_from_backend_contexts_opencl(mock_backend_pyopencl):
 
     backend = mock_backend_pyopencl
 
-    backend.add_platform_with_devices('Platform1', ['Device1'])
-    backend.add_platform_with_devices('Platform2', ['Device2', 'Device3'])
+    backend.add_platform_with_devices("Platform1", ["Device1"])
+    backend.add_platform_with_devices("Platform2", ["Device2", "Device3"])
 
     backend_devices = backend.pyopencl.get_platforms()[1].get_devices()
     backend_context = backend.pyopencl.Context(backend_devices)
@@ -56,17 +56,19 @@ def test_from_backend_contexts_opencl(mock_backend_pyopencl):
 
     context = Context.from_backend_contexts([backend_context])
 
-    assert context.platform.name == 'Platform2'
-    assert [device.name for device in context.devices] == ['Device2', 'Device3']
+    assert context.platform.name == "Platform2"
+    assert [device.name for device in context.devices] == ["Device2", "Device3"]
 
-    with pytest.raises(TypeError, match="<class 'int'> objects were not recognized as contexts by any API"):
+    with pytest.raises(
+        TypeError, match="<class 'int'> objects were not recognized as contexts by any API"
+    ):
         Context.from_backend_contexts([1])
 
 
 def test_from_backend_contexts_several_apis(mock_backend_pycuda, mock_backend_pyopencl):
 
     backend = mock_backend_pyopencl
-    backend.add_platform_with_devices('Platform1', ['Device1'])
+    backend.add_platform_with_devices("Platform1", ["Device1"])
 
     backend_devices = backend.pyopencl.get_platforms()[0].get_devices()
     backend_context = backend.pyopencl.Context(backend_devices)
@@ -75,17 +77,17 @@ def test_from_backend_contexts_several_apis(mock_backend_pycuda, mock_backend_py
     # the correct one is used for the given context objects.
     context = Context.from_backend_contexts([backend_context])
     assert context.api.id == opencl_api_id()
-    assert context.platform.name == 'Platform1'
-    assert [device.name for device in context.devices] == ['Device1']
+    assert context.platform.name == "Platform1"
+    assert [device.name for device in context.devices] == ["Device1"]
 
 
-@pytest.mark.parametrize('take_ownership', [False, True], ids=['no ownership', 'take ownership'])
+@pytest.mark.parametrize("take_ownership", [False, True], ids=["no ownership", "take ownership"])
 def test_from_backend_contexts_cuda_single_device(mock_backend_pycuda, take_ownership):
     # CUDA style - a context per device
 
     backend = mock_backend_pycuda
 
-    backend.add_devices(['Device1', 'Device2'])
+    backend.add_devices(["Device1", "Device2"])
 
     backend_context = backend.pycuda_driver.Device(1).make_context()
 
@@ -102,9 +104,9 @@ def test_from_backend_contexts_cuda_single_device(mock_backend_pycuda, take_owne
         context = Context.from_backend_contexts([backend_context], take_ownership=True)
 
     # CUDA has no concept of platforms, so the platform name in the mock will be ignored
-    assert context.platform.name == 'nVidia CUDA'
+    assert context.platform.name == "nVidia CUDA"
 
-    assert [device.name for device in context.devices] == ['Device2']
+    assert [device.name for device in context.devices] == ["Device2"]
 
     if not take_ownership:
         # Clean up - we didn't take ownership of the context, so someone else has to pop it.
@@ -116,7 +118,7 @@ def test_from_backend_contexts_cuda_multi_device(mock_backend_pycuda):
 
     backend = mock_backend_pycuda
 
-    backend.add_devices(['Device1', 'Device2'])
+    backend.add_devices(["Device1", "Device2"])
 
     backend_context1 = backend.pycuda_driver.Device(0).make_context()
     backend.pycuda_driver.Context.pop()
@@ -130,39 +132,43 @@ def test_from_backend_contexts_cuda_multi_device(mock_backend_pycuda):
         Context.from_backend_contexts([backend_context1, backend_context2])
 
     context = Context.from_backend_contexts(
-        [backend_context1, backend_context2], take_ownership=True)
+        [backend_context1, backend_context2], take_ownership=True
+    )
 
     # CUDA has no concept of platforms, so the platform name in the mock will be ignored
-    assert context.platform.name == 'nVidia CUDA'
+    assert context.platform.name == "nVidia CUDA"
 
-    assert [device.name for device in context.devices] == ['Device1', 'Device2']
+    assert [device.name for device in context.devices] == ["Device1", "Device2"]
 
 
 def test_from_criteria(mock_backend_pyopencl):
 
     backend = mock_backend_pyopencl
 
-    backend.add_platform_with_devices('foo-bar', ['Device1'])
-    backend.add_platform_with_devices('bar-baz', ['Device2'])
+    backend.add_platform_with_devices("foo-bar", ["Device1"])
+    backend.add_platform_with_devices("bar-baz", ["Device2"])
     backend.add_platform_with_devices(
-        'foo-baz',
-        [
-            'foo-bar', 'foo-baz-1', 'bar-baz', 'foo-baz-1',
-            'foo-baz-2', 'foo-baz-2', 'foo-baz-3'])
+        "foo-baz",
+        ["foo-bar", "foo-baz-1", "bar-baz", "foo-baz-1", "foo-baz-2", "foo-baz-2", "foo-baz-3"],
+    )
 
     api = API.from_api_id(backend.api_id)
     context = Context.from_criteria(
-        api, devices_num=2,
-        platform_include_masks=['foo'], platform_exclude_masks=['bar'],
-        device_include_masks=['foo'], device_exclude_masks=['bar'],
-        unique_devices_only=True)
+        api,
+        devices_num=2,
+        platform_include_masks=["foo"],
+        platform_exclude_masks=["bar"],
+        device_include_masks=["foo"],
+        device_exclude_masks=["bar"],
+        unique_devices_only=True,
+    )
 
-    assert context.platform.name == 'foo-baz'
-    assert [device.name for device in context.devices] == ['foo-baz-1', 'foo-baz-2']
+    assert context.platform.name == "foo-baz"
+    assert [device.name for device in context.devices] == ["foo-baz-1", "foo-baz-2"]
 
 
 def test_bound_device_eq(mock_backend_pyopencl):
-    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1', 'Device2'])
+    mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
 
@@ -181,12 +187,12 @@ def test_bound_device_eq(mock_backend_pyopencl):
 def test_bound_device_str(mock_context):
     s = str(mock_context.device)
     assert mock_context.api.id.shortcut in s
-    assert '0,0' in s
-    assert 'Context' in s
+    assert "0,0" in s
+    assert "Context" in s
 
 
 def test_bound_multi_device_creation(mock_backend_pyopencl):
-    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1', 'Device2', 'Device3'])
+    mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2", "Device3"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
 
@@ -195,7 +201,9 @@ def test_bound_multi_device_creation(mock_backend_pyopencl):
     context = Context.from_devices(devices)
     context2 = Context.from_devices(devices)
 
-    with pytest.raises(ValueError, match="All devices in a multi-device must belong to the same context"):
+    with pytest.raises(
+        ValueError, match="All devices in a multi-device must belong to the same context"
+    ):
         BoundMultiDevice.from_bound_devices([context.devices[0], context2.devices[1]])
 
     with pytest.raises(ValueError, match="All devices in a multi-device must be distinct"):
@@ -203,12 +211,12 @@ def test_bound_multi_device_creation(mock_backend_pyopencl):
 
     sub_device = context.devices[[2, 1]]
     assert len(sub_device) == 2
-    assert sub_device[0].name == 'Device3'
-    assert sub_device[1].name == 'Device2'
+    assert sub_device[0].name == "Device3"
+    assert sub_device[1].name == "Device2"
 
 
 def test_bound_multi_device_eq(mock_backend_pyopencl):
-    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1', 'Device2', 'Device3'])
+    mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2", "Device3"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
     context = Context.from_devices(api.platforms[0].devices[:])
@@ -218,7 +226,7 @@ def test_bound_multi_device_eq(mock_backend_pyopencl):
 
 
 def test_bound_multi_device_issubset(mock_backend_pyopencl):
-    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1', 'Device2', 'Device3'])
+    mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2", "Device3"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
     context = Context.from_devices(api.platforms[0].devices[:])
@@ -227,22 +235,24 @@ def test_bound_multi_device_issubset(mock_backend_pyopencl):
 
 
 def test_device_shortcut(mock_backend_pyopencl):
-    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1', 'Device2', 'Device3'])
+    mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2", "Device3"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
     context = Context.from_devices(api.platforms[0].devices[:])
 
-    with pytest.raises(RuntimeError, match="The `device` shortcut only works for single-device contexts"):
+    with pytest.raises(
+        RuntimeError, match="The `device` shortcut only works for single-device contexts"
+    ):
         context.device
 
     context = Context.from_devices([api.platforms[0].devices[2]])
-    assert context.device.name == 'Device3'
+    assert context.device.name == "Device3"
 
 
 def test_deactivate(mock_backend_pyopencl, mock_backend_pycuda):
 
-    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1'])
-    mock_backend_pycuda.add_devices(['Device1'])
+    mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1"])
+    mock_backend_pycuda.add_devices(["Device1"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
     context = Context.from_devices([api.platforms[0].devices[0]])

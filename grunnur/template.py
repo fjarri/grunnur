@@ -37,7 +37,8 @@ class RenderError(Exception):
         return (
             "Failed to render a template with\n"
             f"* args: {self.args}\n* globals: {self.globals}\n* source:\n{self.source}\n"
-            f"* Mako error: ({type(self.exception).__name__}) {self.exception}")
+            f"* Mako error: ({type(self.exception).__name__}) {self.exception}"
+        )
 
 
 def _extract_def_source(source, name):
@@ -46,7 +47,8 @@ def _extract_def_source(source, name):
     This makes error messages much more readable.
     """
     match = re.search(
-        r"(<%def\s+name\s*=\s*[\"']" + name + r"\(.*?>.*?</%def>)", source, flags=re.DOTALL)
+        r"(<%def\s+name\s*=\s*[\"']" + name + r"\(.*?>.*?</%def>)", source, flags=re.DOTALL
+    )
     if not match:
         warnings.warn(f"Could not find the template definition '{name}'", SyntaxWarning)
         return source
@@ -56,8 +58,8 @@ def _extract_def_source(source, name):
 
 def _make_template(filename=None, text=None):
     return mako.template.Template(
-        text=text, filename=filename, strict_undefined=True,
-        imports=['import numpy'])
+        text=text, filename=filename, strict_undefined=True, imports=["import numpy"]
+    )
 
 
 class Template:
@@ -66,14 +68,14 @@ class Template:
     """
 
     @classmethod
-    def from_associated_file(cls, filename: str) -> 'Template':
+    def from_associated_file(cls, filename: str) -> "Template":
         """
         Returns a :py:class:`Template` object created from the file
         which has the same name as ``filename`` and the extension ``.mako``.
         Typically used in computation modules as ``Template.from_associated_file(__file__)``.
         """
         path, _ext = os.path.splitext(os.path.abspath(filename))
-        template_path = path + '.mako'
+        template_path = path + ".mako"
         mako_template = _make_template(filename=template_path)
         return cls(mako_template)
 
@@ -85,11 +87,11 @@ class Template:
         mako_template = _make_template(text=template_source)
         return cls(mako_template)
 
-    def __init__(self, mako_template: 'mako.template.Template'):
+    def __init__(self, mako_template: "mako.template.Template"):
         self._mako_template = mako_template
         self._defs: Dict[str, DefTemplate] = {}
 
-    def get_def(self, name: str) -> 'DefTemplate':
+    def get_def(self, name: str) -> "DefTemplate":
         """
         Returns the template def with the name ``name``.
         """
@@ -111,7 +113,7 @@ class DefTemplate:
     """
 
     @classmethod
-    def from_callable(cls, name: str, callable_obj: Callable[..., str]) -> 'DefTemplate':
+    def from_callable(cls, name: str, callable_obj: Callable[..., str]) -> "DefTemplate":
         """
         Creates a template def from a callable returning a string.
         The parameter list of the callable is used to create the pararameter list
@@ -126,7 +128,7 @@ class DefTemplate:
         return cls._from_signature_and_body(name, signature, callable_obj(*args))
 
     @classmethod
-    def from_string(cls, name: str, argnames: Iterable[str], source: str) -> 'DefTemplate':
+    def from_string(cls, name: str, argnames: Iterable[str], source: str) -> "DefTemplate":
         """
         Creates a template def from a string with its body and a list of argument names.
         """
@@ -138,12 +140,13 @@ class DefTemplate:
 
     @classmethod
     def _from_signature_and_body(
-            cls, name: str, signature: inspect.Signature, body: str) -> 'DefTemplate':
+        cls, name: str, signature: inspect.Signature, body: str
+    ) -> "DefTemplate":
         src = "<%def name='" + name + str(signature) + "'>\n" + body + "\n</%def>"
         mako_def_template = _make_template(text=src).get_def(name)
         return cls(name, mako_def_template, src)
 
-    def __init__(self, name: str, mako_def_template: 'mako.template.DefTemplate', source: str):
+    def __init__(self, name: str, mako_def_template: "mako.template.DefTemplate", source: str):
         self.name = name
         self._mako_def_template = mako_def_template
         self.source = source

@@ -31,7 +31,9 @@ class Array:
     """Array strides."""
 
     @classmethod
-    def from_host(cls, queue_or_device: Union[Queue, BoundDevice], host_arr: numpy.ndarray) -> 'Array':
+    def from_host(
+        cls, queue_or_device: Union[Queue, BoundDevice], host_arr: numpy.ndarray
+    ) -> "Array":
         """
         Creates an array object from a host array.
 
@@ -48,13 +50,14 @@ class Array:
 
     @classmethod
     def empty(
-            cls, device: BoundDevice,
-            shape: Sequence[int],
-            dtype: numpy.dtype,
-            strides: Optional[Sequence[int]]=None,
-            first_element_offset: int=0,
-            allocator: Callable[[BoundDevice, int], Buffer]=Buffer.allocate
-            ) -> 'Array':
+        cls,
+        device: BoundDevice,
+        shape: Sequence[int],
+        dtype: numpy.dtype,
+        strides: Optional[Sequence[int]] = None,
+        first_element_offset: int = 0,
+        allocator: Callable[[BoundDevice, int], Buffer] = Buffer.allocate,
+    ) -> "Array":
         """
         Creates an empty array.
 
@@ -65,7 +68,9 @@ class Array:
             (the bound device, and the buffer size in bytes)
             and returning a :py:class:`Buffer` object.
         """
-        metadata = ArrayMetadata(shape, dtype, strides=strides, first_element_offset=first_element_offset)
+        metadata = ArrayMetadata(
+            shape, dtype, strides=strides, first_element_offset=first_element_offset
+        )
         size = metadata.buffer_size
         data = allocator(device, size)
 
@@ -85,7 +90,8 @@ class Array:
         if data.size < self.buffer_size:
             raise ValueError(
                 "Provided data buffer is not big enough to hold the array "
-                "(minimum required {self.buffer_size})")
+                "(minimum required {self.buffer_size})"
+            )
 
         self.data = data
 
@@ -96,7 +102,7 @@ class Array:
         data = self.data.get_sub_region(origin, size)
         return Array(new_metadata, data)
 
-    def set(self, queue: Queue, array: Union[numpy.ndarray, 'Array'], no_async: bool=False):
+    def set(self, queue: Queue, array: Union[numpy.ndarray, "Array"], no_async: bool = False):
         """
         Copies the contents of the host array to the array.
 
@@ -121,7 +127,9 @@ class Array:
 
         self.data.set(queue, array_data, no_async=no_async)
 
-    def get(self, queue: Queue, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
+    def get(
+        self, queue: Queue, dest: Optional[numpy.ndarray] = None, async_: bool = False
+    ) -> numpy.ndarray:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -134,7 +142,7 @@ class Array:
         self.data.get(queue, dest, async_=async_)
         return dest
 
-    def __getitem__(self, slices) -> 'Array':
+    def __getitem__(self, slices) -> "Array":
         """
         Returns a view of this array.
         """
@@ -153,7 +161,9 @@ class BaseSplay(ABC):
     """
 
     @abstractmethod
-    def __call__(self, arr: 'ArrayLike', devices: BoundMultiDevice) -> Dict[BoundDevice, 'ArrayLike']:
+    def __call__(
+        self, arr: "ArrayLike", devices: BoundMultiDevice
+    ) -> Dict[BoundDevice, "ArrayLike"]:
         """
         Creates a dictionary of views of an array-like object for each of the given devices.
 
@@ -180,7 +190,7 @@ class EqualSplay(BaseSplay):
         ptr = 0
         for part, device in enumerate(devices):
             l = chunk_size if rem == 0 or part < rem else chunk_size - 1
-            subarrays[device] = arr[ptr:ptr+l]
+            subarrays[device] = arr[ptr : ptr + l]
             ptr += l
 
         return subarrays
@@ -217,9 +227,8 @@ class MultiArray:
 
     @classmethod
     def from_host(
-            cls, mqueue: MultiQueue, host_arr: numpy.ndarray,
-            splay: Optional[BaseSplay]=None
-            ) -> 'MultiArray':
+        cls, mqueue: MultiQueue, host_arr: numpy.ndarray, splay: Optional[BaseSplay] = None
+    ) -> "MultiArray":
         """
         Creates an array object from a host array.
 
@@ -242,10 +251,13 @@ class MultiArray:
 
     @classmethod
     def empty(
-            cls, devices: BoundMultiDevice, shape: Sequence[int],
-            dtype: numpy.dtype, allocator: Callable[[BoundDevice, int], Buffer]=Buffer.allocate,
-            splay: Optional[BaseSplay]=None,
-            ) -> 'MultiArray':
+        cls,
+        devices: BoundMultiDevice,
+        shape: Sequence[int],
+        dtype: numpy.dtype,
+        allocator: Callable[[BoundDevice, int], Buffer] = Buffer.allocate,
+        splay: Optional[BaseSplay] = None,
+    ) -> "MultiArray":
         """
         Creates an empty array.
 
@@ -267,7 +279,7 @@ class MultiArray:
         subarrays = {
             device: Array.empty(device, submetadata.shape, submetadata.dtype, allocator=allocator)
             for device, submetadata in submetadatas.items()
-            }
+        }
 
         return cls(devices, shape, dtype, subarrays, splay)
 
@@ -280,7 +292,9 @@ class MultiArray:
 
         self._splay = splay
 
-    def get(self, mqueue: MultiQueue, dest: Optional[numpy.ndarray]=None, async_: bool=False) -> numpy.ndarray:
+    def get(
+        self, mqueue: MultiQueue, dest: Optional[numpy.ndarray] = None, async_: bool = False
+    ) -> numpy.ndarray:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -299,7 +313,9 @@ class MultiArray:
 
         return dest
 
-    def set(self, mqueue: MultiQueue, array: Union[numpy.ndarray, 'MultiArray'], no_async: bool=False):
+    def set(
+        self, mqueue: MultiQueue, array: Union[numpy.ndarray, "MultiArray"], no_async: bool = False
+    ):
         """
         Copies the contents of the host array to the array.
 
@@ -317,5 +333,4 @@ class MultiArray:
             raise ValueError("Mismatched device sets in the source and the destination")
 
         for device in self.subarrays:
-            self.subarrays[device].set(
-                mqueue.queues[device], subarrays[device], no_async=no_async)
+            self.subarrays[device].set(mqueue.queues[device], subarrays[device], no_async=no_async)

@@ -8,8 +8,7 @@ from typing import Iterable, Callable, Any, Optional
 
 
 class SortedList:
-
-    def __init__(self, iterable: Iterable=(), key: Optional[Callable[[Any], Any]]=None):
+    def __init__(self, iterable: Iterable = (), key: Optional[Callable[[Any], Any]] = None):
         key = (lambda x: x) if key is None else key
         decorated = sorted((key(item), item) for item in iterable)
         self._keys = [k for k, item in decorated]
@@ -65,4 +64,4 @@ class SortedList:
         i = bisect_left(self._keys, k)
         if i != len(self):
             return i
-        raise ValueError('No item found with key at or above: %r' % (k,))
+        raise ValueError("No item found with key at or above: %r" % (k,))

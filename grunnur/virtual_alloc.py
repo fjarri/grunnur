@@ -29,7 +29,7 @@ def extract_dependencies(dependencies) -> Set[int]:
         for dep in dependencies:
             results.update(extract_dependencies(dep))
         return results
-    if hasattr(dependencies, '__virtual_allocations__'):
+    if hasattr(dependencies, "__virtual_allocations__"):
         # a hook for exposing nested virtual allocations in arbitrary classes
         return extract_dependencies(dependencies.__virtual_allocations__)
 
@@ -43,7 +43,7 @@ class VirtualAllocator:
     Encapsulates the dependencies (as identifiers, doesn't hold references for actual objects).
     """
 
-    def __init__(self, manager: 'VirtualManager', dependencies: Set[int]):
+    def __init__(self, manager: "VirtualManager", dependencies: Set[int]):
         self.manager = manager
         self.dependencies = dependencies
 
@@ -53,7 +53,8 @@ class VirtualAllocator:
         if device != self.manager.device:
             raise ValueError(
                 f"This allocator is attached to device {self.manager.device}, "
-                f"but was asked to allocate on {device}")
+                f"but was asked to allocate on {device}"
+            )
         return self.manager._allocate_virtual(size, self.dependencies)
 
 
@@ -62,7 +63,7 @@ class VirtualBufferAdapter(BufferAdapter):
     A virtual buffer object.
     """
 
-    def __init__(self, manager: 'VirtualManager', size: int, id_: int):
+    def __init__(self, manager: "VirtualManager", size: int, id_: int):
         self._manager = manager
         self._id = id_
         self._size = size
@@ -128,7 +129,8 @@ class VirtualManager:
             missing_deps = dependencies.difference(self._virtual_buffers)
             missing_deps_str = ", ".join(str(dep) for dep in missing_deps)
             raise ValueError(
-                f"Some of the declared dependencies (with IDs {missing_deps}) do not exist")
+                f"Some of the declared dependencies (with IDs {missing_deps}) do not exist"
+            )
 
         self._allocate_specific(new_id, size, dependencies)
         vbuf = VirtualBufferAdapter(self, size, new_id)
@@ -160,14 +162,15 @@ class VirtualManager:
         self._pack_specific(queue)
         self._update_all()
 
-    def statistics(self) -> 'VirtualAllocationStatistics':
+    def statistics(self) -> "VirtualAllocationStatistics":
         """
         Returns allocation statistics.
         """
         return VirtualAllocationStatistics(
             self._real_buffers(),
             # cast() to override inference here - we know that vb() will not return `None`
-            [cast(VirtualBufferAdapter, vb()) for vb in self._virtual_buffers.values()])
+            [cast(VirtualBufferAdapter, vb()) for vb in self._virtual_buffers.values()],
+        )
 
     @abstractmethod
     def _allocate_specific(self, new_id: int, size: int, dependencies: Set[int]):
@@ -213,7 +216,9 @@ class VirtualAllocationStatistics:
     virtual_sizes: Dict[int, int]
     """A dictionary ``size: count`` with the counts for virtual allocations of each size."""
 
-    def __init__(self, real_buffers: Iterable[Buffer], virtual_buffers: Iterable[VirtualBufferAdapter]):
+    def __init__(
+        self, real_buffers: Iterable[Buffer], virtual_buffers: Iterable[VirtualBufferAdapter]
+    ):
 
         real_sizes = [rb.size for rb in real_buffers]
         virtual_sizes = [vb.size for vb in virtual_buffers]
@@ -227,10 +232,10 @@ class VirtualAllocationStatistics:
         self.virtual_sizes: Dict[int, int] = dict(Counter(virtual_sizes))
 
     def __str__(self):
-        real_buffers = ", ".join(
-            f"{num}x{size}b" for size, num in sorted(self.real_sizes.items()))
+        real_buffers = ", ".join(f"{num}x{size}b" for size, num in sorted(self.real_sizes.items()))
         virtual_buffers = ", ".join(
-            f"{num}x{size}b" for size, num in sorted(self.virtual_sizes.items()))
+            f"{num}x{size}b" for size, num in sorted(self.virtual_sizes.items())
+        )
         return (
             f"VirtualAllocationStatistics("
             f"real: {self.real_num} allocs, "
@@ -239,7 +244,7 @@ class VirtualAllocationStatistics:
             f"virtual: {self.virtual_num} allocs, "
             f"total size {self.virtual_size_total}b, "
             f"buffers: {virtual_buffers})"
-            )
+        )
 
 
 class TrivialManager(VirtualManager):
@@ -275,18 +280,18 @@ class ZeroOffsetManager(VirtualManager):
     All virtual allocations start from the beginning of real allocations.
     """
 
-    VirtualAllocation = namedtuple('VirtualAllocation', ['size', 'dependencies'])
-    RealAllocation = namedtuple('RealAllocation', ['buffer', 'virtual_ids'])
-    RealSize = namedtuple('RealSize', ['size', 'real_id'])
-    VirtualMapping = namedtuple('VirtualMapping', ['real_id', 'sub_region'])
+    VirtualAllocation = namedtuple("VirtualAllocation", ["size", "dependencies"])
+    RealAllocation = namedtuple("RealAllocation", ["buffer", "virtual_ids"])
+    RealSize = namedtuple("RealSize", ["size", "real_id"])
+    VirtualMapping = namedtuple("VirtualMapping", ["real_id", "sub_region"])
 
     def __init__(self, *args, **kwds):
         VirtualManager.__init__(self, *args, **kwds)
 
-        self._virtual_allocations = {} # id -> VirtualAllocation
-        self._real_sizes = SortedList(key=lambda x: x.size) # RealSize objects, sorted by size
-        self._virtual_to_real = {} # id -> VirtualMapping
-        self._real_allocations = {} # real_id -> RealAllocation
+        self._virtual_allocations = {}  # id -> VirtualAllocation
+        self._real_sizes = SortedList(key=lambda x: x.size)  # RealSize objects, sorted by size
+        self._virtual_to_real = {}  # id -> VirtualMapping
+        self._real_allocations = {}  # real_id -> RealAllocation
         self._real_id_counter = 0
 
     def _allocate_specific(self, new_id, size, dependencies):
@@ -337,7 +342,8 @@ class ZeroOffsetManager(VirtualManager):
         # for both read and write, which ruins the whole idea.
         # So we are passing full buffers and hope that the Array class takes care of sizes.
         self._virtual_to_real[new_id] = self.VirtualMapping(
-            real_id, self._real_allocations[real_id].buffer)
+            real_id, self._real_allocations[real_id].buffer
+        )
 
     def _get_real_buffer(self, id_: int) -> Buffer:
         return self._virtual_to_real[id_].sub_region
@@ -382,9 +388,7 @@ class ZeroOffsetManager(VirtualManager):
         va = self._virtual_allocations
 
         # Sort all virtual allocations by size
-        virtual_sizes = sorted(
-            [(va[id_].size, id_) for id_ in va],
-            key=lambda x: x[0])
+        virtual_sizes = sorted([(va[id_].size, id_) for id_ in va], key=lambda x: x[0])
 
         # Application of greedy algorithm for virtual allocations starting from the largest one
         # should give the optimal distribution.

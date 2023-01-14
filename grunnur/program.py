@@ -2,14 +2,31 @@ from __future__ import annotations
 
 from math import log10
 from typing import (
-    Any, Tuple, Union, List, Dict, Optional, Iterable,
-    Mapping, Generic, TypeVar, Callable, Sequence)
+    Any,
+    Tuple,
+    Union,
+    List,
+    Dict,
+    Optional,
+    Iterable,
+    Mapping,
+    Generic,
+    TypeVar,
+    Callable,
+    Sequence,
+)
 import weakref
 
 import numpy
 
 from .device import Device
-from .adapter_base import AdapterCompilationError, KernelAdapter, BufferAdapter, ProgramAdapter, ArrayMetadataLike
+from .adapter_base import (
+    AdapterCompilationError,
+    KernelAdapter,
+    BufferAdapter,
+    ProgramAdapter,
+    ArrayMetadataLike,
+)
 from .modules import render_with_modules
 from .utils import update_dict
 from .array import Array, MultiArray
@@ -22,7 +39,6 @@ from .modules import Snippet
 
 
 class CompilationError(RuntimeError):
-
     def __init__(self, backend_exception):
         super().__init__(str(backend_exception))
         self.backend_exception = backend_exception
@@ -33,11 +49,16 @@ def _check_set_constant_array(queue: Queue, program_devices: BoundMultiDevice):
         raise ValueError("The provided queue must belong to the same context as this program uses")
     if queue.device not in program_devices:
         raise ValueError(
-            f"The program was not compiled for the device this queue uses ({queue.device})")
+            f"The program was not compiled for the device this queue uses ({queue.device})"
+        )
 
 
 def _set_constant_array(
-        queue: Queue, program_adapter: ProgramAdapter, name: str, arr: Union[Array, Buffer, numpy.ndarray]):
+    queue: Queue,
+    program_adapter: ProgramAdapter,
+    name: str,
+    arr: Union[Array, Buffer, numpy.ndarray],
+):
     """
     Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
     """
@@ -67,15 +88,16 @@ class SingleDeviceProgram:
     source: str
 
     def __init__(
-            self,
-            device: BoundDevice,
-            template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
-            no_prelude: bool=False,
-            fast_math: bool=False,
-            render_args: Sequence[Any]=[],
-            render_globals: Mapping[str, Any]={},
-            constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
-            **kwds):
+        self,
+        device: BoundDevice,
+        template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
+        no_prelude: bool = False,
+        fast_math: bool = False,
+        render_args: Sequence[Any] = [],
+        render_globals: Mapping[str, Any] = {},
+        constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
+        **kwds,
+    ):
         """
         Renders and compiles the given template on a single device.
 
@@ -93,11 +115,14 @@ class SingleDeviceProgram:
         self.device = device
 
         render_globals = update_dict(
-            render_globals, dict(device_params=device.params),
-            error_msg="'device_params' is a reserved global name and cannot be used")
+            render_globals,
+            dict(device_params=device.params),
+            error_msg="'device_params' is a reserved global name and cannot be used",
+        )
 
         src = render_with_modules(
-            template_src, render_args=render_args, render_globals=render_globals)
+            template_src, render_args=render_args, render_globals=render_globals
+        )
 
         context_adapter = device.context._context_adapter
 
@@ -108,15 +133,20 @@ class SingleDeviceProgram:
 
         try:
             self._sd_program_adapter = context_adapter.compile_single_device(
-                device._device_adapter, prelude, src,
-                fast_math=fast_math, constant_arrays=constant_arrays, **kwds)
+                device._device_adapter,
+                prelude,
+                src,
+                fast_math=fast_math,
+                constant_arrays=constant_arrays,
+                **kwds,
+            )
         except AdapterCompilationError as e:
             print(f"Failed to compile on {device}")
 
             lines = e.source.split("\n")
             max_num_len = int(log10(len(lines))) + 1
             for i, l in enumerate(lines):
-                print(str(i+1).rjust(max_num_len) + ": " + l)
+                print(str(i + 1).rjust(max_num_len) + ": " + l)
 
             raise CompilationError(e.backend_exception)
 
@@ -129,8 +159,7 @@ class SingleDeviceProgram:
         """
         return getattr(self._sd_program_adapter, kernel_name)
 
-    def set_constant_array(
-            self, queue: Queue, name: str, arr: Union[Array, Buffer, numpy.ndarray]):
+    def set_constant_array(self, queue: Queue, name: str, arr: Union[Array, Buffer, numpy.ndarray]):
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
@@ -148,20 +177,21 @@ class Program:
     sources: Dict[BoundDevice, str]
     """Source files used for each device."""
 
-    kernel: 'KernelHub'
+    kernel: "KernelHub"
     """An object whose attributes are :py:class:`~grunnur.program.Kernel` objects with the corresponding names."""
 
     def __init__(
-            self,
-            devices: Sequence[BoundDevice],
-            template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
-            no_prelude: bool=False,
-            fast_math: bool=False,
-            render_args: Union[List, Tuple]=[],
-            render_globals: Dict={},
-            compiler_options: Optional[Iterable[str]]=None,
-            keep: bool=False,
-            constant_arrays: Optional[Mapping[str, ArrayMetadataLike]]=None):
+        self,
+        devices: Sequence[BoundDevice],
+        template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
+        no_prelude: bool = False,
+        fast_math: bool = False,
+        render_args: Union[List, Tuple] = [],
+        render_globals: Dict = {},
+        compiler_options: Optional[Iterable[str]] = None,
+        keep: bool = False,
+        constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
+    ):
         """
         :param devices: a single- or a multi-device object on which to compile this program.
         :param template_src: a string with the source code, or a Mako template source to render.
@@ -189,7 +219,8 @@ class Program:
                 render_globals=render_globals,
                 compiler_options=compiler_options,
                 keep=keep,
-                constant_arrays=constant_arrays)
+                constant_arrays=constant_arrays,
+            )
             sd_programs[device] = sd_program
             sources[device] = sd_program.source
 
@@ -201,8 +232,7 @@ class Program:
         # discard this Program object
         self.kernel = KernelHub(self)
 
-    def set_constant_array(
-            self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
+    def set_constant_array(self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
         """
         Uploads a constant array to the context's devices (**CUDA only**).
 
@@ -222,7 +252,7 @@ class KernelHub:
     def __init__(self, program: Program):
         self._program_ref = weakref.proxy(program)
 
-    def __getattr__(self, kernel_name: str) -> 'Kernel':
+    def __getattr__(self, kernel_name: str) -> "Kernel":
         """
         Returns a :py:class:`~grunnur.program.Kernel` object for a function (CUDA)/kernel (OpenCL)
         with the name ``kernel_name``.
@@ -230,7 +260,8 @@ class KernelHub:
         program = self._program_ref
         sd_kernel_adapters = {
             device: sd_program.get_kernel_adapter(kernel_name)
-            for device, sd_program in program._sd_programs.items()}
+            for device, sd_program in program._sd_programs.items()
+        }
         return Kernel(program, sd_kernel_adapters)
 
 
@@ -258,12 +289,13 @@ class PreparedKernel:
     """
 
     def __init__(
-            self,
-            devices: BoundMultiDevice,
-            sd_kernel_adapters: Dict[BoundDevice, KernelAdapter],
-            global_sizes: Mapping[Device, Sequence[int]],
-            local_sizes: Mapping[Device, Optional[Sequence[int]]],
-            hold_reference=None):
+        self,
+        devices: BoundMultiDevice,
+        sd_kernel_adapters: Dict[BoundDevice, KernelAdapter],
+        global_sizes: Mapping[Device, Sequence[int]],
+        local_sizes: Mapping[Device, Optional[Sequence[int]]],
+        hold_reference=None,
+    ):
 
         # If this object can be used by itself (e.g. when created from `Kernel.prepare()`),
         # this attribute will hold thre reference to the original `Kernel`.
@@ -315,12 +347,14 @@ class PreparedKernel:
         if not queue.devices.issubset(self._devices):
             raise ValueError(
                 f"Requested execution on devices {queue.devices}; "
-                f"only compiled for {self._devices}")
+                f"only compiled for {self._devices}"
+            )
 
         ret_vals = []
         for device in queue.devices:
             kernel_args = [
-                extract_backend_arg(extract_single_device_arg(arg, device)) for arg in args]
+                extract_backend_arg(extract_single_device_arg(arg, device)) for arg in args
+            ]
 
             single_queue = queue.queues[device]
 
@@ -331,10 +365,13 @@ class PreparedKernel:
         return ret_vals
 
 
-def normalize_sizes(devices: Sequence[BoundDevice],
-        global_size: Union[Sequence[int], Mapping[Device, Sequence[int]]],
-        local_size: Union[Sequence[int], None, Mapping[Device, Optional[Sequence[int]]]]=None,
-        ) -> Tuple[BoundMultiDevice, Dict[Device, Tuple[int, ...]], Dict[Device, Optional[Tuple[int, ...]]]]:
+def normalize_sizes(
+    devices: Sequence[BoundDevice],
+    global_size: Union[Sequence[int], Mapping[Device, Sequence[int]]],
+    local_size: Union[Sequence[int], None, Mapping[Device, Optional[Sequence[int]]]] = None,
+) -> Tuple[
+    BoundMultiDevice, Dict[Device, Tuple[int, ...]], Dict[Device, Optional[Tuple[int, ...]]]
+]:
     if not isinstance(global_size, Mapping):
         global_size = {device: global_size for device in devices}
 
@@ -342,16 +379,20 @@ def normalize_sizes(devices: Sequence[BoundDevice],
         local_size = {device: local_size for device in devices}
 
     normalized_global_size = {device: tuple(gs) for device, gs in global_size.items()}
-    normalized_local_size = {device: tuple(ls) if ls is not None else None for device, ls in local_size.items()}
+    normalized_local_size = {
+        device: tuple(ls) if ls is not None else None for device, ls in local_size.items()
+    }
 
     if normalized_global_size.keys() != normalized_local_size.keys():
         raise ValueError(
             "Mismatched device sets for global and local sizes: "
             f"local sizes have {list(normalized_local_size.keys())}, "
-            f"global sizes have {list(normalized_global_size.keys())}")
+            f"global sizes have {list(normalized_global_size.keys())}"
+        )
 
     devices_subset = BoundMultiDevice.from_bound_devices(
-        [device for device in devices if device in normalized_global_size])
+        [device for device in devices if device in normalized_global_size]
+    )
 
     return devices_subset, normalized_global_size, normalized_local_size
 
@@ -373,13 +414,14 @@ class Kernel:
         """
         return {
             device: sd_kernel_adapter.max_total_local_size
-            for device, sd_kernel_adapter in self._sd_kernel_adapters.items()}
+            for device, sd_kernel_adapter in self._sd_kernel_adapters.items()
+        }
 
     def prepare(
-            self,
-            global_size: Union[Sequence[int], Dict[Device, Sequence[int]]],
-            local_size: Union[Sequence[int], None, Dict[Device, Optional[Sequence[int]]]]=None,
-            ) -> 'PreparedKernel':
+        self,
+        global_size: Union[Sequence[int], Dict[Device, Sequence[int]]],
+        local_size: Union[Sequence[int], None, Dict[Device, Optional[Sequence[int]]]] = None,
+    ) -> "PreparedKernel":
         """
         Prepares the kernel for execution.
 
@@ -398,23 +440,25 @@ class Kernel:
             work group (OpenCL) in each dimension (column-major).
             If ``None``, it will be chosen automatically.
         """
-        multi_device, n_global_size, n_local_size = normalize_sizes(self._program.devices, global_size, local_size)
+        multi_device, n_global_size, n_local_size = normalize_sizes(
+            self._program.devices, global_size, local_size
+        )
 
         # Filter out only the kernel adapters mentioned in global/local_size
-        sd_kernel_adapters = {
-            device: self._sd_kernel_adapters[device]
-            for device in multi_device}
+        sd_kernel_adapters = {device: self._sd_kernel_adapters[device] for device in multi_device}
 
         return PreparedKernel(
-            multi_device, sd_kernel_adapters, n_global_size, n_local_size, hold_reference=self)
+            multi_device, sd_kernel_adapters, n_global_size, n_local_size, hold_reference=self
+        )
 
     def __call__(
-            self,
-            queue: Union[Queue, MultiQueue],
-            global_size: Union[Sequence[int], Dict[Device, Sequence[int]]],
-            local_size: Union[Sequence[int], None, Dict[Device, Optional[Sequence[int]]]]=None,
-            *args,
-            **kwds):
+        self,
+        queue: Union[Queue, MultiQueue],
+        global_size: Union[Sequence[int], Dict[Device, Sequence[int]]],
+        local_size: Union[Sequence[int], None, Dict[Device, Optional[Sequence[int]]]] = None,
+        *args,
+        **kwds,
+    ):
         """
         A shortcut for :py:meth:`Kernel.prepare` and subsequent :py:meth:`PreparedKernel.__call__`.
         See their doc entries for details.

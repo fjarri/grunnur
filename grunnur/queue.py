@@ -17,17 +17,17 @@ class MultiQueue:
     devices: BoundMultiDevice
     """Device indices (in the context) on which this queue operates."""
 
-    queues: Dict[BoundDevice, 'Queue']
+    queues: Dict[BoundDevice, "Queue"]
     """Single-device queues associated with device indices."""
 
     @classmethod
-    def on_devices(cls, devices: Iterable[BoundDevice]) -> 'MultiQueue':
+    def on_devices(cls, devices: Iterable[BoundDevice]) -> "MultiQueue":
         """
         Creates a queue from provided devices (belonging to the same context).
         """
         return cls([Queue(device) for device in devices])
 
-    def __init__(self, queues: Sequence['Queue']):
+    def __init__(self, queues: Sequence["Queue"]):
         """
         :param queues: single-device queues (must belong to distinct devices and the same context).
         """
@@ -55,7 +55,9 @@ class Queue:
         :param device: a device on which to create a queue.
         """
         self.device = device
-        self._queue_adapter = device.context._context_adapter.make_queue_adapter(device._device_adapter)
+        self._queue_adapter = device.context._context_adapter.make_queue_adapter(
+            device._device_adapter
+        )
 
     def synchronize(self):
         """

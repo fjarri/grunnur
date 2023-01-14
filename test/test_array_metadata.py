@@ -21,12 +21,11 @@ def test_get_view():
     ref = numpy.empty((5, 6), numpy.int32)
     slices = (slice(1, 4, 2), slice(-5, -1, 2))
     ref_v = ref[slices]
-    assert (
-        get_view(ref.shape, ref.strides, slices) ==
-        (
-            1 * 24 + (6 - 5) * 4, # the offset of the first element in the view: (1, -5)
-            ref_v.shape,
-            ref_v.strides))
+    assert get_view(ref.shape, ref.strides, slices) == (
+        1 * 24 + (6 - 5) * 4,  # the offset of the first element in the view: (1, -5)
+        ref_v.shape,
+        ref_v.strides,
+    )
 
 
 def ref_range(shape, itemsize, strides):
@@ -63,7 +62,7 @@ def check_metadata(meta, check_max=False):
     for indices in itertools.product(*[range(length) for length in meta.shape]):
         flat_idx = sum(idx * stride for idx, stride in zip(indices, meta.strides))
         addr = flat_idx + meta.first_element_offset
-        buf[addr:addr+itemsize] = 1
+        buf[addr : addr + itemsize] = 1
 
     nz = numpy.flatnonzero(buf)
     min_addr = nz[0]
@@ -92,20 +91,20 @@ def test_metadata_constructor():
     # Minimum offset is too small
     with pytest.raises(ValueError):
         meta = ArrayMetadata(
-            (4, 5), numpy.int32, strides=(20, -4),
-            first_element_offset=0, buffer_size=100)
+            (4, 5), numpy.int32, strides=(20, -4), first_element_offset=0, buffer_size=100
+        )
 
     # Minimum offset is too big
     with pytest.raises(ValueError):
         meta = ArrayMetadata(
-            (4, 5), numpy.int32, strides=(20, 4),
-            first_element_offset=120, buffer_size=100)
+            (4, 5), numpy.int32, strides=(20, 4), first_element_offset=120, buffer_size=100
+        )
 
     # Maximum offset is too big
     with pytest.raises(ValueError):
         meta = ArrayMetadata(
-            (4, 5), numpy.int32, strides=(20, 4),
-            first_element_offset=0, buffer_size=70)
+            (4, 5), numpy.int32, strides=(20, 4), first_element_offset=0, buffer_size=70
+        )
 
 
 def test_view():
@@ -116,7 +115,7 @@ def test_view():
     assert view.strides == ref_view.strides
 
     meta = ArrayMetadata((5, 6), numpy.int32)
-    view = meta[1:4] # omitting the innermost slices
+    view = meta[1:4]  # omitting the innermost slices
     ref_view = numpy.empty(meta.shape, meta.dtype)[1:4]
     assert view.shape == ref_view.shape
     assert view.strides == ref_view.strides
@@ -133,8 +132,10 @@ def test_minimal_subregion():
     # the distance between the lowest address ((1, -3) == (1, 3))
     # and the highest one ((3, -1) == (3, 5)) plus itemsize
     assert size == (
-        (3 * meta.strides[0] + 5 * meta.strides[1]) + meta.dtype.itemsize
-        - (1 * meta.strides[0] + 3 * meta.strides[1]))
+        (3 * meta.strides[0] + 5 * meta.strides[1])
+        + meta.dtype.itemsize
+        - (1 * meta.strides[0] + 3 * meta.strides[1])
+    )
 
     # The new first element address is the address of (1, -1) == (1, 5)
     # minus the origin.

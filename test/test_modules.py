@@ -18,7 +18,8 @@ def test_snippet_from_string():
 
 def test_module_from_callable():
     module = Module.from_callable(
-        lambda prefix, y: "${prefix} + ${y} + ${z}", render_globals=dict(z=3), name="foo")
+        lambda prefix, y: "${prefix} + ${y} + ${z}", render_globals=dict(z=3), name="foo"
+    )
     res = render_with_modules("module call: ${m(4)}", render_globals=dict(m=module)).strip()
     # The module's source gets rendered and attached at the beginning of the main template,
     # instead of being rendered inplace like in Snippet's case
@@ -40,8 +41,13 @@ def test_render_snippet():
 
 def test_render_snippet_with_render_globals():
     # Check that provided render globals are added to those of the snippet
-    snippet = Snippet.from_callable(lambda x, y: "${x} + ${y} + ${z} + ${q}", render_globals=dict(z=3))
-    assert render_with_modules(snippet, render_args=[1, 2], render_globals=dict(q=4)).strip() == "1 + 2 + 3 + 4"
+    snippet = Snippet.from_callable(
+        lambda x, y: "${x} + ${y} + ${z} + ${q}", render_globals=dict(z=3)
+    )
+    assert (
+        render_with_modules(snippet, render_args=[1, 2], render_globals=dict(q=4)).strip()
+        == "1 + 2 + 3 + 4"
+    )
     with pytest.raises(ValueError, match="Cannot add a global 'z' - it already exists"):
         render_with_modules(snippet, render_args=[1, 2], render_globals=dict(z=5, q=4))
 
@@ -57,17 +63,14 @@ def test_render_string_with_args():
 
 def test_render_callable():
     res = render_with_modules(
-        lambda x, y: "${x} + ${y} + ${z}",
-        render_args=[1, 2],
-        render_globals=dict(z=3)).strip()
+        lambda x, y: "${x} + ${y} + ${z}", render_args=[1, 2], render_globals=dict(z=3)
+    ).strip()
     assert res == "1 + 2 + 3"
 
 
 def test_render_def_template():
     tmpl = DefTemplate.from_callable("test", lambda x, y: "${x} + ${y} + ${z}")
-    res = render_with_modules(tmpl,
-        render_args=[1, 2],
-        render_globals=dict(z=3)).strip()
+    res = render_with_modules(tmpl, render_args=[1, 2], render_globals=dict(z=3)).strip()
     assert res == "1 + 2 + 3"
 
 
@@ -78,7 +81,8 @@ def test_render_unknown_type():
 
 def test_render_error():
     module = Module.from_callable(
-        lambda prefix, x: "${prefix} + ${x} + ${bar}", render_globals=dict(baz=3), name="foo")
+        lambda prefix, x: "${prefix} + ${x} + ${bar}", render_globals=dict(baz=3), name="foo"
+    )
     with pytest.raises(RenderError) as exc_info:
         render_with_modules("module call: ${m(1)}", render_globals=dict(m=module))
 
@@ -87,7 +91,7 @@ def test_render_error():
     # Check that we get a correct info from a render error nested in the module hierarchy
     e = exc_info.value
 
-    assert e.args == ('_mod_foo_0_', 1)
+    assert e.args == ("_mod_foo_0_", 1)
     assert e.globals == dict(baz=3)
     assert type(e.exception) == NameError
     assert e.source == module.template.source
@@ -97,6 +101,7 @@ class CustomObj:
     """
     A class supporting custom module processing.
     """
+
     def __init__(self, module):
         self.module = module
 
@@ -105,7 +110,6 @@ class CustomObj:
 
 
 class RenderableCustomObj:
-
     def __init__(self, processed_module):
         self.module = processed_module
 
@@ -113,7 +117,6 @@ class RenderableCustomObj:
 def test_process_objects():
     # Checks that all supported types of objects are correctly traversed
     # in search for Modules.
-
 
     m1 = Module.from_string("m1: ${prefix}", name="m1")
     m2 = Module.from_string("m2: ${prefix}", name="m2")
@@ -137,8 +140,9 @@ def test_process_objects():
             dict_obj=dict(module=m3),
             list_obj=[m4],
             tuple_obj=(m5,),
-            non_module_obj=1
-            )).strip()
+            non_module_obj=1,
+        ),
+    ).strip()
 
     assert res == (
         "m1: _mod_m1_0_\n\n\n"
@@ -151,7 +155,8 @@ def test_process_objects():
         "        _mod_m3_2_\n"
         "        _mod_m4_3_\n"
         "        _mod_m5_4_\n"
-        "        1")
+        "        1"
+    )
 
 
 def test_module_cache():
@@ -170,7 +175,8 @@ def test_module_cache():
         ${m2(2, 3)}
         ${m2(1, 2)}
         """,
-        render_globals=dict(m1=m1, m2=m2)).strip()
+        render_globals=dict(m1=m1, m2=m2),
+    ).strip()
 
     assert res == (
         "m1: _mod_m1_0_\n\n\n"
@@ -180,4 +186,5 @@ def test_module_cache():
         "        _mod_m1_0_\n"
         "        _mod_m2_1_\n"
         "        _mod_m2_2_\n"
-        "        _mod_m2_1_")
+        "        _mod_m2_1_"
+    )

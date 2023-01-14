@@ -9,7 +9,7 @@ def test_allocate_and_copy(mock_or_real_context):
     context, _mocked = mock_or_real_context
 
     length = 100
-    dtype = numpy.dtype('int32')
+    dtype = numpy.dtype("int32")
     size = length * dtype.itemsize
 
     arr = numpy.arange(length).astype(dtype)
@@ -33,7 +33,7 @@ def test_allocate_and_copy(mock_or_real_context):
 
     # Read a subregion
     buf_region = buf.get_sub_region(25 * dtype.itemsize, 50 * dtype.itemsize)
-    arr_region = arr[25:25+50]
+    arr_region = arr[25 : 25 + 50]
     res_region = numpy.empty_like(arr_region)
     buf_region.get(queue, res_region)
     queue.synchronize()
@@ -41,7 +41,7 @@ def test_allocate_and_copy(mock_or_real_context):
 
     # Write a subregion
     arr_region = (numpy.ones(50) * 100).astype(dtype)
-    arr[25:25+50] = arr_region
+    arr[25 : 25 + 50] = arr_region
     buf_region.set(queue, arr_region)
     buf.get(queue, res)
     queue.synchronize()
@@ -51,7 +51,7 @@ def test_allocate_and_copy(mock_or_real_context):
     if context.api.id == cuda_api_id():
         # In OpenCL that leads to segfault, but with CUDA we just emulate that with pointers.
         arr_region2 = (numpy.ones(20) * 200).astype(dtype)
-        arr[25+20:25+40] = arr_region2
+        arr[25 + 20 : 25 + 40] = arr_region2
         buf_region2 = buf_region.get_sub_region(20 * dtype.itemsize, 20 * dtype.itemsize)
         buf_region2.set(queue, arr_region2)
         buf.get(queue, res)
@@ -89,8 +89,8 @@ def test_flags(mock_backend_pyopencl):
     normal_flags = backend.pyopencl.mem_flags.READ_WRITE
     special_flags = normal_flags | backend.pyopencl.mem_flags.ALLOC_HOST_PTR
 
-    backend.add_platform_with_devices('Apple', ['GeForce', 'Foo', 'Bar'])
-    backend.add_platform_with_devices('Baz', ['GeForce', 'Foo', 'Bar'])
+    backend.add_platform_with_devices("Apple", ["GeForce", "Foo", "Bar"])
+    backend.add_platform_with_devices("Baz", ["GeForce", "Foo", "Bar"])
 
     # Multi-device on Apple platform with one of the devices being GeForce: need special Buffer flags
     api = API.from_api_id(backend.api_id)

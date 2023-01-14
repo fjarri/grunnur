@@ -1,9 +1,19 @@
 import pytest
 
 from grunnur.utils import (
-    all_same, all_different, min_blocks, log2, bounding_power_of_2, prod,
-    string_matches_masks, normalize_object_sequence, max_factor, find_local_size, get_launch_size,
-    update_dict)
+    all_same,
+    all_different,
+    min_blocks,
+    log2,
+    bounding_power_of_2,
+    prod,
+    string_matches_masks,
+    normalize_object_sequence,
+    max_factor,
+    find_local_size,
+    get_launch_size,
+    update_dict,
+)
 
 
 def test_all_same():
@@ -46,10 +56,10 @@ def test_prod():
 
 def test_string_matches_masks():
     assert string_matches_masks("foo")
-    assert string_matches_masks("foo", include_masks=['fo', 'ba'])
-    assert not string_matches_masks("foo", include_masks=['ff', 'ba'])
-    assert not string_matches_masks("foo", exclude_masks=['fo', 'ba'])
-    assert string_matches_masks("foo", exclude_masks=['ff', 'ba'])
+    assert string_matches_masks("foo", include_masks=["fo", "ba"])
+    assert not string_matches_masks("foo", include_masks=["ff", "ba"])
+    assert not string_matches_masks("foo", exclude_masks=["fo", "ba"])
+    assert string_matches_masks("foo", exclude_masks=["ff", "ba"])
 
 
 def test_normalize_object_sequence():
@@ -66,7 +76,7 @@ def test_normalize_object_sequence():
 
     # Wrong type
     with pytest.raises(TypeError):
-        normalize_object_sequence(['1', 2], str)
+        normalize_object_sequence(["1", 2], str)
 
 
 def test_max_factor():
@@ -90,16 +100,26 @@ def test_get_launch_size():
     with pytest.raises(ValueError, match="Global/local work sizes have differing dimensions"):
         get_launch_size((64, 64, 64), 64, (100, 100, 100), (10, 10))
 
-    with pytest.raises(ValueError, match="Global sizes must be multiples of corresponding local sizes"):
+    with pytest.raises(
+        ValueError, match="Global sizes must be multiples of corresponding local sizes"
+    ):
         get_launch_size((64, 64, 64), 64, (100, 100, 100), (10, 10, 15))
 
-    assert get_launch_size((64, 64, 32), 64, (10 * 127, 3 * 127, 300)) == ((127, 127, 150), (10, 3, 2))
-    assert get_launch_size((64, 64, 32), 64, (100, 200, 300), (5, 10, 1)) == ((20, 20, 300), (5, 10, 1))
+    assert get_launch_size((64, 64, 32), 64, (10 * 127, 3 * 127, 300)) == (
+        (127, 127, 150),
+        (10, 3, 2),
+    )
+    assert get_launch_size((64, 64, 32), 64, (100, 200, 300), (5, 10, 1)) == (
+        (20, 20, 300),
+        (5, 10, 1),
+    )
 
 
 def test_update_dict():
     assert update_dict({1: 2, 2: 3}, {3: 4}) == {1: 2, 2: 3, 3: 4}
-    with pytest.raises(ValueError, match="Cannot add an item '2' - it already exists in the old dictionary"):
+    with pytest.raises(
+        ValueError, match="Cannot add an item '2' - it already exists in the old dictionary"
+    ):
         update_dict({1: 2, 2: 3}, {2: 4})
     with pytest.raises(ValueError, match="Custom error message for '2'"):
         update_dict({1: 2, 2: 3}, {2: 4}, error_msg="Custom error message for '{name}'")

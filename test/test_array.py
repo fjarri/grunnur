@@ -59,7 +59,9 @@ def test_set_from_non_contiguous(mock_or_real_context):
     arr = Array.empty(context.device, (10, 20), numpy.int32)
     arr2 = Array.empty(context.device, (20, 20), numpy.int32)
 
-    with pytest.raises(ValueError, match="Setting from a non-contiguous device array is not supported"):
+    with pytest.raises(
+        ValueError, match="Setting from a non-contiguous device array is not supported"
+    ):
         arr.set(queue, arr2[::2, :])
 
     # Can set from a non-contiguous numpy array though
@@ -133,7 +135,9 @@ def test_multi_device_mismatched_set(mock_or_real_multi_device_context):
     mqueue = MultiQueue.on_devices(context.devices)
     arr_dev = MultiArray.empty(context.devices, [100], numpy.int32)
     arr_dev2 = MultiArray.empty(context.devices[0:1], [100], numpy.int32)
-    with pytest.raises(ValueError, match="Mismatched device sets in the source and the destination"):
+    with pytest.raises(
+        ValueError, match="Mismatched device sets in the source and the destination"
+    ):
         arr_dev.set(mqueue, arr_dev2)
 
 
@@ -168,9 +172,11 @@ def test_custom_allocator(mock_context):
     context = mock_context
     queue = Queue(context.device)
     allocated = []
+
     def allocator(device, size):
         allocated.append(size)
         return Buffer.allocate(device, size)
+
     arr_dev = Array.empty(context.device, [100], numpy.int32, allocator=allocator)
     arr = arr_dev.get(queue)
     assert arr.shape == (100,)
@@ -186,7 +192,9 @@ def test_custom_buffer(mock_context):
     metadata = ArrayMetadata.from_arraylike(arr)
 
     data = Buffer.allocate(context.device, 100)
-    with pytest.raises(ValueError, match="Provided data buffer is not big enough to hold the array"):
+    with pytest.raises(
+        ValueError, match="Provided data buffer is not big enough to hold the array"
+    ):
         Array(metadata, data)
 
     bigger_data = Buffer.allocate(context.device, arr.size * arr.dtype.itemsize)

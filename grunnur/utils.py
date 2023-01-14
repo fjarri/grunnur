@@ -47,9 +47,10 @@ def prod(seq: Iterable):
 
 
 def string_matches_masks(
-        s: str,
-        include_masks: Optional[Sequence[str]]=None,
-        exclude_masks: Optional[Sequence[str]]=None) -> bool:
+    s: str,
+    include_masks: Optional[Sequence[str]] = None,
+    exclude_masks: Optional[Sequence[str]] = None,
+) -> bool:
     """
     Returns ``True`` if:
     1) ``s`` matches with at least one of regexps from ``include_masks`` (if there are any), and
@@ -76,7 +77,7 @@ def string_matches_masks(
     return True
 
 
-_T = TypeVar('_T')
+_T = TypeVar("_T")
 
 
 def normalize_object_sequence(objs: Sequence[Any], expected_cls: Type[_T]) -> Tuple[_T, ...]:
@@ -120,9 +121,8 @@ def max_factor(x: int, y: int) -> int:
 
 
 def find_local_size(
-        global_size: Sequence[int],
-        max_local_sizes: Sequence[int],
-        max_total_local_size: int) -> Tuple[int, ...]:
+    global_size: Sequence[int], max_local_sizes: Sequence[int], max_total_local_size: int
+) -> Tuple[int, ...]:
     """
     Mimics the OpenCL local size finding algorithm.
     Returns the tuple of the same length as ``global_size``, with every element
@@ -140,10 +140,11 @@ def find_local_size(
 
 
 def get_launch_size(
-        max_local_sizes: Tuple[int, ...],
-        max_total_local_size: int,
-        global_size: Sequence[int],
-        local_size: Optional[Sequence[int]]=None) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+    max_local_sizes: Tuple[int, ...],
+    max_total_local_size: int,
+    global_size: Sequence[int],
+    local_size: Optional[Sequence[int]] = None,
+) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     """
     Constructs the grid and block tuples to launch a CUDA kernel
     based on the provided global and local sizes.
@@ -168,7 +169,8 @@ def get_launch_size(
 
 _UPDATE_ERROR_TEMPLATE = "Cannot add an item '{name}' - it already exists in the old dictionary"
 
-def update_dict(d: Mapping, new_d: Mapping, error_msg: str=_UPDATE_ERROR_TEMPLATE) -> dict:
+
+def update_dict(d: Mapping, new_d: Mapping, error_msg: str = _UPDATE_ERROR_TEMPLATE) -> dict:
     res = dict(d)
     for name, value in new_d.items():
         if name in d:

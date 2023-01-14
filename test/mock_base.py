@@ -3,7 +3,6 @@ from grunnur.template import DefTemplate
 
 
 class MockKernel:
-
     def __init__(self, name, parameters=[], max_total_local_sizes={}):
         self.name = name
         self.parameters = parameters
@@ -11,8 +10,15 @@ class MockKernel:
 
 
 class MockSource:
-
-    def __init__(self, kernels=[], prelude="", should_fail=False, constant_mem={}, source=None, source_template=None):
+    def __init__(
+        self,
+        kernels=[],
+        prelude="",
+        should_fail=False,
+        constant_mem={},
+        source=None,
+        source_template=None,
+    ):
         self.name = "mock_source"
         self.kernels = kernels
         self.prelude = prelude
@@ -32,7 +38,8 @@ class MockSource:
             should_fail=self.should_fail,
             constant_mem=self.constant_mem,
             source=self.source,
-            source_template=self.source_template)
+            source_template=self.source_template,
+        )
 
     def split(self, delim):
         return self.prelude.split(delim) + ["<<< mock source >>>"]
@@ -49,11 +56,11 @@ class MockSource:
                 prelude=self.prelude,
                 should_fail=self.should_fail,
                 constant_mem=self.constant_mem,
-                source=self.source_template.render(*args, **kwds))
+                source=self.source_template.render(*args, **kwds),
+            )
 
 
 class MockDefTemplate(DefTemplate):
-
     def __init__(self, *args, **kwds):
         super().__init__(name="mock_source", mako_def_template=None, source="")
         self._mock_source = MockSource(*args, **kwds)

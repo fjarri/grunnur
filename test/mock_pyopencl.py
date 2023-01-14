@@ -19,7 +19,6 @@ class MemMigrationFlags(IntEnum):
 
 
 class MockPyOpenCL:
-
     def __init__(self):
         self.pyopencl = Mock_pyopencl(self)
         self.api_id = opencl_api_id()
@@ -27,7 +26,7 @@ class MockPyOpenCL:
 
     def add_platform(self, platform_name=None):
         if platform_name is None:
-            platform_name = 'Platform' + str(len(self.platforms))
+            platform_name = "Platform" + str(len(self.platforms))
         platform = Platform(self, platform_name)
         self.platforms.append(platform)
         return platform
@@ -60,7 +59,6 @@ class KernelWorkGroupInfo(Enum):
 
 
 class Mock_pyopencl:
-
     def __init__(self, backend):
 
         self._backend_ref = weakref.ref(backend)
@@ -118,19 +116,17 @@ class Mock_pyopencl:
 
 
 class Event:
-
     def __init__(self, queue):
         self.command_queue = queue
 
 
 class Platform:
-
     def __init__(self, backend, name):
         self._backend_ref = weakref.ref(backend)
         self.name = name
         self._devices = []
-        self.vendor = 'Mock Platforms'
-        self.version = 'OpenCL 1.2'
+        self.vendor = "Mock Platforms"
+        self.version = "OpenCL 1.2"
 
     def add_device(self, device_info):
         device = Device(self, device_info)
@@ -141,20 +137,20 @@ class Platform:
 
 
 class PyOpenCLDeviceInfo:
-
     def __init__(
-            self,
-            name="DefaultDeviceName",
-            vendor="Mock Devices",
-            type=DeviceType.GPU,
-            max_work_group_size=1024,
-            max_work_item_sizes=[1024, 1024, 1024],
-            local_mem_size=64 * 1024,
-            address_bits=32,
-            max_compute_units=8,
-            extensions=[],
-            compute_capability_major_nv=None,
-            warp_size_nv=None):
+        self,
+        name="DefaultDeviceName",
+        vendor="Mock Devices",
+        type=DeviceType.GPU,
+        max_work_group_size=1024,
+        max_work_item_sizes=[1024, 1024, 1024],
+        local_mem_size=64 * 1024,
+        address_bits=32,
+        max_compute_units=8,
+        extensions=[],
+        compute_capability_major_nv=None,
+        warp_size_nv=None,
+    ):
         self.name = name
         self.vendor = vendor
         self.type = type
@@ -169,7 +165,6 @@ class PyOpenCLDeviceInfo:
 
 
 class Device:
-
     def __init__(self, platform, device_info):
 
         self.name = device_info.name
@@ -193,14 +188,12 @@ class Device:
 
 
 class Context:
-
     def __init__(self, devices):
         self._backend_ref = devices[0]._backend_ref
         self.devices = devices
 
 
 class CommandQueue:
-
     def __init__(self, context, device=None):
         self._backend_ref = context._backend_ref
         self.context = context
@@ -216,7 +209,6 @@ class CommandQueue:
 
 
 class Program:
-
     def __init__(self, context, src):
         self._backend_ref = context._backend_ref
         self.context = context
@@ -245,7 +237,6 @@ class Program:
 
 
 class Kernel:
-
     def __init__(self, program, kernel):
         self.program = program
         self._kernel = kernel
@@ -278,7 +269,6 @@ class Kernel:
 
 
 class Buffer:
-
     def __init__(self, context, flags, size, _migrated_to=None, _offset=0, _base_buffer=None):
         self.context = context
         self.flags = flags
@@ -298,11 +288,11 @@ class Buffer:
             data = arr.tobytes()
         else:
             full_buf = arr._buffer if arr._base_buffer is None else arr._base_buffer._buffer
-            data = full_buf[arr.offset:arr.offset + arr.size]
+            data = full_buf[arr.offset : arr.offset + arr.size]
 
         assert len(data) <= self.size
 
-        insert_data = lambda buf: buf[:self.offset] + data + buf[self.offset+len(data):]
+        insert_data = lambda buf: buf[: self.offset] + data + buf[self.offset + len(data) :]
 
         if self._base_buffer is None:
             self._buffer = insert_data(self._buffer)
@@ -315,7 +305,7 @@ class Buffer:
 
         full_buf = self._buffer if self._base_buffer is None else self._base_buffer._buffer
 
-        buf = full_buf[self.offset:self.offset + len(data)]
+        buf = full_buf[self.offset : self.offset + len(data)]
         buf_as_arr = numpy.frombuffer(buf, arr.dtype).reshape(arr.shape)
         numpy.copyto(arr, buf_as_arr)
 
@@ -323,7 +313,9 @@ class Buffer:
         if self._migrated_to is None:
             self._migrated_to = device
         elif device != self._migrated_to:
-            raise RuntimeError("Trying to access a buffer from a different device it was migrated to")
+            raise RuntimeError(
+                "Trying to access a buffer from a different device it was migrated to"
+            )
 
     def get_sub_region(self, origin, size):
         assert origin + size <= self.size
@@ -331,5 +323,10 @@ class Buffer:
         if self._base_buffer is not None:
             raise RuntimeError("Cannot create a subregion of subregion")
         return Buffer(
-            self.context, self.flags, size,
-            _migrated_to=self._migrated_to, _offset=origin, _base_buffer=self)
+            self.context,
+            self.flags,
+            size,
+            _migrated_to=self._migrated_to,
+            _offset=origin,
+            _base_buffer=self,
+        )

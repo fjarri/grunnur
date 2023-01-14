@@ -15,7 +15,7 @@ def test_all(mock_backend_factory):
 
 def test_all_by_shortcut(mock_backend):
     api_id = mock_backend.api_id
-    mock_backend.add_devices(['Device1', 'Device2'])
+    mock_backend.add_devices(["Device1", "Device2"])
 
     apis = API.all_by_shortcut(api_id.shortcut)
     assert len(apis) == 1
@@ -26,7 +26,7 @@ def test_all_by_shortcut_none(mock_backend_factory):
     api_ids = all_api_ids()
     for api_id in api_ids:
         backend = mock_backend_factory.mock(api_id)
-        backend.add_devices(['Device1', 'Device2'])
+        backend.add_devices(["Device1", "Device2"])
 
     apis = API.all_by_shortcut()
     assert len(apis) == len(api_ids)
@@ -87,17 +87,17 @@ def test_hash(mock_backend_factory):
 def test_getitem(mock_backend_pyopencl):
     api_id = mock_backend_pyopencl.api_id
 
-    mock_backend_pyopencl.add_platform_with_devices('Platform0', ['Device0'])
-    mock_backend_pyopencl.add_platform_with_devices('Platform1', ['Device1'])
+    mock_backend_pyopencl.add_platform_with_devices("Platform0", ["Device0"])
+    mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1"])
 
     api = API.from_api_id(api_id)
-    assert api.platforms[0].name == 'Platform0'
-    assert api.platforms[1].name == 'Platform1'
+    assert api.platforms[0].name == "Platform0"
+    assert api.platforms[1].name == "Platform1"
 
 
 def test_attributes(mock_backend):
     api = API.from_api_id(mock_backend.api_id)
-    assert str(mock_backend.api_id) == 'id(' + api.shortcut + ')'
+    assert str(mock_backend.api_id) == "id(" + api.shortcut + ")"
     assert api.id == mock_backend.api_id
     assert api.shortcut == mock_backend.api_id.shortcut
-    assert str(api) == 'api(' + api.shortcut + ')'
+    assert str(api) == "api(" + api.shortcut + ")"

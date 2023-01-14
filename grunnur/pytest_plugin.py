@@ -15,35 +15,42 @@ def pytest_addoption(parser):
         "--api",
         action="store",
         help="GPGPU API: " + "/".join(api_shortcuts) + " (or all available if not given)",
-        default=None, choices=api_shortcuts)
+        default=None,
+        choices=api_shortcuts,
+    )
 
     parser.addoption(
         "--platform-include-mask",
         action="append",
         help="Run tests on matching platforms only",
-        default=[])
+        default=[],
+    )
     parser.addoption(
         "--platform-exclude-mask",
         action="append",
         help="Run tests on matching platforms only",
-        default=[])
+        default=[],
+    )
 
     parser.addoption(
         "--device-include-mask",
         action="append",
         help="Run tests on matching devices only",
-        default=[])
+        default=[],
+    )
     parser.addoption(
         "--device-exclude-mask",
         action="append",
         help="Run tests on matching devices only",
-        default=[])
+        default=[],
+    )
 
     parser.addoption(
         "--include-duplicate-devices",
         action="store_true",
         help="Run tests on all available devices and not only on uniquely named ones",
-        default=False)
+        default=False,
+    )
 
 
 @lru_cache()
@@ -62,8 +69,10 @@ def get_platforms(config):
         Platform.all_by_masks(
             api,
             include_masks=config.option.platform_include_mask,
-            exclude_masks=config.option.platform_exclude_mask)
-        for api in apis)
+            exclude_masks=config.option.platform_exclude_mask,
+        )
+        for api in apis
+    )
 
 
 @lru_cache()
@@ -80,8 +89,10 @@ def get_device_sets(config, unique_devices_only_override=None):
             platform,
             include_masks=config.option.device_include_mask,
             exclude_masks=config.option.device_exclude_mask,
-            unique_only=unique_devices_only)
-        for platform in platforms]
+            unique_only=unique_devices_only,
+        )
+        for platform in platforms
+    ]
 
 
 @lru_cache()
@@ -119,27 +130,30 @@ def pytest_generate_tests(metafunc):
     api_ids = [api.id for api in apis]
 
     fixtures = [
-        ('api', apis),
-        ('platform', platforms),
-        ('device', devices),
-        ]
+        ("api", apis),
+        ("platform", platforms),
+        ("device", devices),
+    ]
 
     for name, vals in fixtures:
         if name in metafunc.fixturenames:
-            metafunc.parametrize(name, vals, ids=['no_' + name] if len(vals) == 0 else lambda obj: obj.shortcut)
+            metafunc.parametrize(
+                name, vals, ids=["no_" + name] if len(vals) == 0 else lambda obj: obj.shortcut
+            )
 
-    if 'some_device' in metafunc.fixturenames:
+    if "some_device" in metafunc.fixturenames:
         metafunc.parametrize(
-            'some_device',
+            "some_device",
             devices if len(devices) == 0 else [devices[0]],
-            ids=['no_device'] if len(devices) == 0 else lambda device: device.shortcut)
+            ids=["no_device"] if len(devices) == 0 else lambda device: device.shortcut,
+        )
 
-    if 'device_set' in metafunc.fixturenames:
+    if "device_set" in metafunc.fixturenames:
         device_sets = get_multi_device_sets(metafunc.config)
         ids = ["+".join(device.shortcut for device in device_set) for device_set in device_sets]
         metafunc.parametrize(
-            'device_set', device_sets,
-            ids=['no_multi_device'] if len(device_sets) == 0 else ids)
+            "device_set", device_sets, ids=["no_multi_device"] if len(device_sets) == 0 else ids
+        )
 
 
 def pytest_report_header(config):

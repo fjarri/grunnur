@@ -14,7 +14,7 @@ TEMPLATE = Template.from_associated_file(__file__)
 
 
 def factorize(num: int) -> List[int]:
-    step = lambda x: 1 + (x<<2) - ((x>>1)<<1)
+    step = lambda x: 1 + (x << 2) - ((x >> 1) << 1)
     maxq = int(floor(sqrt(num)))
     d = 1
     q = 2 if num % 2 == 0 else 3
@@ -33,7 +33,7 @@ class PrimeFactors:
         self.factors = factors
 
     @classmethod
-    def decompose(cls, num: int) -> 'PrimeFactors':
+    def decompose(cls, num: int) -> "PrimeFactors":
         factors_list = factorize(num)
         factors = Counter(factors_list)
         return cls(dict(factors))
@@ -41,7 +41,7 @@ class PrimeFactors:
     def get_value(self) -> int:
         res = 1
         for pwr, exp in self.factors.items():
-            res *= pwr ** exp
+            res *= pwr**exp
         return res
 
     def get_arrays(self) -> Tuple[List[int], List[int]]:
@@ -49,12 +49,12 @@ class PrimeFactors:
         exponents = [self.factors[base] for base in bases]
         return bases, exponents
 
-    def div_by(self, other: 'PrimeFactors') -> 'PrimeFactors':
+    def div_by(self, other: "PrimeFactors") -> "PrimeFactors":
         # assumes that `self` is a multiple of `other`
         factors = dict(self.factors)
         for o_pwr, o_exp in other.factors.items():
             factors[o_pwr] -= o_exp
-            assert factors[o_pwr] >= 0 # sanity check
+            assert factors[o_pwr] >= 0  # sanity check
             if factors[o_pwr] == 0:
                 del factors[o_pwr]
         return PrimeFactors(factors)
@@ -63,8 +63,7 @@ class PrimeFactors:
         return self.factors == other.factors
 
 
-def _get_decompositions(
-        num_factors: PrimeFactors, parts: int) -> Iterator[List[int]]:
+def _get_decompositions(num_factors: PrimeFactors, parts: int) -> Iterator[List[int]]:
     """
     Helper recursive function for ``get_decompositions()``.
     Iterates over all possible decompositions of ``num_factors`` into ``parts`` factors.
@@ -76,7 +75,8 @@ def _get_decompositions(
     bases, exponents = num_factors.get_arrays()
     for sub_exps in itertools.product(*[range(exp, -1, -1) for exp in exponents]):
         part_factors = PrimeFactors(
-            dict(((pwr,sub_exp) for pwr, sub_exp in zip(bases, sub_exps) if sub_exp > 0)))
+            dict(((pwr, sub_exp) for pwr, sub_exp in zip(bases, sub_exps) if sub_exp > 0))
+        )
         part = part_factors.get_value()
         remainder = num_factors.div_by(part_factors)
         for decomp in _get_decompositions(remainder, parts - 1):
@@ -92,8 +92,8 @@ def get_decompositions(num: int, parts: int) -> Iterator[List[int]]:
 
 
 def find_local_size_decomposition(
-        global_size: Sequence[int], flat_local_size: int, threshold: float=0.05) \
-        -> List[int]:
+    global_size: Sequence[int], flat_local_size: int, threshold: float = 0.05
+) -> List[int]:
     """
     Returns a tuple of the same size as ``global_size``,
     with the product equal to ``flat_local_size``,
@@ -112,7 +112,8 @@ def find_local_size_decomposition(
 
     for local_size in get_decompositions(flat_local_size, len(global_size)):
         bounding_global_size = tuple(
-            ls * min_blocks(gs, ls) for gs, ls in zip(global_size, local_size))
+            ls * min_blocks(gs, ls) for gs, ls in zip(global_size, local_size)
+        )
         empty_threads = prod(bounding_global_size) - threads_num
         ratio = empty_threads / threads_num
 
@@ -129,23 +130,22 @@ def find_local_size_decomposition(
     # but providing flat_local_size <= product(global_size),
     # there is at least one decomposition (flat_local_size, 1, 1, ...).
 
-    assert best_local_size is not None # sanity check to catch a possible bug early
+    assert best_local_size is not None  # sanity check to catch a possible bug early
 
     return best_local_size
 
 
 def _group_dimensions(
-        vdim: int, virtual_shape: Sequence[int],
-        adim: int, available_shape: Sequence[int]) \
-        -> Tuple[List[List[int]], List[List[int]]]:
+    vdim: int, virtual_shape: Sequence[int], adim: int, available_shape: Sequence[int]
+) -> Tuple[List[List[int]], List[List[int]]]:
     """
     ``vdim`` and ``adim`` are used for the absolute addressing of dimensions during recursive calls.
     """
     if len(virtual_shape) == 0:
         return [], []
 
-    vdim_group = 1 # number of currently grouped virtual dimensions
-    adim_group = 1 # number of currently grouped available dimensions
+    vdim_group = 1  # number of currently grouped virtual dimensions
+    adim_group = 1  # number of currently grouped available dimensions
 
     while True:
         # If we have more elements in the virtual group than there is in the available group,
@@ -174,14 +174,17 @@ def _group_dimensions(
         a_res = list(range(adim, adim + adim_group))
 
         v_remainder, a_remainder = _group_dimensions(
-            vdim + vdim_group, virtual_shape[vdim_group:],
-            adim + adim_group, available_shape[adim_group:])
+            vdim + vdim_group,
+            virtual_shape[vdim_group:],
+            adim + adim_group,
+            available_shape[adim_group:],
+        )
         return [v_res] + v_remainder, [a_res] + a_remainder
 
 
 def group_dimensions(
-        virtual_shape: Sequence[int],
-        available_shape: Sequence[int]) -> Tuple[List[List[int]], List[List[int]]]:
+    virtual_shape: Sequence[int], available_shape: Sequence[int]
+) -> Tuple[List[List[int]], List[List[int]]]:
     """
     Determines which available dimensions the virtual dimensions can be embedded into.
     Prefers using the maximum number of available dimensions, since in that case
@@ -220,7 +223,7 @@ def find_bounding_shape(virtual_size: int, available_shape: Sequence[int]) -> Li
     # The loop terminates, since `virtual_size` is guaranteed to fit into `available_shape`
     # (worst case scenario, the result will be just `available_shape` itself).
     while True:
-        guess = ceil(free_size**(1/len(free_dims)))
+        guess = ceil(free_size ** (1 / len(free_dims)))
         fixed_size = 1
         for fdim in list(free_dims):
             if guess > available_shape[fdim]:
@@ -239,7 +242,6 @@ def find_bounding_shape(virtual_size: int, available_shape: Sequence[int]) -> Li
 
 
 class ShapeGroups:
-
     def __init__(self, virtual_shape: Sequence[int], available_shape: Sequence[int]):
         # A mapping from a dimension in the virtual shape to a tuple of dimensions
         # in the real shape it uses (and possibly shares with other virtual dimensions).
@@ -269,12 +271,12 @@ class ShapeGroups:
         v_groups, a_groups = group_dimensions(virtual_shape, available_shape)
 
         for v_group, a_group in zip(v_groups, a_groups):
-            virtual_subshape = virtual_shape[v_group[0]:v_group[-1]+1]
+            virtual_subshape = virtual_shape[v_group[0] : v_group[-1] + 1]
             virtual_subsize = prod(virtual_subshape)
 
             bounding_subshape = find_bounding_shape(
-                virtual_subsize,
-                available_shape[a_group[0]:a_group[-1]+1])
+                virtual_subsize, available_shape[a_group[0] : a_group[-1] + 1]
+            )
 
             self.bounding_shape += bounding_subshape
 
@@ -285,8 +287,9 @@ class ShapeGroups:
             for vdim in v_group:
                 self.real_dims[vdim] = a_group
                 self.real_strides[vdim] = [
-                    prod(self.bounding_shape[a_group[0]:adim]) for adim in a_group]
-                self.virtual_strides[vdim] = prod(virtual_shape[v_group[0]:vdim])
+                    prod(self.bounding_shape[a_group[0] : adim]) for adim in a_group
+                ]
+                self.virtual_strides[vdim] = prod(virtual_shape[v_group[0] : vdim])
 
                 # The major virtual dimension (the one that does not require
                 # modulus operation when extracting its index from the flat index)
@@ -361,16 +364,17 @@ class VsizeModules:
     """
 
     def __init__(
-            self,
-            local_id,
-            local_size,
-            group_id,
-            num_groups,
-            global_id,
-            global_size,
-            global_flat_id,
-            global_flat_size,
-            begin):
+        self,
+        local_id,
+        local_size,
+        group_id,
+        num_groups,
+        global_id,
+        global_size,
+        global_flat_id,
+        global_flat_size,
+        begin,
+    ):
 
         self.local_id = local_id
         self.local_size = local_size
@@ -392,88 +396,90 @@ class VsizeModules:
             global_size=process(self.global_size),
             global_flat_id=process(self.global_flat_id),
             global_flat_size=process(self.global_flat_size),
-            begin=process(self.begin))
+            begin=process(self.begin),
+        )
 
     @classmethod
     def from_shape_data(
-            cls,
-            virtual_global_size,
-            virtual_local_size,
-            bounding_global_size,
-            virtual_grid_size,
-            local_groups,
-            grid_groups):
+        cls,
+        virtual_global_size,
+        virtual_local_size,
+        bounding_global_size,
+        virtual_grid_size,
+        local_groups,
+        grid_groups,
+    ):
 
         local_id_mod = Module(
-            TEMPLATE.get_def('local_id'),
-            render_globals=dict(
-                virtual_local_size=virtual_local_size,
-                local_groups=local_groups))
+            TEMPLATE.get_def("local_id"),
+            render_globals=dict(virtual_local_size=virtual_local_size, local_groups=local_groups),
+        )
 
         local_size_mod = Module(
-            TEMPLATE.get_def('local_size'),
-            render_globals=dict(
-                virtual_local_size=virtual_local_size))
+            TEMPLATE.get_def("local_size"),
+            render_globals=dict(virtual_local_size=virtual_local_size),
+        )
 
         group_id_mod = Module(
-            TEMPLATE.get_def('group_id'),
-            render_globals=dict(
-                virtual_grid_size=virtual_grid_size,
-                grid_groups=grid_groups))
+            TEMPLATE.get_def("group_id"),
+            render_globals=dict(virtual_grid_size=virtual_grid_size, grid_groups=grid_groups),
+        )
 
         num_groups_mod = Module(
-            TEMPLATE.get_def('num_groups'),
-            render_globals=dict(
-                virtual_grid_size=virtual_grid_size))
+            TEMPLATE.get_def("num_groups"), render_globals=dict(virtual_grid_size=virtual_grid_size)
+        )
 
         global_id_mod = Module(
-            TEMPLATE.get_def('global_id'),
+            TEMPLATE.get_def("global_id"),
             render_globals=dict(
-                local_id_mod=local_id_mod,
-                group_id_mod=group_id_mod,
-                local_size_mod=local_size_mod))
+                local_id_mod=local_id_mod, group_id_mod=group_id_mod, local_size_mod=local_size_mod
+            ),
+        )
 
         global_size_mod = Module(
-            TEMPLATE.get_def('global_size'),
-            render_globals=dict(
-                virtual_global_size=virtual_global_size))
+            TEMPLATE.get_def("global_size"),
+            render_globals=dict(virtual_global_size=virtual_global_size),
+        )
 
         global_flat_id_mod = Module(
-            TEMPLATE.get_def('global_flat_id'),
+            TEMPLATE.get_def("global_flat_id"),
             render_globals=dict(
-                virtual_global_size=virtual_global_size,
-                global_id_mod=global_id_mod,
-                prod=prod))
+                virtual_global_size=virtual_global_size, global_id_mod=global_id_mod, prod=prod
+            ),
+        )
 
         global_flat_size_mod = Module(
-            TEMPLATE.get_def('global_flat_size'),
+            TEMPLATE.get_def("global_flat_size"),
             render_globals=dict(
-                global_size_mod=global_size_mod,
-                virtual_global_size=virtual_global_size))
+                global_size_mod=global_size_mod, virtual_global_size=virtual_global_size
+            ),
+        )
 
         skip_local_threads_mod = Module(
-            TEMPLATE.get_def('skip_local_threads'),
-            render_globals=dict(
-                local_groups=local_groups))
+            TEMPLATE.get_def("skip_local_threads"), render_globals=dict(local_groups=local_groups)
+        )
 
         skip_groups_mod = Module(
-            TEMPLATE.get_def('skip_groups'),
-            render_globals=dict(
-                grid_groups=grid_groups))
+            TEMPLATE.get_def("skip_groups"), render_globals=dict(grid_groups=grid_groups)
+        )
 
         skip_global_threads_mod = Module(
-            TEMPLATE.get_def('skip_global_threads'),
+            TEMPLATE.get_def("skip_global_threads"),
             render_globals=dict(
                 virtual_global_size=virtual_global_size,
                 bounding_global_size=bounding_global_size,
-                global_id_mod=global_id_mod))
+                global_id_mod=global_id_mod,
+            ),
+        )
 
         begin_static_kernel = Snippet(
-            TEMPLATE.get_def('begin_static_kernel'),
+            TEMPLATE.get_def("begin_static_kernel"),
             render_globals=dict(
                 skip_local_threads_mod=skip_local_threads_mod,
                 skip_groups_mod=skip_groups_mod,
-                skip_global_threads_mod=skip_global_threads_mod))
+                skip_global_threads_mod=skip_global_threads_mod,
+            ),
+        )
 
         return cls(
             local_id=local_id_mod,
@@ -484,13 +490,15 @@ class VsizeModules:
             global_size=global_size_mod,
             global_flat_id=global_flat_id_mod,
             global_flat_size=global_flat_size_mod,
-            begin=begin_static_kernel)
+            begin=begin_static_kernel,
+        )
 
 
 class VirtualSizeError(Exception):
     """
     Raised when a virtual size cannot be found due to device limitations.
     """
+
     pass
 
 
@@ -501,18 +509,20 @@ class VirtualSizes:
     vsize_modules: VsizeModules
 
     def __init__(
-            self,
-            max_total_local_size: int,
-            max_local_sizes: Sequence[int],
-            max_num_groups: Sequence[int],
-            local_size_multiple: int,
-            virtual_global_size: Sequence[int],
-            virtual_local_size: Optional[Sequence[int]]=None):
+        self,
+        max_total_local_size: int,
+        max_local_sizes: Sequence[int],
+        max_num_groups: Sequence[int],
+        local_size_multiple: int,
+        virtual_global_size: Sequence[int],
+        virtual_local_size: Optional[Sequence[int]] = None,
+    ):
 
         if virtual_local_size is not None:
             if len(virtual_local_size) != len(virtual_global_size):
                 raise ValueError(
-                    "Global size and local size must have the same number of dimensions")
+                    "Global size and local size must have the same number of dimensions"
+                )
 
         # Since the device uses column-major ordering of sizes, while we get
         # row-major ordered shapes, we invert our shapes
@@ -525,7 +535,7 @@ class VirtualSizes:
         # but it can be overridden to get a kernel that uses less resources.
         max_local_sizes = [min(max_total_local_size, mls) for mls in max_local_sizes]
 
-        assert max_total_local_size <= prod(max_local_sizes) # sanity check
+        assert max_total_local_size <= prod(max_local_sizes)  # sanity check
 
         if virtual_local_size is None:
             # FIXME: we can obtain better results by taking occupancy into account here,
@@ -538,8 +548,9 @@ class VirtualSizes:
                 # A sanity check - it would be very strange if a device had a local size multiple
                 # so big you can't actually launch that many threads.
                 assert max_total_local_size >= local_size_multiple
-                flat_local_size = (
-                    local_size_multiple * (max_total_local_size // local_size_multiple))
+                flat_local_size = local_size_multiple * (
+                    max_total_local_size // local_size_multiple
+                )
 
             # product(virtual_local_size) == flat_local_size <= max_total_local_size
             # Note: it's ok if local size elements are greater
@@ -549,21 +560,23 @@ class VirtualSizes:
         else:
             if prod(virtual_local_size) > max_total_local_size:
                 raise VirtualSizeError(
-                    f"Requested local size is greater than the maximum {max_total_local_size}")
+                    f"Requested local size is greater than the maximum {max_total_local_size}"
+                )
 
         # Global and local sizes supported by CUDA or OpenCL restricted number of dimensions,
         # which may have limited size, so we need to pack our multidimensional sizes.
 
         virtual_grid_size = [
-            min_blocks(gs, ls) for gs, ls in zip(virtual_global_size, virtual_local_size)]
-        bounding_global_size = [
-            grs * ls for grs, ls in zip(virtual_grid_size, virtual_local_size)]
+            min_blocks(gs, ls) for gs, ls in zip(virtual_global_size, virtual_local_size)
+        ]
+        bounding_global_size = [grs * ls for grs, ls in zip(virtual_grid_size, virtual_local_size)]
 
         if prod(virtual_grid_size) > prod(max_num_groups):
             # Report the bounding size in reversed form so that it matches the provided
             # virtual global size.
             raise VirtualSizeError(
-                f"Bounding global size {list(reversed(bounding_global_size))} is too large")
+                f"Bounding global size {list(reversed(bounding_global_size))} is too large"
+            )
 
         local_groups = ShapeGroups(virtual_local_size, max_local_sizes)
         grid_groups = ShapeGroups(virtual_grid_size, max_num_groups)
@@ -586,7 +599,8 @@ class VirtualSizes:
             bounding_global_size=bounding_global_size,
             virtual_grid_size=virtual_grid_size,
             local_groups=local_groups,
-            grid_groups=grid_groups)
+            grid_groups=grid_groups,
+        )
 
         # For testing purposes
         # (Note that these will have column-major order, same as real_global/local_size)

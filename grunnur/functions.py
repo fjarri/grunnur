@@ -22,12 +22,17 @@ TEMPLATE = Template.from_associated_file(__file__)
 def check_information_loss(out_dtype: numpy.dtype, expected_dtype: numpy.dtype):
     if dtypes.is_complex(expected_dtype) and not dtypes.is_complex(out_dtype):
         warn(
-            "Imaginary part ignored during the downcast from " +
-            str(expected_dtype) + " to " + str(out_dtype),
-            numpy.ComplexWarning)
+            "Imaginary part ignored during the downcast from "
+            + str(expected_dtype)
+            + " to "
+            + str(out_dtype),
+            numpy.ComplexWarning,
+        )
 
 
-def derive_out_dtype(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> numpy.dtype:
+def derive_out_dtype(
+    *in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype] = None
+) -> numpy.dtype:
     expected_dtype = dtypes.result_type(*in_dtypes)
     if out_dtype is None:
         out_dtype = expected_dtype
@@ -45,11 +50,12 @@ def cast(in_dtype: numpy.dtype, out_dtype: numpy.dtype) -> Module:
     :param out_dtype:
     """
     return Module(
-        TEMPLATE.get_def('cast'),
-        render_globals=dict(dtypes=dtypes, out_dtype=out_dtype, in_dtype=in_dtype))
+        TEMPLATE.get_def("cast"),
+        render_globals=dict(dtypes=dtypes, out_dtype=out_dtype, in_dtype=in_dtype),
+    )
 
 
-def add(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> Module:
+def add(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype] = None) -> Module:
     """
     Returns a :py:class:`~grunnur.Module`  with a function of
     ``len(in_dtypes)`` arguments that adds values of types ``in_dtypes``.
@@ -64,11 +70,12 @@ def add(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> Modul
     """
     out_dtype = derive_out_dtype(*in_dtypes, out_dtype=out_dtype)
     return Module(
-        TEMPLATE.get_def('add_or_mul'),
-        render_globals=dict(dtypes=dtypes, op='add', out_dtype=out_dtype, in_dtypes=in_dtypes))
+        TEMPLATE.get_def("add_or_mul"),
+        render_globals=dict(dtypes=dtypes, op="add", out_dtype=out_dtype, in_dtypes=in_dtypes),
+    )
 
 
-def mul(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> Module:
+def mul(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype] = None) -> Module:
     """
     Returns a :py:class:`~grunnur.Module`  with a function of
     ``len(in_dtypes)`` arguments that multiplies values of types ``in_dtypes``.
@@ -79,13 +86,14 @@ def mul(*in_dtypes: numpy.dtype, out_dtype: Optional[numpy.dtype]=None) -> Modul
     """
     out_dtype = derive_out_dtype(*in_dtypes, out_dtype=out_dtype)
     return Module(
-        TEMPLATE.get_def('add_or_mul'),
-        render_globals=dict(dtypes=dtypes, op='mul', out_dtype=out_dtype, in_dtypes=in_dtypes))
+        TEMPLATE.get_def("add_or_mul"),
+        render_globals=dict(dtypes=dtypes, op="mul", out_dtype=out_dtype, in_dtypes=in_dtypes),
+    )
 
 
 def div(
-        dividend_dtype: numpy.dtype, divisor_dtype: numpy.dtype,
-        out_dtype: Optional[numpy.dtype]=None) -> Module:
+    dividend_dtype: numpy.dtype, divisor_dtype: numpy.dtype, out_dtype: Optional[numpy.dtype] = None
+) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that divides a value of type ``dividend_dtype`` by a value of type ``divisor_dtype``.
@@ -97,10 +105,14 @@ def div(
     """
     out_dtype = derive_out_dtype(dividend_dtype, divisor_dtype, out_dtype=out_dtype)
     return Module(
-        TEMPLATE.get_def('div'),
+        TEMPLATE.get_def("div"),
         render_globals=dict(
-            dtypes=dtypes, out_dtype=out_dtype,
-            dividend_dtype=dividend_dtype, divisor_dtype=divisor_dtype))
+            dtypes=dtypes,
+            out_dtype=out_dtype,
+            dividend_dtype=dividend_dtype,
+            divisor_dtype=divisor_dtype,
+        ),
+    )
 
 
 def conj(dtype: numpy.dtype) -> Module:
@@ -111,9 +123,7 @@ def conj(dtype: numpy.dtype) -> Module:
 
     :param dtype:
     """
-    return Module(
-        TEMPLATE.get_def('conj'),
-        render_globals=dict(dtypes=dtypes, dtype=dtype))
+    return Module(TEMPLATE.get_def("conj"), render_globals=dict(dtypes=dtypes, dtype=dtype))
 
 
 def polar_unit(dtype: numpy.dtype) -> Module:
@@ -127,9 +137,7 @@ def polar_unit(dtype: numpy.dtype) -> Module:
     if not dtypes.is_real(dtype):
         raise ValueError("polar_unit() can only be applied to real dtypes")
 
-    return Module(
-        TEMPLATE.get_def('polar_unit'),
-        render_globals=dict(dtypes=dtypes, dtype=dtype))
+    return Module(TEMPLATE.get_def("polar_unit"), render_globals=dict(dtypes=dtypes, dtype=dtype))
 
 
 def norm(dtype: numpy.dtype) -> Module:
@@ -140,9 +148,7 @@ def norm(dtype: numpy.dtype) -> Module:
 
     :param dtype:
     """
-    return Module(
-        TEMPLATE.get_def('norm'),
-        render_globals=dict(dtypes=dtypes, dtype=dtype))
+    return Module(TEMPLATE.get_def("norm"), render_globals=dict(dtypes=dtypes, dtype=dtype))
 
 
 def exp(dtype: numpy.dtype) -> Module:
@@ -162,13 +168,16 @@ def exp(dtype: numpy.dtype) -> Module:
     else:
         polar_unit_ = polar_unit(dtypes.real_for(dtype))
     return Module(
-        TEMPLATE.get_def('exp'),
-        render_globals=dict(dtypes=dtypes, dtype=dtype, polar_unit_=polar_unit_))
+        TEMPLATE.get_def("exp"),
+        render_globals=dict(dtypes=dtypes, dtype=dtype, polar_unit_=polar_unit_),
+    )
 
 
 def pow(
-        base_dtype: numpy.dtype, exponent_dtype: Optional[numpy.dtype]=None,
-        out_dtype: Optional[numpy.dtype]=None) -> Module:
+    base_dtype: numpy.dtype,
+    exponent_dtype: Optional[numpy.dtype] = None,
+    out_dtype: Optional[numpy.dtype] = None,
+) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that raises the first argument of type ``base_dtype``
@@ -204,17 +213,23 @@ def pow(
 
     kwds = dict(
         dtypes=dtypes,
-        base_dtype=base_dtype, exponent_dtype=exponent_dtype, out_dtype=out_dtype,
-        div_=None, mul_=None, cast_=None, polar_=None)
+        base_dtype=base_dtype,
+        exponent_dtype=exponent_dtype,
+        out_dtype=out_dtype,
+        div_=None,
+        mul_=None,
+        cast_=None,
+        polar_=None,
+    )
     if out_dtype != base_dtype:
-        kwds['cast_'] = cast(base_dtype, out_dtype)
+        kwds["cast_"] = cast(base_dtype, out_dtype)
     if dtypes.is_integer(exponent_dtype) and not dtypes.is_real(out_dtype):
-        kwds['mul_'] = mul(out_dtype, out_dtype)
-        kwds['div_'] = div(out_dtype, out_dtype)
+        kwds["mul_"] = mul(out_dtype, out_dtype)
+        kwds["div_"] = div(out_dtype, out_dtype)
     if dtypes.is_complex(out_dtype):
-        kwds['polar_'] = polar(dtypes.real_for(out_dtype))
+        kwds["polar_"] = polar(dtypes.real_for(out_dtype))
 
-    return Module(TEMPLATE.get_def('pow'), render_globals=kwds)
+    return Module(TEMPLATE.get_def("pow"), render_globals=kwds)
 
 
 def polar(dtype: numpy.dtype) -> Module:
@@ -229,5 +244,6 @@ def polar(dtype: numpy.dtype) -> Module:
         raise ValueError("polar() of " + str(dtype) + " is not supported")
 
     return Module(
-        TEMPLATE.get_def('polar'),
-        render_globals=dict(dtypes=dtypes, dtype=dtype, polar_unit_=polar_unit(dtype)))
+        TEMPLATE.get_def("polar"),
+        render_globals=dict(dtypes=dtypes, dtype=dtype, polar_unit_=polar_unit(dtype)),
+    )

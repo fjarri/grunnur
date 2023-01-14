@@ -18,7 +18,7 @@ class Buffer:
     """Device on which this buffer is allocated."""
 
     @classmethod
-    def allocate(cls, device: BoundDevice, size: int) -> 'Buffer':
+    def allocate(cls, device: BoundDevice, size: int) -> "Buffer":
         """
         Allocate a buffer of ``size`` bytes.
 
@@ -53,7 +53,7 @@ class Buffer:
         """
         return self._buffer_adapter.size
 
-    def set(self, queue: Queue, buf: Union[numpy.ndarray, 'Buffer'], no_async: bool=False):
+    def set(self, queue: Queue, buf: Union[numpy.ndarray, "Buffer"], no_async: bool = False):
         """
         Copy the contents of the host array or another buffer to this buffer.
 
@@ -64,7 +64,8 @@ class Buffer:
         if queue.device != self.device:
             raise ValueError(
                 f"Mismatched devices: queue on device {queue.device}, "
-                f"buffer on device {self.device}")
+                f"buffer on device {self.device}"
+            )
 
         buf_adapter: Union[numpy.ndarray, BufferAdapter]
         if isinstance(buf, numpy.ndarray):
@@ -76,7 +77,7 @@ class Buffer:
 
         self._buffer_adapter.set(queue._queue_adapter, buf_adapter, no_async=no_async)
 
-    def get(self, queue: Queue, host_array: numpy.ndarray, async_: bool=False):
+    def get(self, queue: Queue, host_array: numpy.ndarray, async_: bool = False):
         """
         Copy the contents of the buffer to the host array.
 
@@ -87,11 +88,12 @@ class Buffer:
         if queue.device != self.device:
             raise ValueError(
                 f"Mismatched devices: queue on device {queue.device}, "
-                f"buffer on device {self.device}")
+                f"buffer on device {self.device}"
+            )
 
         self._buffer_adapter.get(queue._queue_adapter, host_array, async_=async_)
 
-    def get_sub_region(self, origin: int, size: int) -> 'Buffer':
+    def get_sub_region(self, origin: int, size: int) -> "Buffer":
         """
         Return a buffer object describing a subregion of this buffer.
 

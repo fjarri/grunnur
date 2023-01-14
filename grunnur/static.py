@@ -15,12 +15,16 @@ from .array import Array
 from .utils import prod, update_dict
 from .vsize import VirtualSizes, VirtualSizeError
 from .program import (
-    SingleDeviceProgram, PreparedKernel, normalize_sizes,
-    _check_set_constant_array, _set_constant_array)
+    SingleDeviceProgram,
+    PreparedKernel,
+    normalize_sizes,
+    _check_set_constant_array,
+    _set_constant_array,
+)
 
 
 # the name of the global in the template containing static kernel modules
-_STATIC_MODULES_GLOBAL = 'static'
+_STATIC_MODULES_GLOBAL = "static"
 
 
 class StaticKernel:
@@ -42,16 +46,17 @@ class StaticKernel:
     """Source files used for each device."""
 
     def __init__(
-            self,
-            devices: Sequence[BoundDevice],
-            template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
-            name: str,
-            global_size: Union[Sequence[int], Mapping[Device, Sequence[int]]],
-            local_size: Union[Sequence[int], None, Mapping[Device, Optional[Sequence[int]]]]=None,
-            render_args: Sequence[Any]=[],
-            render_globals: Mapping[str, Any]={},
-            constant_arrays: Optional[Mapping[str, ArrayMetadataLike]]=None,
-            **kwds):
+        self,
+        devices: Sequence[BoundDevice],
+        template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
+        name: str,
+        global_size: Union[Sequence[int], Mapping[Device, Sequence[int]]],
+        local_size: Union[Sequence[int], None, Mapping[Device, Optional[Sequence[int]]]] = None,
+        render_args: Sequence[Any] = [],
+        render_globals: Mapping[str, Any] = {},
+        constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
+        **kwds,
+    ):
         """
         :param devices: a single- or a multi-device object on which to compile this program.
         :param template_src: a string with the source code, or a Mako template source to render.
@@ -62,7 +67,9 @@ class StaticKernel:
         :param constant_arrays: (**CUDA only**) a dictionary ``name: (size, dtype)``
             of global constant arrays to be declared in the program.
         """
-        multi_device, n_global_size, n_local_size = normalize_sizes(devices, global_size, local_size)
+        multi_device, n_global_size, n_local_size = normalize_sizes(
+            devices, global_size, local_size
+        )
 
         self.devices = multi_device
 
@@ -94,18 +101,24 @@ class StaticKernel:
                     max_num_groups=device_params.max_num_groups,
                     local_size_multiple=device_params.warp_size,
                     virtual_global_size=kernel_gs,
-                    virtual_local_size=kernel_ls)
+                    virtual_local_size=kernel_ls,
+                )
 
                 new_render_globals = update_dict(
-                    render_globals, {_STATIC_MODULES_GLOBAL: vs.vsize_modules},
-                    error_msg=f"The global name '{_STATIC_MODULES_GLOBAL}' is reserved in static kernels")
+                    render_globals,
+                    {_STATIC_MODULES_GLOBAL: vs.vsize_modules},
+                    error_msg=f"The global name '{_STATIC_MODULES_GLOBAL}' is reserved in static kernels",
+                )
 
                 # Try to compile the kernel with the corresponding virtual size functions
                 program = SingleDeviceProgram(
-                    device, template_src,
+                    device,
+                    template_src,
                     render_args=render_args,
                     render_globals=new_render_globals,
-                    constant_arrays=constant_arrays, **kwds)
+                    constant_arrays=constant_arrays,
+                    **kwds,
+                )
                 kernel_adapter = program.get_kernel_adapter(name)
 
                 if kernel_adapter.max_total_local_size >= prod(vs.real_local_size):
@@ -128,7 +141,8 @@ class StaticKernel:
                 # So we'll have a sanity check here.
                 if max_total_local_size == 0:
                     raise VirtualSizeError(
-                        "The kernel requires too much resourses to be executed with any local size")
+                        "The kernel requires too much resourses to be executed with any local size"
+                    )
 
             kernel_adapters[device] = kernel_adapter
             sources[device] = program.source
@@ -142,7 +156,8 @@ class StaticKernel:
         local_sizes = {device: vs.real_local_size for device, vs in self._vs_metadata.items()}
 
         self._prepared_kernel = PreparedKernel(
-            multi_device, kernel_adapters, global_sizes, local_sizes)
+            multi_device, kernel_adapters, global_sizes, local_sizes
+        )
 
     def __call__(self, queue, *args):
         """

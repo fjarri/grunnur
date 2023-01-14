@@ -13,14 +13,14 @@ class Device:
     A generalized GPGPU device.
     """
 
-    platform: 'Platform'
+    platform: "Platform"
     """The :py:class:`~grunnur.Platform` object this device belongs to."""
 
     name: str
     """This device's name."""
 
     @classmethod
-    def all(cls, platform: 'Platform') -> List['Device']:
+    def all(cls, platform: "Platform") -> List["Device"]:
         """
         Returns a list of devices available for the given platform.
 
@@ -28,17 +28,18 @@ class Device:
         """
         return [
             Device.from_index(platform, device_idx)
-            for device_idx in range(platform._platform_adapter.device_count)]
+            for device_idx in range(platform._platform_adapter.device_count)
+        ]
 
     @classmethod
     def all_by_masks(
-            cls,
-            platform: 'Platform',
-            include_masks: Optional[Sequence[str]]=None,
-            exclude_masks: Optional[Sequence[str]]=None,
-            unique_only: bool=False,
-            include_pure_parallel_devices: bool=False
-            ) -> List['Device']:
+        cls,
+        platform: "Platform",
+        include_masks: Optional[Sequence[str]] = None,
+        exclude_masks: Optional[Sequence[str]] = None,
+        unique_only: bool = False,
+        include_pure_parallel_devices: bool = False,
+    ) -> List["Device"]:
         """
         Returns a list of all devices satisfying the given criteria.
 
@@ -58,7 +59,8 @@ class Device:
 
         for device in cls.all(platform):
             if not string_matches_masks(
-                    device.name, include_masks=include_masks, exclude_masks=exclude_masks):
+                device.name, include_masks=include_masks, exclude_masks=exclude_masks
+            ):
                 continue
 
             if unique_only and device.name in seen_devices:
@@ -73,7 +75,7 @@ class Device:
         return devices
 
     @classmethod
-    def from_backend_device(cls, obj) -> 'Device':
+    def from_backend_device(cls, obj) -> "Device":
         """
         Wraps a backend device object into a Grunnur device object.
         """
@@ -85,7 +87,7 @@ class Device:
         raise TypeError(f"{obj} was not recognized as a device object by any available API")
 
     @classmethod
-    def from_index(cls, platform: 'Platform', device_idx: int) -> 'Device':
+    def from_index(cls, platform: "Platform", device_idx: int) -> "Device":
         """
         Creates a device based on its index in the list returned by the API.
 

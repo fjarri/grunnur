@@ -39,7 +39,10 @@ def get_func_kernel(func_module, out_dtype, in_dtypes):
 
     full_src = render_with_modules(
         src,
-        render_globals=dict(dtypes=dtypes, in_dtypes=in_dtypes, out_dtype=out_dtype, func=func_module))
+        render_globals=dict(
+            dtypes=dtypes, in_dtypes=in_dtypes, out_dtype=out_dtype, func=func_module
+        ),
+    )
 
     return full_src
 
@@ -47,7 +50,7 @@ def get_func_kernel(func_module, out_dtype, in_dtypes):
 def generate_dtypes(out_code, in_codes):
     test_dtype = lambda idx: dict(i=numpy.int32, f=numpy.float32, c=numpy.complex64)[idx]
     in_dtypes = list(map(test_dtype, in_codes))
-    out_dtype = dtypes.result_type(*in_dtypes) if out_code == 'auto' else test_dtype(out_code)
+    out_dtype = dtypes.result_type(*in_dtypes) if out_code == "auto" else test_dtype(out_code)
 
     if not any(map(dtypes.is_double, in_dtypes)):
         # numpy thinks that int32 * float32 == float64,
@@ -60,7 +63,16 @@ def generate_dtypes(out_code, in_codes):
     return out_dtype, in_dtypes
 
 
-def check_func(context, func_module, reference_func, out_dtype, in_dtypes, atol=1e-8, rtol=1e-5, is_mocked=False):
+def check_func(
+    context,
+    func_module,
+    reference_func,
+    out_dtype,
+    in_dtypes,
+    atol=1e-8,
+    rtol=1e-5,
+    is_mocked=False,
+):
     N = 256
 
     full_src = get_func_kernel(func_module, out_dtype, in_dtypes)
@@ -81,21 +93,21 @@ def check_func(context, func_module, reference_func, out_dtype, in_dtypes, atol=
     test(queue, [N], None, dest_dev, *arrays_dev)
 
     assert numpy.allclose(
-        dest_dev.get(queue),
-        reference_func(*arrays).astype(out_dtype), atol=atol, rtol=rtol)
+        dest_dev.get(queue), reference_func(*arrays).astype(out_dtype), atol=atol, rtol=rtol
+    )
 
 
 # exp()
 
 
-_test_exp_parameters = pytest.mark.parametrize(
-    ('out_code', 'in_codes'),
-    [('f', 'f'), ('c', 'c')])
+_test_exp_parameters = pytest.mark.parametrize(("out_code", "in_codes"), [("f", "f"), ("c", "c")])
 
 
 def _test_exp(context, out_code, in_codes, is_mocked):
     out_dtype, in_dtypes = generate_dtypes(out_code, in_codes)
-    check_func(context, functions.exp(in_dtypes[0]), numpy.exp, out_dtype, in_dtypes, is_mocked=is_mocked)
+    check_func(
+        context, functions.exp(in_dtypes[0]), numpy.exp, out_dtype, in_dtypes, is_mocked=is_mocked
+    )
 
 
 @_test_exp_parameters
@@ -117,8 +129,8 @@ def test_exp_of_integer():
 
 
 _test_pow_parameters = pytest.mark.parametrize(
-    ('out_code', 'in_codes'),
-    [('f', 'fi'), ('c', 'ci'), ('f', 'ff'), ('c', 'cf'), ('i', 'ii')])
+    ("out_code", "in_codes"), [("f", "fi"), ("c", "ci"), ("f", "ff"), ("c", "cf"), ("i", "ii")]
+)
 
 
 def _test_pow(context, out_code, in_codes, is_mocked):
@@ -138,8 +150,15 @@ def test_pow_mocked(mock_context, out_code, in_codes):
 
 
 def _test_pow_defaults(context, is_mocked):
-    func = functions.pow(numpy.float32) # check that exponent and output default to the base dtype
-    check_func(context, func, numpy.power, numpy.float32, [numpy.float32, numpy.float32], is_mocked=is_mocked)
+    func = functions.pow(numpy.float32)  # check that exponent and output default to the base dtype
+    check_func(
+        context,
+        func,
+        numpy.power,
+        numpy.float32,
+        [numpy.float32, numpy.float32],
+        is_mocked=is_mocked,
+    )
 
 
 def test_pow_defaults(context):
@@ -152,7 +171,9 @@ def test_pow_defaults_mocked(mock_context):
 
 def _test_pow_cast_output(context, is_mocked):
     func = functions.pow(numpy.int32, exponent_dtype=numpy.int32, out_dtype=numpy.int64)
-    check_func(context, func, numpy.power, numpy.int64, [numpy.int32, numpy.int32], is_mocked=is_mocked)
+    check_func(
+        context, func, numpy.power, numpy.int64, [numpy.int32, numpy.int32], is_mocked=is_mocked
+    )
 
 
 def test_pow_cast_output(context):
@@ -173,9 +194,7 @@ def test_pow_int_to_float():
         functions.pow(numpy.int32, exponent_dtype=numpy.float32, out_dtype=numpy.int32)
 
 
-@pytest.mark.parametrize(
-    ('out_code', 'in_codes'),
-    [('c', 'cf'), ('f', 'ff')])
+@pytest.mark.parametrize(("out_code", "in_codes"), [("c", "cf"), ("f", "ff")])
 def test_pow_zero_base(context, out_code, in_codes):
     """
     Specific tests for 0^0 and 0^x.
@@ -207,16 +226,19 @@ def test_pow_zero_base(context, out_code, in_codes):
 # polar_unit()
 
 
-_test_polar_unit_parameters = pytest.mark.parametrize(
-    ('out_code', 'in_codes'),
-    [('c', 'f')])
+_test_polar_unit_parameters = pytest.mark.parametrize(("out_code", "in_codes"), [("c", "f")])
 
 
 def _test_polar_unit(context, out_code, in_codes, is_mocked):
     out_dtype, in_dtypes = generate_dtypes(out_code, in_codes)
     check_func(
-        context, functions.polar_unit(in_dtypes[0]),
-        lambda theta: numpy.exp(1j * theta), out_dtype, in_dtypes, is_mocked=is_mocked)
+        context,
+        functions.polar_unit(in_dtypes[0]),
+        lambda theta: numpy.exp(1j * theta),
+        out_dtype,
+        in_dtypes,
+        is_mocked=is_mocked,
+    )
 
 
 @_test_polar_unit_parameters
@@ -237,16 +259,19 @@ def test_polar_unit_of_complex():
 # polar()
 
 
-_test_polar_parameters = pytest.mark.parametrize(
-    ('out_code', 'in_codes'),
-    [('c', 'ff')])
+_test_polar_parameters = pytest.mark.parametrize(("out_code", "in_codes"), [("c", "ff")])
 
 
 def _test_polar(context, out_code, in_codes, is_mocked):
     out_dtype, in_dtypes = generate_dtypes(out_code, in_codes)
     check_func(
-        context, functions.polar(in_dtypes[0]),
-        lambda rho, theta: rho * numpy.exp(1j * theta), out_dtype, in_dtypes, is_mocked=is_mocked)
+        context,
+        functions.polar(in_dtypes[0]),
+        lambda rho, theta: rho * numpy.exp(1j * theta),
+        out_dtype,
+        in_dtypes,
+        is_mocked=is_mocked,
+    )
 
 
 @_test_polar_parameters
@@ -268,15 +293,20 @@ def test_polar_of_complex():
 
 
 _test_norm_parameters = pytest.mark.parametrize(
-    ('out_code', 'in_codes'),
-    [('f', 'c'), ('f', 'f'), ('i', 'i')])
+    ("out_code", "in_codes"), [("f", "c"), ("f", "f"), ("i", "i")]
+)
 
 
 def _test_norm(context, out_code, in_codes, is_mocked):
     out_dtype, in_dtypes = generate_dtypes(out_code, in_codes)
     check_func(
-        context, functions.norm(in_dtypes[0]),
-        lambda x: numpy.abs(x) ** 2, out_dtype, in_dtypes, is_mocked=is_mocked)
+        context,
+        functions.norm(in_dtypes[0]),
+        lambda x: numpy.abs(x) ** 2,
+        out_dtype,
+        in_dtypes,
+        is_mocked=is_mocked,
+    )
 
 
 @_test_norm_parameters
@@ -292,16 +322,14 @@ def test_norm_mocked(mock_context, out_code, in_codes):
 # conj()
 
 
-_test_conj_parameters = pytest.mark.parametrize(
-    ('out_code', 'in_codes'),
-    [('c', 'c'), ('f', 'f')])
+_test_conj_parameters = pytest.mark.parametrize(("out_code", "in_codes"), [("c", "c"), ("f", "f")])
 
 
 def _test_conj(context, out_code, in_codes, is_mocked):
     out_dtype, in_dtypes = generate_dtypes(out_code, in_codes)
     check_func(
-        context, functions.conj(in_dtypes[0]),
-        numpy.conj, out_dtype, in_dtypes, is_mocked=is_mocked)
+        context, functions.conj(in_dtypes[0]), numpy.conj, out_dtype, in_dtypes, is_mocked=is_mocked
+    )
 
 
 @_test_conj_parameters
@@ -318,15 +346,20 @@ def test_conj_mocked(mock_context, out_code, in_codes):
 
 
 _test_cast_parameters = pytest.mark.parametrize(
-    ('out_code', 'in_codes'),
-    [('c', 'f'), ('f', 'f'), ('c', 'c')])
+    ("out_code", "in_codes"), [("c", "f"), ("f", "f"), ("c", "c")]
+)
 
 
 def _test_cast(context, out_code, in_codes, is_mocked):
     out_dtype, in_dtypes = generate_dtypes(out_code, in_codes)
     check_func(
-        context, functions.cast(in_dtypes[0], out_dtype),
-        dtypes.cast(out_dtype), out_dtype, in_dtypes, is_mocked=is_mocked)
+        context,
+        functions.cast(in_dtypes[0], out_dtype),
+        dtypes.cast(out_dtype),
+        out_dtype,
+        in_dtypes,
+        is_mocked=is_mocked,
+    )
 
 
 @_test_cast_parameters
@@ -344,23 +377,32 @@ def test_cast_complex_to_real(context):
     in_dtypes = [numpy.complex64]
     with pytest.raises(RenderError, match="ValueError"):
         check_func(
-            context, functions.cast(in_dtypes[0], out_dtype),
-            dtypes.cast(out_dtype), out_dtype, in_dtypes)
+            context,
+            functions.cast(in_dtypes[0], out_dtype),
+            dtypes.cast(out_dtype),
+            out_dtype,
+            in_dtypes,
+        )
 
 
 # div()
 
 
 _test_div_parameters = pytest.mark.parametrize(
-    ('out_code', 'in_codes'),
-    [('f', 'ff'), ('c', 'cc'), ('c', 'cf'), ('c', 'fc'), ('f', 'if')])
+    ("out_code", "in_codes"), [("f", "ff"), ("c", "cc"), ("c", "cf"), ("c", "fc"), ("f", "if")]
+)
 
 
 def _test_div(context, out_code, in_codes, is_mocked):
     out_dtype, in_dtypes = generate_dtypes(out_code, in_codes)
     check_func(
-        context, functions.div(*in_dtypes, out_dtype=out_dtype),
-        lambda x, y: dtypes.cast(out_dtype)(x / y), out_dtype, in_dtypes, is_mocked=is_mocked)
+        context,
+        functions.div(*in_dtypes, out_dtype=out_dtype),
+        lambda x, y: dtypes.cast(out_dtype)(x / y),
+        out_dtype,
+        in_dtypes,
+        is_mocked=is_mocked,
+    )
 
 
 @_test_div_parameters
@@ -377,7 +419,6 @@ def test_div_mocked(mock_context, out_code, in_codes):
 
 
 def make_reference_add(out_dtype):
-
     def reference_add(*args):
         res = sum(args)
         if not dtypes.is_complex(out_dtype) and dtypes.is_complex(res.dtype):
@@ -387,14 +428,14 @@ def make_reference_add(out_dtype):
     return reference_add
 
 
-_test_add_parameters = pytest.mark.parametrize('in_codes', ["ff", "cc", "cf", "fc", "ifccfi"])
+_test_add_parameters = pytest.mark.parametrize("in_codes", ["ff", "cc", "cf", "fc", "ifccfi"])
 
 
 def _test_add(context, in_codes, is_mocked):
     """
     Checks multi-argument add() with a variety of data types.
     """
-    out_dtype, in_dtypes = generate_dtypes('auto', in_codes)
+    out_dtype, in_dtypes = generate_dtypes("auto", in_codes)
     reference_add = make_reference_add(out_dtype)
     add = functions.add(*in_dtypes, out_dtype=out_dtype)
     check_func(context, add, reference_add, out_dtype, in_dtypes, is_mocked=is_mocked)
@@ -411,8 +452,8 @@ def test_add_mocked(mock_context, in_codes):
 
 
 _test_add_cast_parameters = pytest.mark.parametrize(
-    ('out_code', 'in_codes'),
-    [('c', 'ff'), ('c', 'cc'), ('f', 'ff'), ('f', 'cc')])
+    ("out_code", "in_codes"), [("c", "ff"), ("c", "cc"), ("f", "ff"), ("f", "cc")]
+)
 
 
 def _test_add_cast(context, out_code, in_codes, is_mocked):
@@ -444,7 +485,6 @@ def test_add_cast_mocked(mock_context, out_code, in_codes):
 
 
 def make_reference_mul(out_dtype):
-
     def reference_mul(*args):
         res = prod(args)
         if not dtypes.is_complex(out_dtype) and dtypes.is_complex(res.dtype):
@@ -454,14 +494,14 @@ def make_reference_mul(out_dtype):
     return reference_mul
 
 
-_test_mul_parameters = pytest.mark.parametrize('in_codes', ["ff", "cc", "cf", "fc", "ifccfi"])
+_test_mul_parameters = pytest.mark.parametrize("in_codes", ["ff", "cc", "cf", "fc", "ifccfi"])
 
 
 def _test_mul(context, in_codes, is_mocked):
     """
     Checks multi-argument mul() with a variety of data types.
     """
-    out_dtype, in_dtypes = generate_dtypes('auto', in_codes)
+    out_dtype, in_dtypes = generate_dtypes("auto", in_codes)
     reference_mul = make_reference_mul(out_dtype)
     mul = functions.mul(*in_dtypes, out_dtype=out_dtype)
     check_func(context, mul, reference_mul, out_dtype, in_dtypes, is_mocked=is_mocked)
@@ -478,8 +518,8 @@ def test_mul_mocked(mock_context, in_codes):
 
 
 _test_mul_cast_parameters = pytest.mark.parametrize(
-    ('out_code', 'in_codes'),
-    [('c', 'ff'), ('c', 'cc'), ('f', 'ff'), ('f', 'cc')])
+    ("out_code", "in_codes"), [("c", "ff"), ("c", "cc"), ("f", "ff"), ("f", "cc")]
+)
 
 
 def _test_mul_cast(context, out_code, in_codes, is_mocked):

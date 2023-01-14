@@ -16,7 +16,7 @@ class BoundDevice(Device):
     A :py:class:`~grunnur.Device` object in a :py:class:`~grunnur.Context`.
     """
 
-    context: 'Context'
+    context: "Context"
     """The context this device belongs to."""
 
     def __init__(self, context, device_adapter):
@@ -29,7 +29,7 @@ class BoundDevice(Device):
         # If somehow there's a hash collision, it will be taken care of by ``__eq__``.
         self._hash = hash(device_adapter)
 
-    def as_unbound(self) -> 'Device':
+    def as_unbound(self) -> "Device":
         """
         :meta private:
         Returns the unbound :py:class:`Device` object.
@@ -51,11 +51,11 @@ class BoundMultiDevice(Sequence[BoundDevice]):
     A sequence of bound devices belonging to the same context.
     """
 
-    context: 'Context'
+    context: "Context"
     """The context these devices belong to."""
 
     @classmethod
-    def from_bound_devices(cls, devices: Sequence[BoundDevice]) -> 'BoundMultiDevice':
+    def from_bound_devices(cls, devices: Sequence[BoundDevice]) -> "BoundMultiDevice":
         """
         Creates this object from a sequence of bound devices
         (note that a ``BoundMultiDevice`` object itself can serve as such a sequence).
@@ -69,7 +69,7 @@ class BoundMultiDevice(Sequence[BoundDevice]):
 
         return cls(devices[0].context, [device._device_adapter for device in devices])
 
-    def __init__(self, context: 'Context', device_adapters: Sequence[DeviceAdapter]):
+    def __init__(self, context: "Context", device_adapters: Sequence[DeviceAdapter]):
         self.context = context
         self._devices = [BoundDevice(context, device_adapter) for device_adapter in device_adapters]
         self._devices_as_set = set(self._devices)
@@ -77,17 +77,19 @@ class BoundMultiDevice(Sequence[BoundDevice]):
     def __eq__(self, other):
         return self.context == other.context and self._devices == other._devices
 
-    def issubset(self, devices: 'BoundMultiDevice'):
+    def issubset(self, devices: "BoundMultiDevice"):
         return self._devices_as_set.issubset(devices._devices_as_set)
 
     def __iter__(self):
         return iter(self._devices)
 
     @overload
-    def __getitem__(self, idx: int) -> BoundDevice: ...
+    def __getitem__(self, idx: int) -> BoundDevice:
+        ...
 
     @overload
-    def __getitem__(self, idx: slice) -> 'BoundMultiDevice': ...
+    def __getitem__(self, idx: slice) -> "BoundMultiDevice":
+        ...
 
     def __getitem__(self, idx):
         """
@@ -121,7 +123,7 @@ class Context:
     """The API this context is based on."""
 
     @classmethod
-    def from_devices(cls, devices: Sequence['Device']) -> 'Context':
+    def from_devices(cls, devices: Sequence["Device"]) -> "Context":
         """
         Creates a context from a device or an iterable of devices.
 
@@ -141,7 +143,7 @@ class Context:
         return cls(context_adapter)
 
     @classmethod
-    def from_backend_devices(cls, backend_devices: Sequence[Any]) -> 'Context':
+    def from_backend_devices(cls, backend_devices: Sequence[Any]) -> "Context":
         """
         Creates a context from a single or several backend device objects.
         """
@@ -149,7 +151,9 @@ class Context:
         return cls.from_devices(devices)
 
     @classmethod
-    def from_backend_contexts(cls, backend_contexts: Sequence[Any], take_ownership: bool=False) -> 'Context':
+    def from_backend_contexts(
+        cls, backend_contexts: Sequence[Any], take_ownership: bool = False
+    ) -> "Context":
         """
         Creates a context from a single or several backend device contexts.
         If ``take_ownership`` is ``True``, this object will be responsible for the lifetime
@@ -158,15 +162,17 @@ class Context:
         for api in API.all_available():
             if api._api_adapter.isa_backend_context(backend_contexts[0]):
                 context_adapter = api._api_adapter.make_context_adapter_from_backend_contexts(
-                    backend_contexts, take_ownership=take_ownership)
+                    backend_contexts, take_ownership=take_ownership
+                )
                 return cls(context_adapter)
         raise TypeError(
-            f"{type(backend_contexts[0])} objects were not recognized as contexts by any API")
+            f"{type(backend_contexts[0])} objects were not recognized as contexts by any API"
+        )
 
     @classmethod
     def from_criteria(
-            cls, api: 'API', interactive: bool=False,
-            devices_num: Optional[int]=1, **device_filters) -> 'Context':
+        cls, api: "API", interactive: bool = False, devices_num: Optional[int] = 1, **device_filters
+    ) -> "Context":
         """
         Finds devices matching the given criteria and creates a
         :py:class:`Context` object out of them.
@@ -175,7 +181,9 @@ class Context:
         :param devices_num: passed to :py:func:`select_devices` as ``quantity``.
         :param device_filters: passed to :py:func:`select_devices`.
         """
-        devices = select_devices(api, interactive=interactive, quantity=devices_num, **device_filters)
+        devices = select_devices(
+            api, interactive=interactive, quantity=devices_num, **device_filters
+        )
         return cls.from_devices(devices)
 
     def __init__(self, context_adapter: ContextAdapter):
@@ -185,19 +193,19 @@ class Context:
         self.api = self.platform.api
 
     @property
-    def devices(self) -> 'BoundMultiDevice':
+    def devices(self) -> "BoundMultiDevice":
         """
         Returns the :py:class:`~grunnur.context.BoundMultiDevice`
         encompassing all the devices in this context.
         """
         # Need to create it on-demand to avoid a circular reference.
         device_adapters = [
-            self._device_adapters[device_idx]
-            for device_idx in self._context_adapter.device_order]
+            self._device_adapters[device_idx] for device_idx in self._context_adapter.device_order
+        ]
         return BoundMultiDevice(self, device_adapters)
 
     @property
-    def device(self) -> 'BoundDevice':
+    def device(self) -> "BoundDevice":
         if len(self._device_adapters) > 1:
             raise RuntimeError("The `device` shortcut only works for single-device contexts")
 

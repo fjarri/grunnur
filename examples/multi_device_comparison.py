@@ -24,12 +24,12 @@ KERNEL void sum(GLOBAL_MEM unsigned long *a, int pwr)
 
 
 def calc_ref(x, pwr):
-    m = numpy.uint64(2**32-65)
+    m = numpy.uint64(2**32 - 65)
     res = x.copy()
     for i in range(1, pwr):
         res *= x
         res %= m
-        #res += 1
+        # res += 1
     return res
 
 
@@ -64,7 +64,9 @@ def test_multi_device(device_idxs, full_len, benchmark=False):
 
     a = numpy.arange(full_len).astype(numpy.uint64)
 
-    context = Context.from_devices([api.platforms[0].devices[device_idx] for device_idx in device_idxs])
+    context = Context.from_devices(
+        [api.platforms[0].devices[device_idx] for device_idx in device_idxs]
+    )
     mqueue = MultiQueue.on_devices(context.devices)
 
     program = Program(context.devices, src)
@@ -82,6 +84,7 @@ def test_multi_device(device_idxs, full_len, benchmark=False):
     if not benchmark:
         a_ref = calc_ref(a, pwr)
         assert (a_ref == a_res).all()
+
 
 test_single_device(1, 2**20)
 test_single_device(2, 2**20)
