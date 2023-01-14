@@ -35,9 +35,3 @@ def test_grunnur_import_error():
     # Checks the error branch in `grunnur.__getattr__()`
     with pytest.raises(ImportError):
         from grunnur import non_existent
-
-
-def test_sphinx_requirements():
-    # These attributes are queried by Sphinx when building docs, for whatever reason.
-    assert grunnur.__annotations__ == {}
-    assert grunnur.__mro__ == ()

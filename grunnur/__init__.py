@@ -35,7 +35,5 @@ def __getattr__(name):
         if len(apis) == 0:
             raise ImportError("No APIs are available. Please install either PyCUDA or PyOpenCL")
         return apis[0]
-    if name == "__mro__":
-        return ()
 
     raise ImportError(f"Cannot import name '{name}' from '{__name__}'")
