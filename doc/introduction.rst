@@ -18,7 +18,7 @@ Consider the following example, which is very similar to the one from the index 
     queue = Queue(context.device)
 
     program = Program(
-        context.device,
+        [context.device],
         """
         KERNEL void multiply_them(
             GLOBAL_MEM float *dest,
@@ -38,7 +38,7 @@ Consider the following example, which is very similar to the one from the index 
     b_dev = Array.from_host(queue, b)
     dest_dev = Array.empty(context.device, a.shape, a.dtype)
 
-    multiply_them(queue, N, None, dest_dev, a_dev, b_dev)
+    multiply_them(queue, [N], None, dest_dev, a_dev, b_dev)
     print((dest_dev.get(queue) - a * b == 0).all())
 
 .. testoutput:: grunnur_simple_example
@@ -71,7 +71,8 @@ The template engine of choice in ``grunnur`` is `Mako <http://www.makotemplates.
     dtype = numpy.complex64
 
     program = Program(
-        context.device, """
+        [context.device],
+        """
         KERNEL void multiply_them(
             GLOBAL_MEM ${ctype} *dest,
             GLOBAL_MEM ${ctype} *a,
@@ -95,7 +96,7 @@ The template engine of choice in ``grunnur`` is `Mako <http://www.makotemplates.
     b_dev = Array.from_host(queue, b)
     dest_dev = Array.empty(context.device, a.shape, a.dtype)
 
-    multiply_them(queue, N, None, dest_dev, a_dev, b_dev)
+    multiply_them(queue, [N], None, dest_dev, a_dev, b_dev)
     print(norm(dest_dev.get(queue) - a * b) / norm(a * b) <= 1e-6)
 
 .. testoutput:: grunnur_template_example
