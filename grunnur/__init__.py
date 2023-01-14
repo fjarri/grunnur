@@ -1,5 +1,6 @@
 from .__version__ import __version__
 
+from .adapter_base import ArrayMetadataLike
 from .api import (
     API,
     cuda_api_id,
@@ -34,8 +35,6 @@ def __getattr__(name):
         if len(apis) == 0:
             raise ImportError("No APIs are available. Please install either PyCUDA or PyOpenCL")
         return apis[0]
-    if name == '__annotations__':
-        return {}
     if name == '__mro__':
         return ()
 

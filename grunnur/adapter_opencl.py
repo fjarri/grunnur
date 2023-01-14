@@ -474,7 +474,7 @@ class OclProgramAdapter(ProgramAdapter):
     def set_constant_buffer(
             self, queue_adapter: QueueAdapter,
             name: str, arr: Union[BufferAdapter, numpy.ndarray]):
-        raise Exception("OpenCL does not allow separate setting of constant arrays")
+        raise RuntimeError("OpenCL does not allow setting constant arrays externally")
 
 
 class OclKernelAdapter(KernelAdapter):

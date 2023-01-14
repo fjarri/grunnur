@@ -131,6 +131,39 @@ def test_device(mock_backend_factory, capsys):
     assert '::test_device_fixture[opencl,1,1]' in captured.out
 
 
+@pytest.mark.plugin_inner_test
+def test_some_device_fixture(some_device):
+    assert isinstance(some_device, Device)
+
+
+def test_some_device(mock_backend_factory, capsys):
+    backend_pyopencl = mock_backend_factory.mock_pyopencl()
+    backend_pyopencl.add_platform_with_devices('Foo', ['Device1', 'Device2'])
+    backend_pyopencl.add_platform_with_devices('Bar', ['Device2', 'Device3'])
+
+    run_tests(['-k', 'test_some_device_fixture'])
+    captured = capsys.readouterr()
+    assert 'device(opencl,0,0): Foo, Device1' in captured.out
+    assert 'device(opencl,0,1): Foo, Device2' in captured.out
+    assert 'device(opencl,1,0): Bar, Device2' in captured.out
+    assert 'device(opencl,1,1): Bar, Device3' in captured.out
+    assert '::test_some_device_fixture[opencl,0,0]' in captured.out
+    assert '::test_some_device_fixture[opencl,0,1]' not in captured.out
+    assert '::test_some_device_fixture[opencl,1,0]' not in captured.out
+    assert '::test_some_device_fixture[opencl,1,1]' not in captured.out
+
+    run_tests(['--device-include-mask=Device2', '-k', 'test_some_device_fixture'])
+    captured = capsys.readouterr()
+    assert 'device(opencl,0,0): Foo, Device1' not in captured.out
+    assert 'device(opencl,0,1): Foo, Device2' in captured.out
+    assert 'device(opencl,1,0): Bar, Device2' in captured.out
+    assert 'device(opencl,1,1): Bar, Device3' not in captured.out
+    assert '::test_some_device_fixture[opencl,0,0]' not in captured.out
+    assert '::test_some_device_fixture[opencl,0,1]' in captured.out
+    assert '::test_some_device_fixture[opencl,1,0]' not in captured.out
+    assert '::test_some_device_fixture[opencl,1,1]' not in captured.out
+
+
 def test_duplicate_devices(mock_backend_factory, capsys):
     backend_pyopencl = mock_backend_factory.mock_pyopencl()
     backend_pyopencl.add_platform_with_devices('Foo', ['Device1', 'Device1', 'Device2'])
@@ -178,12 +211,37 @@ def test_context(mock_backend_factory, capsys):
     assert '::test_context_fixture[opencl,0,0]' in captured.out
     assert '::test_context_fixture[opencl,0,1]' in captured.out
 
-    run_tests(['--device-include-mask=Device1', '-k', 'test_context'])
+    run_tests(['--device-include-mask=Device1', '-k', 'test_context_fixture'])
     captured = capsys.readouterr()
     assert 'device(opencl,0,0): Foo, Device1' in captured.out
     assert 'device(opencl,0,1): Foo, Device2' not in captured.out
     assert '::test_context_fixture[opencl,0,0]' in captured.out
     assert '::test_context_fixture[opencl,0,1]' not in captured.out
+
+
+@pytest.mark.plugin_inner_test
+def test_some_context_fixture(some_context):
+    assert isinstance(some_context, Context)
+    assert len(some_context.devices) == 1
+
+
+def test_some_context(mock_backend_factory, capsys):
+    backend_pyopencl = mock_backend_factory.mock_pyopencl()
+    backend_pyopencl.add_platform_with_devices('Foo', ['Device1', 'Device2'])
+
+    run_tests(['-k', 'test_some_context_fixture'])
+    captured = capsys.readouterr()
+    assert 'device(opencl,0,0): Foo, Device1' in captured.out
+    assert 'device(opencl,0,1): Foo, Device2' in captured.out
+    assert '::test_some_context_fixture[opencl,0,0]' in captured.out
+    assert '::test_some_context_fixture[opencl,0,1]' not in captured.out
+
+    run_tests(['--device-include-mask=Device2', '-k', 'test_some_context_fixture'])
+    captured = capsys.readouterr()
+    assert 'device(opencl,0,0): Foo, Device1' not in captured.out
+    assert 'device(opencl,0,1): Foo, Device2' in captured.out
+    assert '::test_some_context_fixture[opencl,0,0]' not in captured.out
+    assert '::test_some_context_fixture[opencl,0,1]' in captured.out
 
 
 def test_no_context(mock_backend_factory, capsys):

@@ -9,3 +9,6 @@ exclude_lines =
 
     # Exclude abstract methods
     @abstractmethod
+
+    # Exclude overload annotations
+    @overload

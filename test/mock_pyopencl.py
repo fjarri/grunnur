@@ -234,7 +234,11 @@ class Program:
         if self.src.should_fail:
             raise PyopenclRuntimeError()
 
+        self._options = options
         self._kernels = {kernel.name: Kernel(self, kernel) for kernel in self.src.kernels}
+
+    def test_get_options(self):
+        return self._options
 
     def __getattr__(self, name):
         return self._kernels[name]

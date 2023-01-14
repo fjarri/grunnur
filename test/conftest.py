@@ -9,7 +9,7 @@ from grunnur.virtual_alloc import TrivialManager, ZeroOffsetManager
 
 # Cannot just use the plugin directly since it is loaded before the coverage plugin,
 # and all the function definitions in all `grunnur` modules get marked as not covered.
-from grunnur.pytest_plugin import context, multi_device_context, get_devices, get_multi_device_sets
+from grunnur.pytest_plugin import context, some_context, multi_device_context, get_devices, get_multi_device_sets
 from grunnur.pytest_plugin import pytest_addoption as grunnur_pytest_addoption
 from grunnur.pytest_plugin import pytest_generate_tests as grunnur_pytest_generate_tests
 from grunnur.pytest_plugin import pytest_report_header as grunnur_pytest_report_header

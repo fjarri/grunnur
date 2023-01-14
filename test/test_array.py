@@ -74,6 +74,10 @@ def test_from_host(mock_or_real_context):
     arr_dev = Array.from_host(queue, arr)
     assert (arr_dev.get(queue) == arr).all()
 
+    # Create from a host array given only a device - that is, synchronously
+    arr_dev = Array.from_host(context.devices[0], arr)
+    assert (arr_dev.get(queue) == arr).all()
+
 
 def test_empty(mock_or_real_context):
     context, _mocked = mock_or_real_context

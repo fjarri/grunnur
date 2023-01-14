@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import API, Platform, Device, Context, Queue
+from grunnur import API, Platform, Device, Context, Queue, opencl_api_id
 from grunnur.context import BoundMultiDevice
 
 
@@ -59,8 +59,24 @@ def test_from_backend_contexts_opencl(mock_backend_pyopencl):
     assert context.platform.name == 'Platform2'
     assert [device.name for device in context.devices] == ['Device2', 'Device3']
 
-    with pytest.raises(TypeError):
-        Context.from_backend_contexts(1)
+    with pytest.raises(TypeError, match="<class 'int'> objects were not recognized as contexts by any API"):
+        Context.from_backend_contexts([1])
+
+
+def test_from_backend_contexts_several_apis(mock_backend_pycuda, mock_backend_pyopencl):
+
+    backend = mock_backend_pyopencl
+    backend.add_platform_with_devices('Platform1', ['Device1'])
+
+    backend_devices = backend.pyopencl.get_platforms()[0].get_devices()
+    backend_context = backend.pyopencl.Context(backend_devices)
+
+    # Check that when several backends are available,
+    # the correct one is used for the given context objects.
+    context = Context.from_backend_contexts([backend_context])
+    assert context.api.id == opencl_api_id()
+    assert context.platform.name == 'Platform1'
+    assert [device.name for device in context.devices] == ['Device1']
 
 
 @pytest.mark.parametrize('take_ownership', [False, True], ids=['no ownership', 'take ownership'])

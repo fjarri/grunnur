@@ -29,8 +29,6 @@ class CompilationError(RuntimeError):
 
 
 def _check_set_constant_array(queue: Queue, program_devices: BoundMultiDevice):
-    if queue.device.context.api.id != cuda_api_id():
-        raise ValueError("Constant arrays are only supported for CUDA API")
     if queue.device.context != program_devices.context:
         raise ValueError("The provided queue must belong to the same context as this program uses")
     if queue.device not in program_devices:
@@ -90,7 +88,7 @@ class SingleDeviceProgram:
         :param kwds: additional parameters for compilation, see :py:func:`compile`.
         """
         if device.context.api.id != cuda_api_id() and constant_arrays and len(constant_arrays) > 0:
-            raise ValueError("Compile-time constant arrays are only supported by CUDA API")
+            raise ValueError("Compile-time constant arrays are only supported for CUDA API")
 
         self.device = device
 

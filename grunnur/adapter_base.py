@@ -7,10 +7,16 @@ import numpy
 
 @runtime_checkable
 class ArrayMetadataLike(Protocol):
+    """
+    A protocol for an object providing array metadata.
+    `numpy.ndarray` or :py:class:`Array` follow this protocol.
+    """
 
     shape: Tuple[int, ...]
+    """Array shape."""
 
     dtype: numpy.dtype
+    """The type of an array element."""
 
 
 class DeviceType(Enum):

@@ -304,6 +304,19 @@ def test_keep(mock_or_real_context, capsys):
     assert str(src) in source
 
 
+def test_compiler_options(mock_context):
+
+    src = MockDefTemplate(kernels=[MockKernel('multiply', [None, None, None, numpy.int32])])
+    program = Program([mock_context.device], src, compiler_options=["--my_option"])
+
+    adapter = program._sd_programs[mock_context.device]._sd_program_adapter
+
+    if mock_context.api.id == opencl_api_id():
+        assert "--my_option" in adapter._pyopencl_program.test_get_options()
+    elif mock_context.api.id == cuda_api_id():
+        assert "--my_option" in adapter._pycuda_program.test_get_options()
+
+
 def test_wrong_device_idxs(mock_4_device_context):
     src = MockDefTemplate(kernels=[MockKernel('multiply', [None])])
 
@@ -389,18 +402,18 @@ def test_set_constant_array_errors(mock_4_device_context):
             program.set_constant_array(queue3, 'cm1', cm1)
 
     else:
-        with pytest.raises(ValueError, match="Compile-time constant arrays are only supported by CUDA API"):
+        with pytest.raises(ValueError, match="Compile-time constant arrays are only supported for CUDA API"):
             program = Program(context.devices, src, constant_arrays=dict(cm1=cm1))
 
         program = Program(context.devices, src)
-        with pytest.raises(ValueError, match="Constant arrays are only supported for CUDA API"):
+        with pytest.raises(RuntimeError, match="OpenCL does not allow setting constant arrays externally"):
             program.set_constant_array(queue, 'cm1', cm1)
 
-        with pytest.raises(ValueError, match="Compile-time constant arrays are only supported by CUDA API"):
+        with pytest.raises(ValueError, match="Compile-time constant arrays are only supported for CUDA API"):
             sk = StaticKernel(context.devices, src, 'kernel', [1024], constant_arrays=dict(cm1=cm1))
 
         sk = StaticKernel(context.devices, src, 'kernel', [1024])
-        with pytest.raises(ValueError, match="Constant arrays are only supported for CUDA API"):
+        with pytest.raises(RuntimeError, match="OpenCL does not allow setting constant arrays externally"):
             sk.set_constant_array(queue, 'cm1', cm1)
 
 

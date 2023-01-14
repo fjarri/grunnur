@@ -95,6 +95,9 @@ Buffers and arrays
 .. autoclass:: Buffer()
     :members:
 
+.. autoclass:: ArrayMetadataLike()
+    :members:
+
 .. autoclass:: Array()
     :members:
     :special-members: __getitem__

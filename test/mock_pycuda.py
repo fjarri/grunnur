@@ -135,12 +135,17 @@ def make_source_module_class(backend):
             self._kernels = {kernel.name: function_cls(self, kernel) for kernel in src.kernels}
             self._constant_mem = src.constant_mem
 
+            self._options = options
+
             # See the note in compile_single_device(). Apparently that's how PyCUDA operates.
             if keep and cache_dir is not None:
                 temp_dir = mkdtemp()
                 with open(os.path.join(temp_dir, 'kernel.cu'), 'w') as f:
                     f.write(str(src))
                 print(f"*** compiler output in {temp_dir}")
+
+        def test_get_options(self):
+            return self._options
 
         def get_function(self, name):
             return self._kernels[name]
