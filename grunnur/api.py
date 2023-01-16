@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 
 from .adapter_base import APIID
 from .adapter_cuda import CuAPIAdapterFactory
 from .adapter_opencl import OclAPIAdapterFactory
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .platform import Platform
 
 
 def cuda_api_id() -> APIID:
@@ -107,8 +110,7 @@ class API:
 
     @property
     def platforms(self) -> List["Platform"]:
-        """platforms(self) -> List[grunnur.Platform]
-
+        """
         A list of this API's :py:class:`Platform` objects.
         """
         from .platform import Platform  # avoiding circular imports

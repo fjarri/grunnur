@@ -9,8 +9,8 @@ try:  # pragma: no cover
     import pycuda.compiler as pycuda_compiler
 except ImportError:  # pragma: no cover
     # these variables are used for a PyCUDA mock during tests
-    pycuda_driver = None
-    pycuda_compiler = None
+    pycuda_driver = None  # type: ignore
+    pycuda_compiler = None  # type: ignore
 
 from .utils import prod, normalize_object_sequence, get_launch_size
 from .template import Template

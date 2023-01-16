@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import Optional, List, Sequence
+from typing import Optional, List, Sequence, TYPE_CHECKING
 
 from .adapter_base import PlatformAdapter
 from .api import API
 from .utils import string_matches_masks
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .device import Device
 
 
 class Platform:

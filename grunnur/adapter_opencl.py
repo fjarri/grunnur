@@ -8,7 +8,7 @@ import numpy
 try:  # pragma: no cover
     import pyopencl
 except ImportError:  # pragma: no cover
-    pyopencl = None
+    pyopencl = None  # type: ignore
 
 from .utils import normalize_object_sequence
 from .template import Template
