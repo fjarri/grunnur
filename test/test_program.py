@@ -18,6 +18,7 @@ from grunnur import (
     StaticKernel,
     API,
     Context,
+    DeviceFilter,
 )
 from grunnur.template import Template, DefTemplate
 
@@ -179,7 +180,7 @@ KERNEL void copy_from_cm(
 #endif
     )
 {
-    ${static.begin};
+    if (${static.skip}()) return;
     const int i = ${static.global_id}(0);
     dest[i] = cm1[i] + cm2[i] + cm3[i];
 }
@@ -462,7 +463,9 @@ def test_set_constant_array_errors(mock_4_device_context):
 def test_max_total_local_sizes(mock_backend):
     mock_backend.add_devices(["Device1", "Device2 - tag", "Device3 - tag", "Device4"])
     api = API.from_api_id(mock_backend.api_id)
-    context = Context.from_criteria(api, devices_num=2, device_include_masks=["tag"])
+    context = Context.from_criteria(
+        api, devices_num=2, device_filter=DeviceFilter(include_masks=["tag"])
+    )
 
     # Providing max_total_local_sizes for all possible devices to make sure
     # only the ones corresponding to the context will get picked up

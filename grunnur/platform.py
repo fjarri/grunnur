@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, List, Sequence, TYPE_CHECKING
+from typing import Any, NamedTuple, Optional, List, Sequence, TYPE_CHECKING
 
 from .adapter_base import PlatformAdapter
 from .api import API
@@ -8,6 +8,14 @@ from .utils import string_matches_masks
 
 if TYPE_CHECKING:  # pragma: no cover
     from .device import Device
+
+
+class PlatformFilter(NamedTuple):
+    include_masks: Optional[List[str]] = None
+    """A list of strings (treated as regexes), one of which must match the platform name."""
+
+    exclude_masks: Optional[List[str]] = None
+    """A list of strings (treated as regexes), neither of which must match the platform name."""
 
 
 class Platform:
@@ -40,31 +48,29 @@ class Platform:
         ]
 
     @classmethod
-    def all_by_masks(
+    def all_filtered(
         cls,
         api: API,
-        include_masks: Optional[Sequence[str]] = None,
-        exclude_masks: Optional[Sequence[str]] = None,
+        filter: Optional[PlatformFilter] = None,
     ) -> List["Platform"]:
         """
-        Returns a list of all platforms with names satisfying the given criteria.
-
-        :param api: the API to search in.
-        :param include_masks: a list of strings (treated as regexes),
-            one of which must match with the platform name.
-        :param exclude_masks: a list of strings (treated as regexes),
-            neither of which must match with the platform name.
+        Returns a list of all platforms satisfying the given criteria in the given API.
+        If ``filter`` is not provided, returns all the platforms.
         """
+        if filter is None:
+            return cls.all(api)
         return [
             platform
             for platform in cls.all(api)
             if string_matches_masks(
-                platform.name, include_masks=include_masks, exclude_masks=exclude_masks
+                platform.name,
+                include_masks=filter.include_masks,
+                exclude_masks=filter.exclude_masks,
             )
         ]
 
     @classmethod
-    def from_backend_platform(cls, obj) -> "Platform":
+    def from_backend_platform(cls, obj: Any) -> "Platform":
         """
         Wraps a backend platform object into a Grunnur platform object.
         """
@@ -105,11 +111,15 @@ class Platform:
 
         return Device.all(self)
 
-    def __eq__(self, other):
-        return isinstance(other, Platform) and self._platform_adapter == other._platform_adapter
+    def __eq__(self, other: Any) -> bool:
+        return (
+            type(self) == type(other)
+            and isinstance(other, Platform)
+            and self._platform_adapter == other._platform_adapter
+        )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((type(self), self._platform_adapter))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"platform({self.shortcut})"

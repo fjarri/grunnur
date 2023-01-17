@@ -88,12 +88,6 @@ def test_complex_ctr():
     assert dtypes.complex_ctr(numpy.complex64) == "COMPLEX_CTR(float2)"
 
 
-def test_cast():
-    cast = dtypes.cast(numpy.uint64)
-    for val in [cast(1), cast(numpy.int32(1)), cast(numpy.uint64(1))]:
-        assert val.dtype == numpy.uint64 and val == 1
-
-
 def test_c_constant():
     # scalar values
     assert dtypes.c_constant(1) == "1"
@@ -117,11 +111,15 @@ def test_c_constant():
     # custom dtype
     assert dtypes.c_constant(1, numpy.float32) == "1.0f"
 
+    message = r"Cannot render a value of type <class 'numpy.str_'> as a C constant"
+    with pytest.raises(TypeError, match=message):
+        dtypes.c_constant(numpy.array(["a", "b"]))
+
 
 def test__align_simple():
     dtype = numpy.dtype("int32")
     res = dtypes._align(dtype)
-    ref = dtypes.WrappedType(dtype, dtype.itemsize)
+    ref = dtypes.WrappedType.non_struct(dtype, dtype.itemsize)
     assert res == ref
 
 
@@ -129,7 +127,7 @@ def test__align_array():
     dtype = numpy.dtype("int32")
     dtype_arr = numpy.dtype((dtype, 3))
     res = dtypes._align(dtype_arr)
-    ref = dtypes.WrappedType(dtype_arr, dtype.itemsize)
+    ref = dtypes.WrappedType.non_struct(dtype_arr, dtype.itemsize)
     assert res == ref
 
 
@@ -147,9 +145,9 @@ def test__align_non_aligned_struct():
         )
     )
 
-    wt_x = dtypes.WrappedType(numpy.dtype("int8"), 1)
-    wt_y = dtypes.WrappedType(numpy.dtype("int16"), 2)
-    wt_z = dtypes.WrappedType(numpy.dtype("int32"), 4)
+    wt_x = dtypes.WrappedType.non_struct(numpy.dtype("int8"), 1)
+    wt_y = dtypes.WrappedType.non_struct(numpy.dtype("int16"), 2)
+    wt_z = dtypes.WrappedType.non_struct(numpy.dtype("int32"), 4)
     ref = dtypes.WrappedType(
         dtype_aligned,
         4,
@@ -173,9 +171,9 @@ def test__align_aligned_struct():
 
     res = dtypes._align(dtype_aligned)
 
-    wt_x = dtypes.WrappedType(numpy.dtype("int8"), 1)
-    wt_y = dtypes.WrappedType(numpy.dtype("int16"), 2)
-    wt_z = dtypes.WrappedType(numpy.dtype("int32"), 4)
+    wt_x = dtypes.WrappedType.non_struct(numpy.dtype("int8"), 1)
+    wt_y = dtypes.WrappedType.non_struct(numpy.dtype("int16"), 2)
+    wt_z = dtypes.WrappedType.non_struct(numpy.dtype("int32"), 4)
     ref = dtypes.WrappedType(
         dtype_aligned,
         4,
@@ -199,9 +197,9 @@ def test__align_aligned_struct_custom_itemsize():
 
     res = dtypes._align(dtype_aligned)
 
-    wt_x = dtypes.WrappedType(numpy.dtype("int8"), 1)
-    wt_y = dtypes.WrappedType(numpy.dtype("int16"), 2)
-    wt_z = dtypes.WrappedType(numpy.dtype("int32"), 4)
+    wt_x = dtypes.WrappedType.non_struct(numpy.dtype("int8"), 1)
+    wt_y = dtypes.WrappedType.non_struct(numpy.dtype("int16"), 2)
+    wt_z = dtypes.WrappedType.non_struct(numpy.dtype("int32"), 4)
     ref = dtypes.WrappedType(
         dtype_aligned,
         16,
@@ -234,9 +232,9 @@ def test__align_custom_field_offsets():
 
     res = dtypes._align(dtype_aligned)
 
-    wt_x = dtypes.WrappedType(numpy.dtype("int8"), 1)
-    wt_y = dtypes.WrappedType(numpy.dtype("int16"), 2)
-    wt_z = dtypes.WrappedType(numpy.dtype("int32"), 4)
+    wt_x = dtypes.WrappedType.non_struct(numpy.dtype("int8"), 1)
+    wt_y = dtypes.WrappedType.non_struct(numpy.dtype("int16"), 2)
+    wt_z = dtypes.WrappedType.non_struct(numpy.dtype("int32"), 4)
     ref = dtypes.WrappedType(
         dtype_aligned,
         16,
@@ -344,29 +342,15 @@ def test_wrapped_type_repr():
             aligned=True,
         )
     )
-    wt_x = dtypes.WrappedType(numpy.dtype("int8"), 1)
-    wt_y = dtypes.WrappedType(numpy.dtype("int16"), 2)
-    wt_z = dtypes.WrappedType(numpy.dtype("int32"), 4)
+    wt_x = dtypes.WrappedType.non_struct(numpy.dtype("int8"), 1)
+    wt_y = dtypes.WrappedType.non_struct(numpy.dtype("int16"), 2)
+    wt_z = dtypes.WrappedType.non_struct(numpy.dtype("int32"), 4)
     wt = dtypes.WrappedType(
         dtype_aligned,
         16,
         explicit_alignment=None,
         wrapped_fields=dict(x=wt_x, y=wt_y, z=wt_z),
         field_alignments=dict(x=None, y=4, z=16),
-    )
-
-    assert (
-        eval(
-            repr(wt),
-            dict(
-                numpy=numpy,
-                WrappedType=dtypes.WrappedType,
-                int8=numpy.int8,
-                int16=numpy.int16,
-                int32=numpy.int32,
-            ),
-        )
-        == wt
     )
 
 

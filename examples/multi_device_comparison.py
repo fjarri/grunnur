@@ -1,4 +1,6 @@
 import time
+from typing import Any, Sequence
+
 import numpy
 from grunnur import opencl_api as api
 from grunnur import Context, Queue, MultiQueue, Program, Array, MultiArray
@@ -23,7 +25,7 @@ KERNEL void sum(GLOBAL_MEM unsigned long *a, int pwr)
 """
 
 
-def calc_ref(x, pwr):
+def calc_ref(x: numpy.ndarray[Any, Any], pwr: int) -> numpy.ndarray[Any, Any]:
     m = numpy.uint64(2**32 - 65)
     res = x.copy()
     for i in range(1, pwr):
@@ -33,7 +35,7 @@ def calc_ref(x, pwr):
     return res
 
 
-def test_single_device(device_idx, full_len, benchmark=False):
+def test_single_device(device_idx: int, full_len: int, benchmark: bool = False) -> None:
     pwr = 50
 
     a = numpy.arange(full_len).astype(numpy.uint64)
@@ -41,12 +43,12 @@ def test_single_device(device_idx, full_len, benchmark=False):
     context = Context.from_devices([api.platforms[0].devices[device_idx]])
     queue = Queue(context.device)
 
-    program = Program(context.device, src)
+    program = Program([context.device], src)
     a_dev = Array.from_host(queue, a)
 
     queue.synchronize()
     t1 = time.time()
-    program.kernel.sum(queue, full_len, None, a_dev, numpy.int32(pwr))
+    program.kernel.sum(queue, [full_len], None, a_dev, numpy.int32(pwr))
     queue.synchronize()
     t2 = time.time()
     print(f"Single device time (device {device_idx}):", t2 - t1)
@@ -58,7 +60,7 @@ def test_single_device(device_idx, full_len, benchmark=False):
         assert (a_ref == a_res).all()
 
 
-def test_multi_device(device_idxs, full_len, benchmark=False):
+def test_multi_device(device_idxs: Sequence[int], full_len: int, benchmark: bool = False) -> None:
 
     pwr = 50
 

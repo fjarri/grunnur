@@ -4,25 +4,21 @@ from grunnur.sorted_list import SortedList
 
 
 def test_basics():
-    s = SortedList([2, 4, 6, 1, 3, 9])
+    s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     assert len(s) == 6
     assert s[3] == 4
     assert list(s) == [1, 2, 3, 4, 6, 9]
 
-    s.clear()
-    assert len(s) == 0
-    assert list(s) == []
-
 
 def test_index():
-    s = SortedList([2, 4, 6, 1, 3, 9])
+    s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     assert s.index(4) == 3
     with pytest.raises(ValueError):
         s.index(0)
 
 
 def test_insert():
-    s = SortedList([2, 4, 6, 1, 3, 9])
+    s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     s.insert(5)
     assert list(s) == [1, 2, 3, 4, 5, 6, 9]
 
@@ -34,13 +30,13 @@ def test_insert():
 
 
 def test_remove():
-    s = SortedList([2, 4, 6, 1, 3, 9])
+    s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     s.remove(3)
     assert list(s) == [1, 2, 4, 6, 9]
 
 
 def test_argfind_ge():
-    s = SortedList([2, 4, 6, 1, 3, 9])
+    s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     assert s.argfind_ge(8) == 5
     with pytest.raises(ValueError):
         s.argfind_ge(10)

@@ -1,15 +1,18 @@
 import collections
 from functools import reduce
-from typing import Any, Iterable, Optional, Tuple, TypeVar, Type, Sequence, Mapping, overload
+from typing import Any, Iterable, Optional, Tuple, TypeVar, Type, Sequence, Mapping, Dict, overload
 import re
 
 
-def all_same(seq: Iterable) -> bool:
+_T = TypeVar("_T")
+
+
+def all_same(seq: Iterable[Any]) -> bool:
     seq = list(seq)
     return all(elem == seq[0] for elem in seq[1:])
 
 
-def all_different(seq: Iterable) -> bool:
+def all_different(seq: Iterable[Any]) -> bool:
     seq = list(seq)
     return len(seq) == len(set(seq))
 
@@ -38,10 +41,10 @@ def bounding_power_of_2(num: int) -> int:
     """
     if num == 1:
         return 1
-    return 2 ** (log2(num - 1) + 1)
+    return 1 << (log2(num - 1) + 1)
 
 
-def prod(seq: Iterable):
+def prod(seq: Iterable[int]) -> int:
     # Integer product. `numpy.prod` returns a float when given an empty sequence.
     return reduce(lambda x, y: x * y, seq, 1)
 
@@ -75,9 +78,6 @@ def string_matches_masks(
                 return False
 
     return True
-
-
-_T = TypeVar("_T")
 
 
 def normalize_object_sequence(objs: Sequence[Any], expected_cls: Type[_T]) -> Tuple[_T, ...]:
@@ -170,7 +170,9 @@ def get_launch_size(
 _UPDATE_ERROR_TEMPLATE = "Cannot add an item '{name}' - it already exists in the old dictionary"
 
 
-def update_dict(d: Mapping, new_d: Mapping, error_msg: str = _UPDATE_ERROR_TEMPLATE) -> dict:
+def update_dict(
+    d: Mapping[str, _T], new_d: Mapping[str, _T], error_msg: str = _UPDATE_ERROR_TEMPLATE
+) -> Dict[str, _T]:
     res = dict(d)
     for name, value in new_d.items():
         if name in d:

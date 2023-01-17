@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional, List, TYPE_CHECKING
+from typing import Any, Optional, List, TYPE_CHECKING
 
-from .adapter_base import APIID
+from .adapter_base import APIID, APIAdapter
 from .adapter_cuda import CuAPIAdapterFactory
 from .adapter_opencl import OclAPIAdapterFactory
 
@@ -103,7 +103,7 @@ class API:
         api_adapter = _ALL_API_ADAPTER_FACTORIES[api_id].make_api_adapter()
         return cls(api_adapter)
 
-    def __init__(self, api_adapter):
+    def __init__(self, api_adapter: APIAdapter):
         self._api_adapter = api_adapter
         self.id = api_adapter.id
         self.shortcut = self.id.shortcut
@@ -117,11 +117,15 @@ class API:
 
         return Platform.all(self)
 
-    def __eq__(self, other):
-        return isinstance(other, API) and self._api_adapter == other._api_adapter
+    def __eq__(self, other: Any) -> bool:
+        return (
+            type(self) == type(other)
+            and isinstance(other, API)
+            and self._api_adapter == other._api_adapter
+        )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((type(self), self._api_adapter))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"api({self.shortcut})"

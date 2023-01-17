@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Mapping, Sequence, Callable, Union, Tuple, List, Dict, Any
+from typing import Iterable, Mapping, Sequence, Callable, Union, Tuple, List, Dict, Any, overload
 
 from .template import DefTemplate, RenderError
 from .utils import update_dict
@@ -13,7 +13,7 @@ class Snippet:
     or :py:class:`Module` objects.
     """
 
-    def __init__(self, template: "DefTemplate", render_globals: Mapping = {}):
+    def __init__(self, template: DefTemplate, render_globals: Mapping[str, Any] = {}):
         """
         Creates a snippet out of a prepared template.
 
@@ -24,7 +24,7 @@ class Snippet:
         self.template = template
         self.render_globals = render_globals
 
-    def with_added_globals(self, add_globals: Mapping = {}) -> "Snippet":
+    def with_added_globals(self, add_globals: Mapping[str, Any] = {}) -> "Snippet":
         new_globals = update_dict(
             self.render_globals,
             add_globals,
@@ -34,7 +34,10 @@ class Snippet:
 
     @classmethod
     def from_callable(
-        cls, callable_obj: Callable[..., str], name: str = "_snippet", render_globals: Mapping = {}
+        cls,
+        callable_obj: Callable[..., str],
+        name: str = "_snippet",
+        render_globals: Mapping[str, Any] = {},
     ) -> "Snippet":
         """
         Creates a snippet from a callable returning a string.
@@ -51,7 +54,7 @@ class Snippet:
 
     @classmethod
     def from_string(
-        cls, source: str, name: str = "_snippet", render_globals: Mapping = {}
+        cls, source: str, name: str = "_snippet", render_globals: Mapping[str, Any] = {}
     ) -> "Snippet":
         """
         Creates a snippet from a template source, treated as a body of a
@@ -64,7 +67,9 @@ class Snippet:
         template = DefTemplate.from_string(name, [], source)
         return cls(template, render_globals=render_globals)
 
-    def __process_modules__(self, process: Callable) -> "RenderableSnippet":
+    def __process_modules__(
+        self, process: Callable[[Mapping[str, Any]], Mapping[str, Any]]
+    ) -> "RenderableSnippet":
         return RenderableSnippet(self.template, process(self.render_globals))
 
 
@@ -73,14 +78,14 @@ class RenderableSnippet:
     A snippet with processed dependencies and ready to be rendered.
     """
 
-    def __init__(self, template: DefTemplate, render_globals: Mapping):
+    def __init__(self, template: DefTemplate, render_globals: Mapping[str, Any]):
         self.template = template
         self.render_globals = render_globals
 
-    def __call__(self, *args) -> str:
+    def __call__(self, *args: Any) -> str:
         return self.template.render(*args, **self.render_globals)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self()
 
 
@@ -93,7 +98,10 @@ class Module:
 
     @classmethod
     def from_callable(
-        cls, callable_obj: Callable[..., str], name: str = "_module", render_globals: Mapping = {}
+        cls,
+        callable_obj: Callable[..., str],
+        name: str = "_module",
+        render_globals: Mapping[str, Any] = {},
     ) -> "Module":
         """
         Creates a module from a callable returning a string.
@@ -112,7 +120,7 @@ class Module:
 
     @classmethod
     def from_string(
-        cls, source: str, name: str = "_module", render_globals: Mapping = {}
+        cls, source: str, name: str = "_module", render_globals: Mapping[str, Any] = {}
     ) -> "Module":
         """
         Creates a module from a template source, treated as a body of a
@@ -125,7 +133,7 @@ class Module:
         template = DefTemplate.from_string(name, ["prefix"], source)
         return cls(template, render_globals=render_globals)
 
-    def __init__(self, template: "DefTemplate", render_globals: Mapping = {}):
+    def __init__(self, template: "DefTemplate", render_globals: Mapping[str, Any] = {}):
         """
         Creates a module out of a prepared template.
 
@@ -152,28 +160,32 @@ class RenderableModule:
         collector: "SourceCollector",
         module_id: int,
         template: DefTemplate,
-        render_globals: Mapping,
+        render_globals: Mapping[str, Any],
     ):
         self.module_id = module_id
         self.collector = collector
         self.template = template
         self.render_globals = render_globals
 
-    def __call__(self, *args) -> str:
+    def __call__(self, *args: Any) -> str:
         return self.collector.add_module(self.module_id, self.template, args, self.render_globals)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self()
 
 
 class SourceCollector:
-    def __init__(self):
-        self.module_cache = {}
-        self.sources = []
+    def __init__(self) -> None:
+        self.module_cache: Dict[Tuple[int, Tuple[Any, ...]], str] = {}
+        self.sources: List[str] = []
         self.prefix_counter = 0
 
     def add_module(
-        self, module_id: int, template: DefTemplate, args: Iterable, render_globals: Mapping
+        self,
+        module_id: int,
+        template: DefTemplate,
+        args: Sequence[Any],
+        render_globals: Mapping[str, Any],
     ) -> str:
 
         # This caching serves two purposes.
@@ -196,11 +208,36 @@ class SourceCollector:
 
         return prefix
 
-    def get_source(self):
+    def get_source(self) -> str:
         return "\n".join(self.sources)
 
 
-def process(obj, collector: SourceCollector):
+@overload
+def process(obj: Module, collector: SourceCollector) -> RenderableModule:
+    ...
+
+
+@overload
+def process(obj: Snippet, collector: SourceCollector) -> RenderableSnippet:
+    ...
+
+
+@overload
+def process(obj: Mapping[str, Any], collector: SourceCollector) -> Dict[str, Any]:
+    ...
+
+
+@overload
+def process(obj: List[Any], collector: SourceCollector) -> List[Any]:
+    ...
+
+
+@overload
+def process(obj: Tuple[Any, ...], collector: SourceCollector) -> Tuple[Any, ...]:
+    ...
+
+
+def process(obj: Any, collector: SourceCollector) -> Any:
     if isinstance(obj, Module):
         return obj.process(collector)
     elif hasattr(obj, "__process_modules__"):
@@ -217,7 +254,7 @@ def process(obj, collector: SourceCollector):
 
 def render_with_modules(
     src: Union[str, Callable[..., str], DefTemplate, Snippet],
-    render_args: Sequence[Any] = [],
+    render_args: Sequence[Any] = (),
     render_globals: Mapping[str, Any] = {},
 ) -> str:
     """
@@ -248,7 +285,7 @@ def render_with_modules(
     """
 
     collector = SourceCollector()
-    render_args = process(render_args, collector)
+    render_args = process(tuple(render_args), collector)
 
     if isinstance(src, str):
         if len(render_args) > 0:

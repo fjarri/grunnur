@@ -1,13 +1,11 @@
-from __future__ import annotations
-
 from collections.abc import Sequence
-from typing import Any, Optional, Union, Iterable, Tuple, Sequence, overload
+from typing import Any, Optional, Union, Iterable, Iterator, Tuple, Sequence, overload
 
-from .adapter_base import DeviceAdapter, ContextAdapter
+from .adapter_base import DeviceAdapter, ContextAdapter, DeviceAdapter
 from .api import API, cuda_api_id
-from .device import Device
+from .device import Device, DeviceFilter
 from .device_discovery import select_devices
-from .platform import Platform
+from .platform import Platform, PlatformFilter
 from .utils import normalize_object_sequence, all_same
 
 
@@ -19,7 +17,7 @@ class BoundDevice(Device):
     context: "Context"
     """The context this device belongs to."""
 
-    def __init__(self, context, device_adapter):
+    def __init__(self, context: "Context", device_adapter: DeviceAdapter):
         super().__init__(device_adapter)
         self.context = context
 
@@ -36,13 +34,13 @@ class BoundDevice(Device):
         """
         return Device(self._device_adapter)
 
-    def __eq__(self, other):
-        return self.context == other.context and super().__eq__(other)
+    def __eq__(self, other: Any) -> bool:
+        return type(self) == type(other) and self.context == other.context and super().__eq__(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return self._hash
 
-    def __str__(self):
+    def __str__(self) -> str:
         return super().__str__() + " in " + str(self.context)
 
 
@@ -74,24 +72,30 @@ class BoundMultiDevice(Sequence[BoundDevice]):
         self._devices = [BoundDevice(context, device_adapter) for device_adapter in device_adapters]
         self._devices_as_set = set(self._devices)
 
-    def __eq__(self, other):
-        return self.context == other.context and self._devices == other._devices
+    def __eq__(self, other: Any) -> bool:
+        return (
+            type(self) == type(other)
+            and self.context == other.context
+            and self._devices == other._devices
+        )
 
-    def issubset(self, devices: "BoundMultiDevice"):
+    def issubset(self, devices: "BoundMultiDevice") -> bool:
         return self._devices_as_set.issubset(devices._devices_as_set)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[BoundDevice]:
         return iter(self._devices)
 
     @overload
-    def __getitem__(self, idx: int) -> BoundDevice:
+    def __getitem__(self, idx: Union[int]) -> BoundDevice:
         ...
 
     @overload
-    def __getitem__(self, idx: slice) -> "BoundMultiDevice":
+    def __getitem__(self, idx: Union[slice, Iterable[int]]) -> "BoundMultiDevice":
         ...
 
-    def __getitem__(self, idx):
+    def __getitem__(
+        self, idx: Union[int, slice, Iterable[int]]
+    ) -> Union[BoundDevice, "BoundMultiDevice"]:
         """
         Given a single index, returns a single :py:class:`BoundDevice`.
         Given a sequence of indices, returns a :py:class:`BoundMultiDevice` object
@@ -99,15 +103,14 @@ class BoundMultiDevice(Sequence[BoundDevice]):
 
         The indices correspond to the list of devices used to create this context.
         """
-        try:
-            idxs = list(idx)
-            return BoundMultiDevice.from_bound_devices([self[idx] for idx in idxs])
-        except TypeError:
-            pass
+        if isinstance(idx, Iterable):
+            return BoundMultiDevice.from_bound_devices([self._devices[i] for i in idx])
+        elif isinstance(idx, slice):
+            return BoundMultiDevice.from_bound_devices(self._devices[idx])
+        else:
+            return self._devices[idx]
 
-        return self._devices[idx]
-
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._devices)
 
 
@@ -171,7 +174,12 @@ class Context:
 
     @classmethod
     def from_criteria(
-        cls, api: "API", interactive: bool = False, devices_num: Optional[int] = 1, **device_filters
+        cls,
+        api: "API",
+        interactive: bool = False,
+        devices_num: Optional[int] = 1,
+        device_filter: Optional[DeviceFilter] = None,
+        platform_filter: Optional[PlatformFilter] = None,
     ) -> "Context":
         """
         Finds devices matching the given criteria and creates a
@@ -182,7 +190,11 @@ class Context:
         :param device_filters: passed to :py:func:`select_devices`.
         """
         devices = select_devices(
-            api, interactive=interactive, quantity=devices_num, **device_filters
+            api,
+            interactive=interactive,
+            quantity=devices_num,
+            device_filter=device_filter,
+            platform_filter=platform_filter,
         )
         return cls.from_devices(devices)
 
@@ -211,9 +223,13 @@ class Context:
 
         return self.devices[0]
 
-    def deactivate(self):
+    def deactivate(self) -> None:
         """
-        CUDA API only: deactivates this context, popping all the CUDA context objects from the stack.
+        For CUDA API: deactivates this context, popping all the CUDA context objects from the stack.
+        Other APIs: no effect.
+
+        Only call it if you need to manage CUDA contexts manually,
+        and created this object with `take_ownership = False`.
+        If `take_ownership = True` contexts will be deactivated automatically in the destructor.
         """
-        if self.api.id == cuda_api_id():
-            self._context_adapter.deactivate()
+        self._context_adapter.deactivate()

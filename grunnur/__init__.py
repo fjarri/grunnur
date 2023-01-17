@@ -1,6 +1,3 @@
-from .__version__ import __version__
-
-from .adapter_base import ArrayMetadataLike
 from .api import (
     API,
     cuda_api_id,
@@ -8,13 +5,14 @@ from .api import (
     all_api_ids,
 )
 from .program import Program, CompilationError
-from .platform import Platform
-from .device import Device
+from .platform import Platform, PlatformFilter
+from .device import Device, DeviceFilter
 from .device_discovery import (
     platforms_and_devices_by_mask,
     select_devices,
 )
 from .queue import Queue, MultiQueue
+from .array_metadata import ArrayMetadataLike
 from .array import Array, MultiArray
 from .context import Context
 from .buffer import Buffer
@@ -25,7 +23,7 @@ from .vsize import VirtualSizeError
 from .virtual_alloc import VirtualManager
 
 
-def __getattr__(name):
+def __getattr__(name: str) -> API:
     if name == "cuda_api":
         return API.from_api_id(cuda_api_id())
     if name == "opencl_api":

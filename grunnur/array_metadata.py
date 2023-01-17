@@ -1,8 +1,22 @@
-from typing import Tuple, Optional, Sequence, Union
+from typing import Any, Protocol, Tuple, Optional, Sequence, Union, runtime_checkable
 
 import numpy
 
 from .dtypes import normalize_type
+
+
+@runtime_checkable
+class ArrayMetadataLike(Protocol):
+    """
+    A protocol for an object providing array metadata.
+    `numpy.ndarray` or :py:class:`Array` follow this protocol.
+    """
+
+    shape: Tuple[int, ...]
+    """Array shape."""
+
+    dtype: numpy.dtype[Any]
+    """The type of an array element."""
 
 
 class ArrayMetadata:
@@ -14,7 +28,7 @@ class ArrayMetadata:
     shape: Tuple[int, ...]
     """Array shape."""
 
-    dtype: numpy.dtype
+    dtype: numpy.dtype[Any]
     """Array item data type."""
 
     strides: Tuple[int, ...]
@@ -24,13 +38,13 @@ class ArrayMetadata:
     """If ``True``, means that array's data forms a continuous chunk of memory."""
 
     @classmethod
-    def from_arraylike(cls, array):
+    def from_arraylike(cls, array: ArrayMetadataLike) -> "ArrayMetadata":
         return cls(array.shape, array.dtype, strides=getattr(array, "strides", None))
 
     def __init__(
         self,
         shape: Sequence[int],
-        dtype: numpy.dtype,
+        dtype: numpy.dtype[Any],
         strides: Optional[Sequence[int]] = None,
         first_element_offset: int = 0,
         buffer_size: Optional[int] = None,
@@ -92,9 +106,9 @@ class ArrayMetadata:
         )
         return subregion_origin, subregion_size, new_metadata
 
-    def __getitem__(self, slices):
+    def __getitem__(self, slices: Union[slice, Tuple[slice, ...]]) -> "ArrayMetadata":
         if isinstance(slices, slice):
-            slices = [slices]
+            slices = (slices,)
         if len(slices) < len(self.shape):
             slices += (slice(None),) * (len(self.shape) - len(slices))
         new_fe_offset, new_shape, new_strides = get_view(self.shape, self.strides, slices)

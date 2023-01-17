@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import (
+    Any,
     Tuple,
     Mapping,
     Iterable,
@@ -9,26 +10,12 @@ from typing import (
     Mapping,
     TypeVar,
     Union,
-    Protocol,
     Optional,
-    runtime_checkable,
 )
 
 import numpy
 
-
-@runtime_checkable
-class ArrayMetadataLike(Protocol):
-    """
-    A protocol for an object providing array metadata.
-    `numpy.ndarray` or :py:class:`Array` follow this protocol.
-    """
-
-    shape: Tuple[int, ...]
-    """Array shape."""
-
-    dtype: numpy.dtype
-    """The type of an array element."""
+from .array_metadata import ArrayMetadataLike
 
 
 class DeviceType(Enum):
@@ -51,16 +38,16 @@ class APIID:
     shortcut: str
     """This API's shortcut."""
 
-    def __init__(self, shortcut):
+    def __init__(self, shortcut: str):
         self.shortcut = shortcut
 
-    def __eq__(self, other):
-        return self.shortcut == other.shortcut
+    def __eq__(self, other: Any) -> bool:
+        return type(self) == type(other) and self.shortcut == other.shortcut
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((type(self), self.shortcut))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"id({self.shortcut})"
 
 
@@ -97,15 +84,27 @@ class APIAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_platform_adapters(self) -> Sequence["PlatformAdapter"]:
+    def get_platform_adapters(self) -> Tuple["PlatformAdapter", ...]:
         pass
 
     @abstractmethod
-    def isa_backend_device(self, obj) -> bool:
+    def isa_backend_device(self, obj: Any) -> bool:
         pass
 
     @abstractmethod
-    def isa_backend_context(self, obj) -> bool:
+    def isa_backend_platform(self, obj: Any) -> bool:
+        pass
+
+    @abstractmethod
+    def isa_backend_context(self, obj: Any) -> bool:
+        pass
+
+    @abstractmethod
+    def make_device_adapter(self, backend_device: Any) -> "DeviceAdapter":
+        pass
+
+    @abstractmethod
+    def make_platform_adapter(self, backend_platform: Any) -> "PlatformAdapter":
         pass
 
     @abstractmethod
@@ -116,14 +115,14 @@ class APIAdapter(ABC):
 
     @abstractmethod
     def make_context_adapter_from_backend_contexts(
-        self, backend_contexts, take_ownership: bool
+        self, backend_contexts: Sequence[Any], take_ownership: bool
     ) -> "ContextAdapter":
         pass
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return type(self) == type(other) and self.id == other.id
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((type(self), self.id))
 
 
@@ -159,7 +158,7 @@ class PlatformAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_device_adapters(self) -> List["DeviceAdapter"]:
+    def get_device_adapters(self) -> Tuple["DeviceAdapter", ...]:
         pass
 
 
@@ -261,14 +260,6 @@ class DeviceParameters(ABC):
 
 
 class ContextAdapter(ABC):
-    @classmethod
-    @abstractmethod
-    def from_device_adapters(cls, device_adapters) -> "ContextAdapter":
-        """
-        Creates a context based on one or several (distinct) :py:class:`OclDeviceAdapter` objects.
-        """
-        pass
-
     @property
     @abstractmethod
     def device_adapters(self) -> Mapping[int, DeviceAdapter]:
@@ -280,11 +271,11 @@ class ContextAdapter(ABC):
         pass
 
     @abstractmethod
-    def make_queue_adapter(self, device_idxs: Sequence[int]):
+    def make_queue_adapter(self, device_adapter: DeviceAdapter) -> "QueueAdapter":
         pass
 
     @abstractmethod
-    def allocate(self, size: int, device_idx: int):
+    def allocate(self, device_adapter: DeviceAdapter, size: int) -> "BufferAdapter":
         pass
 
     @staticmethod
@@ -301,19 +292,19 @@ class ContextAdapter(ABC):
     @abstractmethod
     def compile_single_device(
         self,
-        device_idx: int,
+        device_adapter: DeviceAdapter,
         prelude: str,
         src: str,
         keep: bool = False,
         fast_math: bool = False,
-        compiler_options: Optional[Iterable[str]] = None,
+        compiler_options: Optional[Sequence[str]] = None,
         constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
     ) -> "ProgramAdapter":
         """
         Compiles the given source with the given prelude on a single device.
 
         :param device_idx: the number of the device to compile on.
-        :param prelude: the source of the prelude.
+        :param prelude: the source of the prelude to prepend to the main source.
         :param src: the source of the kernels to be compiled.
         :param keep: see :py:meth:`compile`.
         :param fast_math: see :py:meth:`compile`.
@@ -322,11 +313,23 @@ class ContextAdapter(ABC):
         """
         pass
 
+    def deactivate(self) -> None:
+        """
+        For CUDA API: deactivates this context, popping all the CUDA context objects from the stack.
+        Other APIs: no effect.
+        """
+        pass
+
 
 class BufferAdapter(ABC):
     """
     A memory buffer on the device.
     """
+
+    @property
+    @abstractmethod
+    def kernel_arg(self) -> Any:
+        pass
 
     @property
     @abstractmethod
@@ -346,29 +349,39 @@ class BufferAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_sub_region(self, origin: int, size: int):
+    def get_sub_region(self, origin: int, size: int) -> "BufferAdapter":
         """
         Returns a buffer sub-region starting at ``origin`` and of length ``size`` (in bytes).
         """
         pass
 
     @abstractmethod
-    def set(self, queue_adapter, host_array, no_async=False):
+    def set(
+        self,
+        queue_adapter: "QueueAdapter",
+        source: Union[numpy.ndarray[Any, Any], "BufferAdapter"],
+        no_async: bool = False,
+    ) -> None:
         pass
 
     @abstractmethod
-    def get(self, queue_adapter, host_array, async_=False):
+    def get(
+        self,
+        queue_adapter: "QueueAdapter",
+        host_array: numpy.ndarray[Any, Any],
+        async_: bool = False,
+    ) -> None:
         pass
 
 
 class QueueAdapter(ABC):
     @abstractmethod
-    def synchronize(self):
+    def synchronize(self) -> None:
         pass
 
 
 class AdapterCompilationError(RuntimeError):
-    def __init__(self, backend_exception, source):
+    def __init__(self, backend_exception: Exception, source: str):
         super().__init__(str(backend_exception))
         self.backend_exception = backend_exception
         self.source = source
@@ -381,8 +394,11 @@ class ProgramAdapter(ABC):
 
     @abstractmethod
     def set_constant_buffer(
-        self, queue_adapter: QueueAdapter, name: str, arr: Union[BufferAdapter, numpy.ndarray]
-    ):
+        self,
+        queue_adapter: QueueAdapter,
+        name: str,
+        arr: Union[BufferAdapter, numpy.ndarray[Any, Any]],
+    ) -> None:
         pass
 
     @property
@@ -403,11 +419,18 @@ class KernelAdapter(ABC):
         pass
 
     @abstractmethod
-    def prepare(self, global_size: Sequence[int], local_size: Optional[Sequence[int]] = None):
+    def prepare(
+        self, global_size: Sequence[int], local_size: Optional[Sequence[int]] = None
+    ) -> "PreparedKernelAdapter":
         pass
 
 
 class PreparedKernelAdapter(ABC):
     @abstractmethod
-    def __call__(self, queue_adapter: QueueAdapter, *args, local_mem: int = 0):
+    def __call__(
+        self,
+        queue_adapter: QueueAdapter,
+        *args: Union[BufferAdapter, numpy.generic],
+        local_mem: int = 0,
+    ) -> Any:
         pass

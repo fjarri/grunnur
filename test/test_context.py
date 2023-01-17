@@ -1,6 +1,15 @@
 import pytest
 
-from grunnur import API, Platform, Device, Context, Queue, opencl_api_id
+from grunnur import (
+    API,
+    Platform,
+    Device,
+    Context,
+    Queue,
+    opencl_api_id,
+    DeviceFilter,
+    PlatformFilter,
+)
 from grunnur.context import BoundMultiDevice
 
 
@@ -156,11 +165,15 @@ def test_from_criteria(mock_backend_pyopencl):
     context = Context.from_criteria(
         api,
         devices_num=2,
-        platform_include_masks=["foo"],
-        platform_exclude_masks=["bar"],
-        device_include_masks=["foo"],
-        device_exclude_masks=["bar"],
-        unique_devices_only=True,
+        device_filter=DeviceFilter(
+            include_masks=["foo"],
+            exclude_masks=["bar"],
+            unique_only=True,
+        ),
+        platform_filter=PlatformFilter(
+            include_masks=["foo"],
+            exclude_masks=["bar"],
+        ),
     )
 
     assert context.platform.name == "foo-baz"

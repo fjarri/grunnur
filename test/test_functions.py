@@ -355,7 +355,7 @@ def _test_cast(context, out_code, in_codes, is_mocked):
     check_func(
         context,
         functions.cast(in_dtypes[0], out_dtype),
-        dtypes.cast(out_dtype),
+        numpy.cast[out_dtype],
         out_dtype,
         in_dtypes,
         is_mocked=is_mocked,
@@ -379,7 +379,7 @@ def test_cast_complex_to_real(context):
         check_func(
             context,
             functions.cast(in_dtypes[0], out_dtype),
-            dtypes.cast(out_dtype),
+            numpy.cast[out_dtype],
             out_dtype,
             in_dtypes,
         )
@@ -398,7 +398,7 @@ def _test_div(context, out_code, in_codes, is_mocked):
     check_func(
         context,
         functions.div(*in_dtypes, out_dtype=out_dtype),
-        lambda x, y: dtypes.cast(out_dtype)(x / y),
+        lambda x, y: numpy.cast[out_dtype](x / y),
         out_dtype,
         in_dtypes,
         is_mocked=is_mocked,

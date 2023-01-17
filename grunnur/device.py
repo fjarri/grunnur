@@ -1,11 +1,33 @@
 from __future__ import annotations
 
-from typing import Optional, List, Sequence
+from typing import Any, NamedTuple, Optional, List, Sequence
 
 from .api import API
-from .adapter_base import DeviceParameters
+from .adapter_base import DeviceParameters, DeviceAdapter
 from .platform import Platform
 from .utils import string_matches_masks
+
+
+class DeviceFilter(NamedTuple):
+    """
+    A set of filters for device discovery.
+    """
+
+    include_masks: Optional[List[str]] = None
+    """A list of strings (treated as regexes), one of which must match the device name."""
+
+    exclude_masks: Optional[List[str]] = None
+    """A list of strings (treated as regexes), neither of which must match the device name."""
+
+    unique_only: bool = False
+    """If ``True``, only return devices with unique names."""
+
+    exclude_pure_parallel: bool = False
+    """
+    If ``True``, exclude devices with
+    :py:attr:`params.max_total_local_size <grunnur.adapter_base.DeviceParameters.max_total_local_size>`
+    equal to 1.
+    """
 
 
 class Device:
@@ -32,41 +54,31 @@ class Device:
         ]
 
     @classmethod
-    def all_by_masks(
+    def all_filtered(
         cls,
         platform: "Platform",
-        include_masks: Optional[Sequence[str]] = None,
-        exclude_masks: Optional[Sequence[str]] = None,
-        unique_only: bool = False,
-        include_pure_parallel_devices: bool = False,
+        filter: Optional[DeviceFilter] = None,
     ) -> List["Device"]:
         """
-        Returns a list of all devices satisfying the given criteria.
-
-        :param platform: the platform to search in.
-        :param include_masks: a list of strings (treated as regexes),
-            one of which must match with the device name.
-        :param exclude_masks: a list of strings (treated as regexes),
-            neither of which must match with the device name.
-        :param unique_only: if ``True``, only return devices with unique names.
-        :param include_pure_parallel_devices: if ``True``, include devices with
-            :py:attr:`params.max_total_local_size <grunnur.adapter_base.DeviceParameters.max_total_local_size>`
-            equal to 1.
+        Returns a list of all devices satisfying the given criteria in the given platform.
+        If ``filter`` is not provided, returns all the devices.
         """
+        if filter is None:
+            return cls.all(platform)
 
         seen_devices = set()
         devices = []
 
         for device in cls.all(platform):
             if not string_matches_masks(
-                device.name, include_masks=include_masks, exclude_masks=exclude_masks
+                device.name, include_masks=filter.include_masks, exclude_masks=filter.exclude_masks
             ):
                 continue
 
-            if unique_only and device.name in seen_devices:
+            if filter.unique_only and device.name in seen_devices:
                 continue
 
-            if not include_pure_parallel_devices and device.params.max_total_local_size == 1:
+            if filter.exclude_pure_parallel and device.params.max_total_local_size == 1:
                 continue
 
             seen_devices.add(device.name)
@@ -75,7 +87,7 @@ class Device:
         return devices
 
     @classmethod
-    def from_backend_device(cls, obj) -> "Device":
+    def from_backend_device(cls, obj: Any) -> "Device":
         """
         Wraps a backend device object into a Grunnur device object.
         """
@@ -97,7 +109,7 @@ class Device:
         device_adapter = platform._platform_adapter.get_device_adapters()[device_idx]
         return cls(device_adapter)
 
-    def __init__(self, device_adapter):
+    def __init__(self, device_adapter: DeviceAdapter):
         self.platform = Platform(device_adapter.platform_adapter)
         self._device_adapter = device_adapter
         self.name = self._device_adapter.name
@@ -106,10 +118,14 @@ class Device:
 
         self._params = None
 
-    def __eq__(self, other):
-        return isinstance(other, Device) and self._device_adapter == other._device_adapter
+    def __eq__(self, other: Any) -> bool:
+        return (
+            type(self) == type(other)
+            and isinstance(other, Device)
+            and self._device_adapter == other._device_adapter
+        )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((type(self), self._device_adapter))
 
     @property
@@ -121,5 +137,5 @@ class Device:
         # Already cached in the adapters
         return self._device_adapter.params
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"device({self.shortcut})"

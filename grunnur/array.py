@@ -1,11 +1,26 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional, Callable, Tuple, Sequence, Union, Iterable, Dict, TypeVar
+from typing import (
+    TypeVar,
+    Any,
+    Protocol,
+    Optional,
+    Mapping,
+    Callable,
+    Tuple,
+    Sequence,
+    Union,
+    Iterable,
+    Dict,
+    TypeVar,
+    cast,
+    runtime_checkable,
+)
 
 import numpy
 
-from .array_metadata import ArrayMetadata
+from .array_metadata import ArrayMetadata, ArrayMetadataLike
 from .context import Context, BoundDevice, BoundMultiDevice
 from .device import Device
 from .queue import Queue, MultiQueue
@@ -24,7 +39,7 @@ class Array:
     shape: Tuple[int, ...]
     """Array shape."""
 
-    dtype: numpy.dtype
+    dtype: numpy.dtype[Any]
     """Array item data type."""
 
     strides: Tuple[int, ...]
@@ -32,7 +47,7 @@ class Array:
 
     @classmethod
     def from_host(
-        cls, queue_or_device: Union[Queue, BoundDevice], host_arr: numpy.ndarray
+        cls, queue_or_device: Union[Queue, BoundDevice], host_arr: numpy.ndarray[Any, Any]
     ) -> "Array":
         """
         Creates an array object from a host array.
@@ -53,7 +68,7 @@ class Array:
         cls,
         device: BoundDevice,
         shape: Sequence[int],
-        dtype: numpy.dtype,
+        dtype: numpy.dtype[Any],
         strides: Optional[Sequence[int]] = None,
         first_element_offset: int = 0,
         allocator: Callable[[BoundDevice, int], Buffer] = Buffer.allocate,
@@ -95,14 +110,16 @@ class Array:
 
         self.data = data
 
-    def _view(self, slices):
+    def _view(self, slices: Union[slice, Tuple[slice, ...]]) -> "Array":
         new_metadata = self._metadata[slices]
 
         origin, size, new_metadata = new_metadata.minimal_subregion()
         data = self.data.get_sub_region(origin, size)
         return Array(new_metadata, data)
 
-    def set(self, queue: Queue, array: Union[numpy.ndarray, "Array"], no_async: bool = False):
+    def set(
+        self, queue: Queue, array: Union[numpy.ndarray[Any, Any], "Array"], no_async: bool = False
+    ) -> None:
         """
         Copies the contents of the host array to the array.
 
@@ -110,7 +127,7 @@ class Array:
         :param array: the source array.
         :param no_async: if `True`, the transfer blocks until completion.
         """
-        array_data: Union[numpy.ndarray, Buffer]
+        array_data: Union[numpy.ndarray[Any, Any], Buffer]
         if isinstance(array, numpy.ndarray):
             array_data = array
         elif isinstance(array, Array):
@@ -128,8 +145,8 @@ class Array:
         self.data.set(queue, array_data, no_async=no_async)
 
     def get(
-        self, queue: Queue, dest: Optional[numpy.ndarray] = None, async_: bool = False
-    ) -> numpy.ndarray:
+        self, queue: Queue, dest: Optional[numpy.ndarray[Any, Any]] = None, async_: bool = False
+    ) -> numpy.ndarray[Any, Any]:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -142,11 +159,28 @@ class Array:
         self.data.get(queue, dest, async_=async_)
         return dest
 
-    def __getitem__(self, slices) -> "Array":
+    def __getitem__(self, slices: Union[slice, Tuple[slice, ...]]) -> "Array":
         """
         Returns a view of this array.
         """
         return self._view(slices)
+
+
+@runtime_checkable
+class ArrayLike(ArrayMetadataLike, Protocol):
+    """
+    The type of an array-like object (the one having a ``shape``
+    and supporting views via ``__getitem__()``)
+    """
+
+    def __getitem__(
+        self: "_ArrayLike", slices: Union[slice, Tuple[slice, ...]]
+    ) -> "_ArrayLike":  # pragma: no cover
+        ...
+
+
+_ArrayLike = TypeVar("_ArrayLike", bound=ArrayLike)
+_Device = TypeVar("_Device", bound=Device)
 
 
 class BaseSplay(ABC):
@@ -154,16 +188,8 @@ class BaseSplay(ABC):
     Base class for splay strategies for :py:class:`~grunnur.MultiArray`.
     """
 
-    ArrayLike = TypeVar("ArrayLike")
-    """
-    The type of an array-like object (the one having a ``shape``
-    and supporting views via ``__getitem__()``)
-    """
-
     @abstractmethod
-    def __call__(
-        self, arr: "ArrayLike", devices: BoundMultiDevice
-    ) -> Dict[BoundDevice, "ArrayLike"]:
+    def __call__(self, arr: _ArrayLike, devices: Sequence[_Device]) -> Dict[_Device, _ArrayLike]:
         """
         Creates a dictionary of views of an array-like object for each of the given devices.
 
@@ -179,7 +205,7 @@ class EqualSplay(BaseSplay):
     The outermost dimension should be larger or equal to the number of devices.
     """
 
-    def __call__(self, arr, devices):
+    def __call__(self, arr: _ArrayLike, devices: Sequence[_Device]) -> Dict[_Device, _ArrayLike]:
         parts = len(devices)
         outer_dim = arr.shape[0]
         assert parts <= outer_dim
@@ -201,7 +227,7 @@ class CloneSplay(BaseSplay):
     Copies the given array to each device.
     """
 
-    def __call__(self, arr, devices):
+    def __call__(self, arr: _ArrayLike, devices: Sequence[_Device]) -> Dict[_Device, _ArrayLike]:
         return {device: arr for device in devices}
 
 
@@ -216,18 +242,23 @@ class MultiArray:
     shape: Tuple[int, ...]
     """Array shape."""
 
-    dtype: numpy.dtype
+    dtype: numpy.dtype[Any]
     """Array item data type."""
 
-    shapes: Dict[int, Tuple[int, ...]]
+    shapes: Dict[BoundDevice, Tuple[int, ...]]
     """Sub-array shapes matched to device indices."""
+
+    subarrays: Dict[BoundDevice, Array]
 
     EqualSplay = EqualSplay
     CloneSplay = CloneSplay
 
     @classmethod
     def from_host(
-        cls, mqueue: MultiQueue, host_arr: numpy.ndarray, splay: Optional[BaseSplay] = None
+        cls,
+        mqueue: MultiQueue,
+        host_arr: numpy.ndarray[Any, Any],
+        splay: Optional[BaseSplay] = None,
     ) -> "MultiArray":
         """
         Creates an array object from a host array.
@@ -240,7 +271,8 @@ class MultiArray:
         if splay is None:
             splay = EqualSplay()
 
-        host_subarrays = splay(host_arr, mqueue.devices)
+        assert isinstance(host_arr, ArrayMetadataLike)
+        host_subarrays = splay(host_arr, mqueue.queues)
 
         subarrays = {
             device: Array.from_host(mqueue.queues[device], host_subarrays[device])
@@ -254,7 +286,7 @@ class MultiArray:
         cls,
         devices: BoundMultiDevice,
         shape: Sequence[int],
-        dtype: numpy.dtype,
+        dtype: numpy.dtype[Any],
         allocator: Callable[[BoundDevice, int], Buffer] = Buffer.allocate,
         splay: Optional[BaseSplay] = None,
     ) -> "MultiArray":
@@ -281,20 +313,30 @@ class MultiArray:
             for device, submetadata in submetadatas.items()
         }
 
-        return cls(devices, shape, dtype, subarrays, splay)
+        return cls(devices, metadata.shape, dtype, subarrays, splay)
 
-    def __init__(self, devices, shape, dtype, subarrays, splay):
+    def __init__(
+        self,
+        devices: BoundMultiDevice,
+        shape: Tuple[int, ...],
+        dtype: numpy.dtype[Any],
+        subarrays: Mapping[BoundDevice, Array],
+        splay: BaseSplay,
+    ):
         self.devices = devices
         self.shape = shape
         self.dtype = dtype
-        self.subarrays = subarrays
+        self.subarrays = dict(subarrays)
         self.shapes = {device: subarray.shape for device, subarray in self.subarrays.items()}
 
         self._splay = splay
 
     def get(
-        self, mqueue: MultiQueue, dest: Optional[numpy.ndarray] = None, async_: bool = False
-    ) -> numpy.ndarray:
+        self,
+        mqueue: MultiQueue,
+        dest: Optional[numpy.ndarray[Any, Any]] = None,
+        async_: bool = False,
+    ) -> numpy.ndarray[Any, Any]:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -306,7 +348,8 @@ class MultiArray:
         if dest is None:
             dest = numpy.empty(self.shape, self.dtype)
 
-        dest_subarrays = self._splay(dest, self.devices)
+        assert isinstance(dest, ArrayLike)
+        dest_subarrays = self._splay(dest, self.subarrays)
 
         for device, subarray in self.subarrays.items():
             subarray.get(mqueue.queues[device], dest_subarrays[device], async_=async_)
@@ -314,8 +357,11 @@ class MultiArray:
         return dest
 
     def set(
-        self, mqueue: MultiQueue, array: Union[numpy.ndarray, "MultiArray"], no_async: bool = False
-    ):
+        self,
+        mqueue: MultiQueue,
+        array: Union[numpy.ndarray[Any, Any], "MultiArray"],
+        no_async: bool = False,
+    ) -> None:
         """
         Copies the contents of the host array to the array.
 
@@ -325,6 +371,7 @@ class MultiArray:
         """
 
         if isinstance(array, numpy.ndarray):
+            assert isinstance(array, ArrayLike)
             subarrays = self._splay(array, self.devices)
         else:
             subarrays = array.subarrays

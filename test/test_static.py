@@ -24,7 +24,7 @@ from .test_program import _test_constant_memory
 SRC = """
 KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b)
 {
-    ${static.begin};
+    if (${static.skip}()) return;
     const int i = ${static.global_id}(0);
     const int j = ${static.global_id}(1);
     const int idx = ${static.global_flat_id}();

@@ -1,50 +1,28 @@
-from __future__ import annotations
-
 from typing import Optional, Tuple, List, Sequence
 
-from .platform import Platform
-from .device import Device
+from .api import API
+from .platform import Platform, PlatformFilter
+from .device import Device, DeviceFilter
 
 
 def platforms_and_devices_by_mask(
-    api,
+    api: API,
     quantity: Optional[int] = 1,
-    platform_include_masks: Optional[Sequence[str]] = None,
-    platform_exclude_masks: Optional[Sequence[str]] = None,
-    device_include_masks: Optional[Sequence[str]] = None,
-    device_exclude_masks: Optional[Sequence[str]] = None,
-    unique_devices_only: bool = False,
-    include_pure_parallel_devices: bool = False,
+    device_filter: Optional[DeviceFilter] = None,
+    platform_filter: Optional[PlatformFilter] = None,
 ) -> List[Tuple["Platform", List["Device"]]]:
     """
     Returns all tuples (platform, list of devices) where the platform name and device names
     satisfy the given criteria, and there are at least ``quantity`` devices in the list.
-
-    :param quantity: the number of devices to find. If ``None``,
-        find all matching devices belonging to a single platform.
-    :param platform_include_masks: passed to :py:meth:`Platform.all_by_masks`.
-    :param platform_exclude_masks: passed to :py:meth:`Platform.all_by_masks`.
-    :param device_include_masks: passed to :py:meth:`Device.all_by_masks`.
-    :param device_exclude_masks: passed to :py:meth:`Device.all_by_masks`.
-    :param unique_devices_only: passed to :py:meth:`Device.all_by_masks`.
-    :param include_pure_parallel_devices: passed to :py:meth:`Device.all_by_masks`.
     """
 
     results = []
 
-    suitable_platforms = Platform.all_by_masks(
-        api, include_masks=platform_include_masks, exclude_masks=platform_exclude_masks
-    )
+    suitable_platforms = Platform.all_filtered(api, platform_filter)
 
     for platform in suitable_platforms:
 
-        suitable_devices = Device.all_by_masks(
-            platform,
-            include_masks=device_include_masks,
-            exclude_masks=device_exclude_masks,
-            unique_only=unique_devices_only,
-            include_pure_parallel_devices=include_pure_parallel_devices,
-        )
+        suitable_devices = Device.all_filtered(platform, device_filter)
 
         if (quantity is None and len(suitable_devices) > 0) or (
             quantity is not None and len(suitable_devices) >= quantity
@@ -54,7 +32,9 @@ def platforms_and_devices_by_mask(
     return results
 
 
-def _select_devices_interactive(suitable_pds, quantity=1):
+def _select_devices_interactive(
+    suitable_pds: Sequence[Tuple[Platform, Sequence[Device]]], quantity: Optional[int] = 1
+) -> List[Device]:
 
     if len(suitable_pds) == 1:
         platform, devices = suitable_pds[0]
@@ -66,17 +46,16 @@ def _select_devices_interactive(suitable_pds, quantity=1):
             print(f"[{pnum}]: {platform.name}")
 
         default_pnum = 0
+        selected_pnum = default_pnum
         print(f"Choose the platform [{default_pnum}]: ", end="")
-        selected_pnum = input()
-        if selected_pnum == "":
-            selected_pnum = default_pnum
-        else:
-            selected_pnum = int(selected_pnum)
+        pnum_input = input()
+        if pnum_input != "":
+            selected_pnum = int(pnum_input)
 
         platform, devices = suitable_pds[selected_pnum]
 
     if quantity is None or (quantity is not None and len(devices) == quantity):
-        selected_devices = devices
+        selected_devices = list(devices)
         print(f"Devices: {[device.name for device in selected_devices]}")
     else:
         print("Devices:")
@@ -85,11 +64,10 @@ def _select_devices_interactive(suitable_pds, quantity=1):
             print(f"[{dnum}]: {device.name}")
         default_dnums_str = ", ".join(str(dnum) for dnum in default_dnums)
         print(f"Choose the device(s), comma-separated [{default_dnums_str}]: ", end="")
-        selected_dnums = input()
-        if selected_dnums == "":
-            selected_dnums = default_dnums
-        else:
-            selected_dnums = [int(dnum) for dnum in selected_dnums.split(",")]
+        selected_dnums = default_dnums
+        dnums_input = input()
+        if dnums_input != "":
+            selected_dnums = [int(dnum) for dnum in dnums_input.split(",")]
             if len(selected_dnums) != quantity:
                 raise ValueError(f"Exactly {quantity} devices must be selected")
 
@@ -99,7 +77,11 @@ def _select_devices_interactive(suitable_pds, quantity=1):
 
 
 def select_devices(
-    api, interactive: bool = False, quantity: Optional[int] = 1, **device_filters
+    api: API,
+    interactive: bool = False,
+    quantity: Optional[int] = 1,
+    device_filter: Optional[DeviceFilter] = None,
+    platform_filter: Optional[PlatformFilter] = None,
 ) -> List["Device"]:
     """
     Using the results from :py:func:`platforms_and_devices_by_mask`, either lets the user
@@ -111,7 +93,9 @@ def select_devices(
     :param quantity: passed to :py:func:`platforms_and_devices_by_mask`.
     :param device_filters: passed to :py:func:`platforms_and_devices_by_mask`.
     """
-    suitable_pds = platforms_and_devices_by_mask(api, quantity, **device_filters)
+    suitable_pds = platforms_and_devices_by_mask(
+        api, quantity, device_filter=device_filter, platform_filter=platform_filter
+    )
 
     if len(suitable_pds) == 0:
         quantity_val = "any" if quantity is None else quantity

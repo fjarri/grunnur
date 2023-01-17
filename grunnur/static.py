@@ -4,7 +4,8 @@ from typing import Any, Callable, Optional, Union, Dict, Mapping, Tuple, Sequenc
 
 import numpy
 
-from .adapter_base import ArrayMetadataLike
+from .array import Array
+from .array_metadata import ArrayMetadataLike
 from .device import Device
 from .api import cuda_api_id
 from .template import DefTemplate
@@ -42,7 +43,7 @@ class StaticKernel:
     queue: Queue
     """The queue this static kernel was compiled and prepared for."""
 
-    sources: Dict[int, str]
+    sources: Dict[BoundDevice, str]
     """Source files used for each device."""
 
     def __init__(
@@ -50,12 +51,15 @@ class StaticKernel:
         devices: Sequence[BoundDevice],
         template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
         name: str,
-        global_size: Union[Sequence[int], Mapping[Device, Sequence[int]]],
-        local_size: Union[Sequence[int], None, Mapping[Device, Optional[Sequence[int]]]] = None,
-        render_args: Sequence[Any] = [],
+        global_size: Union[Sequence[int], Mapping[BoundDevice, Sequence[int]]],
+        local_size: Union[
+            Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]
+        ] = None,
+        render_args: Sequence[Any] = (),
         render_globals: Mapping[str, Any] = {},
         constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
-        **kwds,
+        keep: bool = False,
+        compiler_options: Optional[Sequence[str]] = None,
     ):
         """
         :param devices: a single- or a multi-device object on which to compile this program.
@@ -117,7 +121,8 @@ class StaticKernel:
                     render_args=render_args,
                     render_globals=new_render_globals,
                     constant_arrays=constant_arrays,
-                    **kwds,
+                    keep=keep,
+                    compiler_options=compiler_options,
                 )
                 kernel_adapter = program.get_kernel_adapter(name)
 
@@ -159,7 +164,7 @@ class StaticKernel:
             multi_device, kernel_adapters, global_sizes, local_sizes
         )
 
-    def __call__(self, queue, *args):
+    def __call__(self, queue: Queue, *args: Union[Array, numpy.generic]) -> Any:
         """
         Execute the kernel.
         In case of the OpenCL backend, returns a ``pyopencl.Event`` object.
@@ -169,7 +174,9 @@ class StaticKernel:
         """
         return self._prepared_kernel(queue, *args)
 
-    def set_constant_array(self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
+    def set_constant_array(
+        self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray[Any, Any]]
+    ) -> None:
         """
         Uploads a constant array to the context's devices (**CUDA only**).
 

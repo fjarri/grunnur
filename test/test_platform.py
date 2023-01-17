@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import API, Platform, opencl_api_id, cuda_api_id
+from grunnur import API, Platform, PlatformFilter, opencl_api_id, cuda_api_id
 
 
 def test_all(mock_backend_pyopencl):
@@ -12,12 +12,14 @@ def test_all(mock_backend_pyopencl):
     assert platform_names == {"Platform1", "Platform2"}
 
 
-def test_all_by_masks(mock_backend_pyopencl):
+def test_all_filtered(mock_backend_pyopencl):
     mock_backend_pyopencl.add_platform_with_devices("foo-bar", ["Device1"])
     mock_backend_pyopencl.add_platform_with_devices("bar-baz", ["Device2"])
     mock_backend_pyopencl.add_platform_with_devices("foo-baz", ["Device3"])
     api = API.from_api_id(mock_backend_pyopencl.api_id)
-    platforms = Platform.all_by_masks(api, include_masks=["foo"], exclude_masks=["bar"])
+    platforms = Platform.all_filtered(
+        api, PlatformFilter(include_masks=["foo"], exclude_masks=["bar"])
+    )
     assert len(platforms) == 1
     assert platforms[0].name == "foo-baz"
 

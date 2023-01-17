@@ -1,5 +1,7 @@
 import pytest
 
+from grunnur import PlatformFilter, DeviceFilter
+
 from .utils import check_select_devices
 from .mock_pyopencl import PyOpenCLDeviceInfo
 
@@ -205,7 +207,11 @@ def test_filter_include_platforms(mock_stdin, mock_backend_factory, capsys):
         ("PlatformBar", ["Device3", "Device4", "Device5"]),
     ]
     devices = check_select_devices(
-        mock_stdin, mock_backend_factory, capsys, platforms_devices, platform_include_masks=["Bar"]
+        mock_stdin,
+        mock_backend_factory,
+        capsys,
+        platforms_devices,
+        platform_filter=PlatformFilter(include_masks=["Bar"]),
     )
 
     assert len(devices) == 1
@@ -219,7 +225,11 @@ def test_filter_exclude_platforms(mock_stdin, mock_backend_factory, capsys):
         ("PlatformBar", ["Device3", "Device4", "Device5"]),
     ]
     devices = check_select_devices(
-        mock_stdin, mock_backend_factory, capsys, platforms_devices, platform_exclude_masks=["Foo"]
+        mock_stdin,
+        mock_backend_factory,
+        capsys,
+        platforms_devices,
+        platform_filter=PlatformFilter(exclude_masks=["Foo"]),
     )
 
     assert len(devices) == 1
@@ -239,7 +249,7 @@ def test_filter_include_devices(mock_stdin, mock_backend_factory, capsys):
         platforms_devices,
         inputs=["1"],
         interactive=True,
-        device_include_masks=["Foo"],
+        device_filter=DeviceFilter(include_masks=["Foo"]),
     )
 
     assert len(devices) == 1
@@ -260,7 +270,7 @@ def test_filter_exclude_devices(mock_stdin, mock_backend_factory, capsys):
         platforms_devices,
         inputs=["1", "1"],
         interactive=True,
-        device_exclude_masks=["Bar"],
+        device_filter=DeviceFilter(exclude_masks=["Bar"]),
     )
 
     assert len(devices) == 1
@@ -280,7 +290,7 @@ def test_filter_exclude_all_devices(mock_stdin, mock_backend_factory, capsys):
             mock_backend_factory,
             capsys,
             platforms_devices,
-            device_exclude_masks=["Device"],
+            device_filter=DeviceFilter(exclude_masks=["Device"]),
         )
 
 
@@ -301,15 +311,15 @@ def test_unique_devices_only(mock_stdin, mock_backend_factory, capsys, unique_on
         platforms_devices,
         inputs=["1", "1"],
         interactive=True,
-        unique_devices_only=unique_only,
+        device_filter=DeviceFilter(unique_only=unique_only),
     )
 
     assert len(devices) == 1
     assert devices[0].name == "DeviceBaz" if unique_only else "DeviceBar"
 
 
-@pytest.mark.parametrize("include_pp", [False, True], ids=["include_pp=False", "include_pp=True"])
-def test_include_pure_parallel_devices(mock_stdin, mock_backend_factory, capsys, include_pp):
+@pytest.mark.parametrize("exclude_pp", [False, True], ids=["exclude_pp=False", "exclude_pp=True"])
+def test_include_pure_parallel_devices(mock_stdin, mock_backend_factory, capsys, exclude_pp):
 
     # `check_select_devices()` mocks OpenCL, so we can use multiple platforms
     # and OpenCL-specific device info
@@ -328,8 +338,8 @@ def test_include_pure_parallel_devices(mock_stdin, mock_backend_factory, capsys,
         platforms_devices,
         inputs=["1", "1"],
         interactive=True,
-        include_pure_parallel_devices=include_pp,
+        device_filter=DeviceFilter(exclude_pure_parallel=exclude_pp),
     )
 
     assert len(devices) == 1
-    assert devices[0].name == "Device4" if include_pp else "Device5"
+    assert devices[0].name == "Device5" if exclude_pp else "Device4"

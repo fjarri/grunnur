@@ -15,7 +15,7 @@ class MultiQueue:
     """
 
     devices: BoundMultiDevice
-    """Device indices (in the context) on which this queue operates."""
+    """Multi-device on which this queue operates."""
 
     queues: Dict[BoundDevice, "Queue"]
     """Single-device queues associated with device indices."""
@@ -34,7 +34,7 @@ class MultiQueue:
         self.devices = BoundMultiDevice.from_bound_devices([queue.device for queue in queues])
         self.queues = {queue.device: queue for queue in queues}
 
-    def synchronize(self):
+    def synchronize(self) -> None:
         """
         Blocks until queues on all devices are empty.
         """
@@ -59,7 +59,7 @@ class Queue:
             device._device_adapter
         )
 
-    def synchronize(self):
+    def synchronize(self) -> None:
         """
         Blocks until sub-queues on all devices are empty.
         """

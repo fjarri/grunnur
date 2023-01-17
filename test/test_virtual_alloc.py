@@ -10,16 +10,6 @@ import grunnur.dtypes as dtypes
 from grunnur.virtual_alloc import extract_dependencies, TrivialManager, ZeroOffsetManager
 
 
-def mock_fill(buf, val):
-    buf.kernel_arg._set(numpy.ones(buf.size, numpy.uint8) * numpy.uint8(val))
-
-
-def mock_get(buf):
-    res = numpy.empty(buf.size, numpy.uint8)
-    buf.kernel_arg._get(res)
-    return res
-
-
 def allocate_test_set(virtual_alloc, allocate_callable):
 
     # Allocate virtual buffers with dependencies
@@ -109,24 +99,21 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
         # Virtual buffer size should be exactly as requested
         assert buffers[name].size == size
         # The real buffer behind the virtual buffer may be larger
-        # (note that _size is only present in mocked DeviceAllocation)
-        assert buffers[name].kernel_arg._size >= size
+        assert buffers[name]._buffer_adapter._real_buffer_adapter.size >= size
 
     if pack:
         virtual_alloc.pack(queue)
 
-    # Clear all buffers
-    for name, _, _ in buffers_metadata:
-        mock_fill(buffers[name], 255)
-
     for i, metadata in enumerate(buffers_metadata):
-        name, size, deps = metadata
-        mock_fill(buffers[name], i)
+        name, _size, deps = metadata
+        buffers[name].set(queue, numpy.ones(buffers[name].size, numpy.uint8) * i, no_async=True)
         # According to the virtual allocator contract, the allocated buffer
         # will not intersect with the buffers from the specified dependencies.
         # So we're filling the buffer and checking that the dependencies did not change.
         for dep in deps:
-            assert (mock_get(buffers[dep]) != i).all()
+            arr = numpy.zeros(buffers[dep].size, numpy.uint8)
+            buffers[dep].get(queue, arr, async_=False)
+            assert (arr != i).all()
 
     # Check that after deleting virtual buffers all the real buffers are freed as well
     del buffers

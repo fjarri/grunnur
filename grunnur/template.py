@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import os.path
-from typing import Callable, Iterable, Dict
+from typing import Callable, Iterable, Tuple, Dict, Sequence, Any, Mapping, Optional
 import re
 import warnings
 
@@ -17,23 +17,25 @@ class RenderError(Exception):
     exception: Exception
     """The original exception thrown by Mako's `render()`."""
 
-    args: tuple
+    args: Tuple[Any, ...]
     """The arguments used to render the template."""
 
-    globals: dict
+    globals: Dict[str, Any]
     """The globals used to render the template."""
 
     source: str
     """The source of the template."""
 
-    def __init__(self, exception: Exception, args: tuple, globals_: dict, source: str):
+    def __init__(
+        self, exception: Exception, args: Sequence[Any], globals_: Mapping[str, Any], source: str
+    ):
         super().__init__()
         self.exception = exception
-        self.args = args
-        self.globals = globals_
+        self.args = tuple(args)
+        self.globals = dict(globals_)
         self.source = source
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             "Failed to render a template with\n"
             f"* args: {self.args}\n* globals: {self.globals}\n* source:\n{self.source}\n"
@@ -41,7 +43,7 @@ class RenderError(Exception):
         )
 
 
-def _extract_def_source(source, name):
+def _extract_def_source(source: str, name: str) -> str:
     """
     Attempts to extract the source of a single def from Mako template.
     This makes error messages much more readable.
@@ -56,7 +58,9 @@ def _extract_def_source(source, name):
     return match.group(1)
 
 
-def _make_template(filename=None, text=None):
+def _make_template(
+    filename: Optional[str] = None, text: Optional[str] = None
+) -> mako.template.Template:
     return mako.template.Template(
         text=text, filename=filename, strict_undefined=True, imports=["import numpy"]
     )
@@ -80,7 +84,7 @@ class Template:
         return cls(mako_template)
 
     @classmethod
-    def from_string(cls, template_source: str):
+    def from_string(cls, template_source: str) -> "Template":
         """
         Returns a :py:class:`Template` object created from source.
         """
@@ -151,7 +155,7 @@ class DefTemplate:
         self._mako_def_template = mako_def_template
         self.source = source
 
-    def render(self, *args, **globals_) -> str:
+    def render(self, *args: Any, **globals_: Any) -> str:
         """
         Renders the template def with given arguments and globals.
         """

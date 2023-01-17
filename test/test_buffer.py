@@ -96,22 +96,22 @@ def test_flags(mock_backend_pyopencl):
     api = API.from_api_id(backend.api_id)
     context = Context.from_devices([api.platforms[0].devices[0], api.platforms[0].devices[1]])
     buf = Buffer.allocate(context.devices[0], 100)
-    assert buf._buffer_adapter.pyopencl_buffer.flags == special_flags
+    assert buf._buffer_adapter._pyopencl_buffer.flags == special_flags
 
     # None of the devices is GeForce
     context = Context.from_devices([api.platforms[0].devices[1], api.platforms[0].devices[2]])
     buf = Buffer.allocate(context.devices[0], 100)
-    assert buf._buffer_adapter.pyopencl_buffer.flags == normal_flags
+    assert buf._buffer_adapter._pyopencl_buffer.flags == normal_flags
 
     # Only one device
     context = Context.from_devices([api.platforms[0].devices[0]])
     buf = Buffer.allocate(context.device, 100)
-    assert buf._buffer_adapter.pyopencl_buffer.flags == normal_flags
+    assert buf._buffer_adapter._pyopencl_buffer.flags == normal_flags
 
     # Not an Apple platform
     context = Context.from_devices([api.platforms[1].devices[0], api.platforms[1].devices[1]])
     buf = Buffer.allocate(context.devices[0], 100)
-    assert buf._buffer_adapter.pyopencl_buffer.flags == normal_flags
+    assert buf._buffer_adapter._pyopencl_buffer.flags == normal_flags
 
 
 def test_set_from_wrong_type(mock_context):

@@ -114,7 +114,7 @@ def test_ids(context, vstest):
             GLOBAL_MEM int *global_ids,
             int vdim)
         {
-            ${static.begin};
+            if (${static.skip}()) return;
             const VSIZE_T i = ${static.global_flat_id}();
             local_ids[i] = ${static.local_id}(vdim);
             group_ids[i] = ${static.group_id}(vdim);

@@ -3,10 +3,22 @@ from __future__ import annotations
 from collections import Counter
 import itertools
 from math import floor, ceil, sqrt
-from typing import Mapping, List, Dict, Iterable, Optional, Tuple, Iterator, Sequence
+from typing import (
+    NamedTuple,
+    Mapping,
+    List,
+    Dict,
+    Iterable,
+    Optional,
+    Tuple,
+    Iterator,
+    Sequence,
+    Callable,
+    Any,
+)
 
 from .template import Template
-from .modules import Module, Snippet
+from .modules import Module, RenderableModule, Snippet
 from .utils import min_blocks, prod
 
 
@@ -14,7 +26,7 @@ TEMPLATE = Template.from_associated_file(__file__)
 
 
 def factorize(num: int) -> List[int]:
-    step = lambda x: 1 + (x << 2) - ((x >> 1) << 1)
+    step: Callable[[int], int] = lambda x: 1 + (x << 2) - ((x >> 1) << 1)
     maxq = int(floor(sqrt(num)))
     d = 1
     q = 2 if num % 2 == 0 else 3
@@ -59,8 +71,8 @@ class PrimeFactors:
                 del factors[o_pwr]
         return PrimeFactors(factors)
 
-    def __eq__(self, other) -> bool:
-        return self.factors == other.factors
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, PrimeFactors) and self.factors == other.factors
 
 
 def _get_decompositions(num_factors: PrimeFactors, parts: int) -> Iterator[List[int]]:
@@ -304,7 +316,7 @@ class ShapeGroups:
                 self.major_vdims[vdim] = v_group[major_vdim]
 
 
-class VsizeModules:
+class VsizeModules(NamedTuple):
     """
     A collection of modules passed to :py:class:`grunnur.StaticKernel`.
     Should be used instead of regular group/thread id functions.
@@ -357,37 +369,18 @@ class VsizeModules:
     returning the global size of with all dimensions flattened.
     """
 
-    begin: Module
+    skip: Module
     """
-    Provides the statement ``${begin}`` that should be used
-    at the start of a static kernel function.
+    Provides the function ``bool ${skip}()`` that should be used
+    at the start of a static kernel function to see if the current thread/work item
+    is inside the padding area and needs to be skipped.
+    Usually one would write ``if (${skip}()) return;``.
     """
 
-    def __init__(
-        self,
-        local_id,
-        local_size,
-        group_id,
-        num_groups,
-        global_id,
-        global_size,
-        global_flat_id,
-        global_flat_size,
-        begin,
-    ):
-
-        self.local_id = local_id
-        self.local_size = local_size
-        self.group_id = group_id
-        self.num_groups = num_groups
-        self.global_id = global_id
-        self.global_size = global_size
-        self.global_flat_id = global_flat_id
-        self.global_flat_size = global_flat_size
-        self.begin = begin
-
-    def __process_modules__(self, process):
-        return VsizeModules(
+    def __process_modules__(
+        self, process: Callable[[Module], RenderableModule]
+    ) -> "VsizeRenderableModules":
+        return VsizeRenderableModules(
             local_id=process(self.local_id),
             local_size=process(self.local_size),
             group_id=process(self.group_id),
@@ -396,19 +389,19 @@ class VsizeModules:
             global_size=process(self.global_size),
             global_flat_id=process(self.global_flat_id),
             global_flat_size=process(self.global_flat_size),
-            begin=process(self.begin),
+            skip=process(self.skip),
         )
 
     @classmethod
     def from_shape_data(
         cls,
-        virtual_global_size,
-        virtual_local_size,
-        bounding_global_size,
-        virtual_grid_size,
-        local_groups,
-        grid_groups,
-    ):
+        virtual_global_size: Sequence[int],
+        virtual_local_size: Sequence[int],
+        bounding_global_size: Sequence[int],
+        virtual_grid_size: Sequence[int],
+        local_groups: ShapeGroups,
+        grid_groups: ShapeGroups,
+    ) -> "VsizeModules":
 
         local_id_mod = Module(
             TEMPLATE.get_def("local_id"),
@@ -472,8 +465,8 @@ class VsizeModules:
             ),
         )
 
-        begin_static_kernel = Snippet(
-            TEMPLATE.get_def("begin_static_kernel"),
+        skip = Module(
+            TEMPLATE.get_def("skip"),
             render_globals=dict(
                 skip_local_threads_mod=skip_local_threads_mod,
                 skip_groups_mod=skip_groups_mod,
@@ -490,8 +483,20 @@ class VsizeModules:
             global_size=global_size_mod,
             global_flat_id=global_flat_id_mod,
             global_flat_size=global_flat_size_mod,
-            begin=begin_static_kernel,
+            skip=skip,
         )
+
+
+class VsizeRenderableModules(NamedTuple):
+    local_id: RenderableModule
+    local_size: RenderableModule
+    group_id: RenderableModule
+    num_groups: RenderableModule
+    global_id: RenderableModule
+    global_size: RenderableModule
+    global_flat_id: RenderableModule
+    global_flat_size: RenderableModule
+    skip: RenderableModule
 
 
 class VirtualSizeError(Exception):

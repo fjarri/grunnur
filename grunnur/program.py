@@ -14,6 +14,7 @@ from typing import (
     TypeVar,
     Callable,
     Sequence,
+    cast,
 )
 import weakref
 
@@ -25,10 +26,10 @@ from .adapter_base import (
     KernelAdapter,
     BufferAdapter,
     ProgramAdapter,
-    ArrayMetadataLike,
 )
 from .modules import render_with_modules
 from .utils import update_dict
+from .array_metadata import ArrayMetadataLike
 from .array import Array, MultiArray
 from .buffer import Buffer
 from .queue import Queue, MultiQueue
@@ -39,12 +40,12 @@ from .modules import Snippet
 
 
 class CompilationError(RuntimeError):
-    def __init__(self, backend_exception):
+    def __init__(self, backend_exception: Exception):
         super().__init__(str(backend_exception))
         self.backend_exception = backend_exception
 
 
-def _check_set_constant_array(queue: Queue, program_devices: BoundMultiDevice):
+def _check_set_constant_array(queue: Queue, program_devices: BoundMultiDevice) -> None:
     if queue.device.context != program_devices.context:
         raise ValueError("The provided queue must belong to the same context as this program uses")
     if queue.device not in program_devices:
@@ -57,14 +58,14 @@ def _set_constant_array(
     queue: Queue,
     program_adapter: ProgramAdapter,
     name: str,
-    arr: Union[Array, Buffer, numpy.ndarray],
-):
+    arr: Union[Array, Buffer, numpy.ndarray[Any, Any]],
+) -> None:
     """
     Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
     """
     queue_adapter = queue._queue_adapter
 
-    constant_data: Union[BufferAdapter, numpy.ndarray]
+    constant_data: Union[BufferAdapter, numpy.ndarray[Any, Any]]
 
     if isinstance(arr, Array):
         constant_data = arr.data._buffer_adapter
@@ -96,7 +97,8 @@ class SingleDeviceProgram:
         render_args: Sequence[Any] = [],
         render_globals: Mapping[str, Any] = {},
         constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
-        **kwds,
+        keep: bool = False,
+        compiler_options: Optional[Sequence[str]] = None,
     ):
         """
         Renders and compiles the given template on a single device.
@@ -138,7 +140,8 @@ class SingleDeviceProgram:
                 src,
                 fast_math=fast_math,
                 constant_arrays=constant_arrays,
-                **kwds,
+                keep=keep,
+                compiler_options=compiler_options,
             )
         except AdapterCompilationError as e:
             print(f"Failed to compile on {device}")
@@ -157,9 +160,11 @@ class SingleDeviceProgram:
         Returns a :py:class:`SingleDeviceKernel` object for a function (CUDA)/kernel (OpenCL)
         with the name ``kernel_name``.
         """
-        return getattr(self._sd_program_adapter, kernel_name)
+        return cast(KernelAdapter, getattr(self._sd_program_adapter, kernel_name))
 
-    def set_constant_array(self, queue: Queue, name: str, arr: Union[Array, Buffer, numpy.ndarray]):
+    def set_constant_array(
+        self, queue: Queue, name: str, arr: Union[Array, Buffer, numpy.ndarray[Any, Any]]
+    ) -> None:
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
         """
@@ -186,9 +191,9 @@ class Program:
         template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
         no_prelude: bool = False,
         fast_math: bool = False,
-        render_args: Union[List, Tuple] = [],
-        render_globals: Dict = {},
-        compiler_options: Optional[Iterable[str]] = None,
+        render_args: Sequence[Any] = (),
+        render_globals: Dict[str, Any] = {},
+        compiler_options: Optional[Sequence[str]] = None,
         keep: bool = False,
         constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
     ):
@@ -232,7 +237,9 @@ class Program:
         # discard this Program object
         self.kernel = KernelHub(self)
 
-    def set_constant_array(self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray]):
+    def set_constant_array(
+        self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray[Any, Any]]
+    ) -> None:
         """
         Uploads a constant array to the context's devices (**CUDA only**).
 
@@ -265,21 +272,31 @@ class KernelHub:
         return Kernel(program, sd_kernel_adapters)
 
 
-def extract_single_device_arg(arg, device):
-    if isinstance(arg, dict):
-        return arg[device]
+def extract_arg(
+    arg: Union[
+        Mapping[BoundDevice, Union[Array, Buffer, numpy.generic]],
+        MultiArray,
+        Array,
+        Buffer,
+        numpy.generic,
+    ],
+    device: BoundDevice,
+) -> Union[BufferAdapter, numpy.generic]:
+
+    single_device_arg: Union[Array, Buffer, numpy.generic]
+    if isinstance(arg, Mapping):
+        single_device_arg = arg[device]
     elif isinstance(arg, MultiArray):
-        return arg.subarrays[device]
+        single_device_arg = arg.subarrays[device]
     else:
-        return arg
+        single_device_arg = arg
 
-
-def extract_backend_arg(arg):
-    if isinstance(arg, Array):
-        return arg.data.kernel_arg
-    if isinstance(arg, Buffer):
-        return arg.kernel_arg
-    return arg
+    if isinstance(single_device_arg, Array):
+        return single_device_arg.data._buffer_adapter
+    elif isinstance(single_device_arg, Buffer):
+        return single_device_arg._buffer_adapter
+    else:
+        return single_device_arg
 
 
 class PreparedKernel:
@@ -291,10 +308,10 @@ class PreparedKernel:
     def __init__(
         self,
         devices: BoundMultiDevice,
-        sd_kernel_adapters: Dict[BoundDevice, KernelAdapter],
-        global_sizes: Mapping[Device, Sequence[int]],
-        local_sizes: Mapping[Device, Optional[Sequence[int]]],
-        hold_reference=None,
+        sd_kernel_adapters: Mapping[BoundDevice, KernelAdapter],
+        global_sizes: Mapping[BoundDevice, Sequence[int]],
+        local_sizes: Mapping[BoundDevice, Optional[Sequence[int]]],
+        hold_reference: Optional["Kernel"] = None,
     ):
 
         # If this object can be used by itself (e.g. when created from `Kernel.prepare()`),
@@ -315,7 +332,12 @@ class PreparedKernel:
 
         self._devices = devices
 
-    def __call__(self, queue: Union[Queue, MultiQueue], *args, **kwds):
+    def __call__(
+        self,
+        queue: Union[Queue, MultiQueue],
+        *args: Union[MultiArray, Array, Buffer, numpy.generic],
+        local_mem: int = 0,
+    ) -> Any:
         """
         Enqueues the kernel on the devices in the given queue.
         The kernel must have been prepared for all of these devices.
@@ -352,14 +374,12 @@ class PreparedKernel:
 
         ret_vals = []
         for device in queue.devices:
-            kernel_args = [
-                extract_backend_arg(extract_single_device_arg(arg, device)) for arg in args
-            ]
+            kernel_args = [extract_arg(arg, device) for arg in args]
 
             single_queue = queue.queues[device]
 
             pkernel = self._prepared_kernel_adapters[device]
-            ret_val = pkernel(single_queue._queue_adapter, *kernel_args, **kwds)
+            ret_val = pkernel(single_queue._queue_adapter, *kernel_args, local_mem=0)
             ret_vals.append(ret_val)
 
         return ret_vals
@@ -367,10 +387,12 @@ class PreparedKernel:
 
 def normalize_sizes(
     devices: Sequence[BoundDevice],
-    global_size: Union[Sequence[int], Mapping[Device, Sequence[int]]],
-    local_size: Union[Sequence[int], None, Mapping[Device, Optional[Sequence[int]]]] = None,
+    global_size: Union[Sequence[int], Mapping[BoundDevice, Sequence[int]]],
+    local_size: Union[Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]] = None,
 ) -> Tuple[
-    BoundMultiDevice, Dict[Device, Tuple[int, ...]], Dict[Device, Optional[Tuple[int, ...]]]
+    BoundMultiDevice,
+    Dict[BoundDevice, Tuple[int, ...]],
+    Dict[BoundDevice, Optional[Tuple[int, ...]]],
 ]:
     if not isinstance(global_size, Mapping):
         global_size = {device: global_size for device in devices}
@@ -402,12 +424,12 @@ class Kernel:
     A kernel compiled for multiple devices.
     """
 
-    def __init__(self, program: Program, sd_kernel_adapters: Dict[int, KernelAdapter]):
+    def __init__(self, program: Program, sd_kernel_adapters: Dict[BoundDevice, KernelAdapter]):
         self._program = program
         self._sd_kernel_adapters = sd_kernel_adapters
 
     @property
-    def max_total_local_sizes(self) -> Dict[int, int]:
+    def max_total_local_sizes(self) -> Dict[BoundDevice, int]:
         """
         The maximum possible number of threads in a block (CUDA)/work items in a work group (OpenCL)
         for this kernel.
@@ -419,8 +441,8 @@ class Kernel:
 
     def prepare(
         self,
-        global_size: Union[Sequence[int], Dict[Device, Sequence[int]]],
-        local_size: Union[Sequence[int], None, Dict[Device, Optional[Sequence[int]]]] = None,
+        global_size: Union[Sequence[int], Mapping[BoundDevice, Sequence[int]]],
+        local_size: Union[Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]] = None,
     ) -> "PreparedKernel":
         """
         Prepares the kernel for execution.
@@ -454,14 +476,14 @@ class Kernel:
     def __call__(
         self,
         queue: Union[Queue, MultiQueue],
-        global_size: Union[Sequence[int], Dict[Device, Sequence[int]]],
-        local_size: Union[Sequence[int], None, Dict[Device, Optional[Sequence[int]]]] = None,
-        *args,
-        **kwds,
-    ):
+        global_size: Union[Sequence[int], Mapping[BoundDevice, Sequence[int]]],
+        local_size: Union[Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]] = None,
+        *args: Union[MultiArray, Array, Buffer, numpy.generic],
+        local_mem: int = 0,
+    ) -> Any:
         """
         A shortcut for :py:meth:`Kernel.prepare` and subsequent :py:meth:`PreparedKernel.__call__`.
         See their doc entries for details.
         """
         pkernel = self.prepare(global_size, local_size)
-        return pkernel(queue, *args, **kwds)
+        return pkernel(queue, *args, local_mem=local_mem)

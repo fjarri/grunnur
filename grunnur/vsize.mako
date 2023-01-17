@@ -213,6 +213,9 @@ FUNCTION bool ${prefix}()
 </%def>
 
 
-<%def name="begin_static_kernel()">
-if(${skip_local_threads_mod}() || ${skip_groups_mod}() || ${skip_global_threads_mod}()) return
+<%def name="skip(prefix)">
+FUNCTION bool ${prefix}()
+{
+    return ${skip_local_threads_mod}() || ${skip_groups_mod}() || ${skip_global_threads_mod}();
+}
 </%def>

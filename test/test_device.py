@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import API, Platform, Device, opencl_api_id, cuda_api_id
+from grunnur import API, Platform, Device, DeviceFilter, opencl_api_id, cuda_api_id
 from grunnur.adapter_base import DeviceType
 
 from .mock_pycuda import PyCUDADeviceInfo
@@ -17,12 +17,13 @@ def test_all(mock_backend):
 
 
 @pytest.mark.parametrize("unique_only", [False, True], ids=["all", "unique"])
-def test_all_by_masks(mock_backend, unique_only):
+def test_all_filtered(mock_backend, unique_only):
     mock_backend.add_devices(["foo-bar", "foo-baz", "bar-baz", "foo-baz"])
     api = API.from_api_id(mock_backend.api_id)
     platform = Platform.from_index(api, 0)
-    devices = Device.all_by_masks(
-        platform, include_masks=["foo"], exclude_masks=["bar"], unique_only=unique_only
+    devices = Device.all_filtered(
+        platform,
+        DeviceFilter(include_masks=["foo"], exclude_masks=["bar"], unique_only=unique_only),
     )
     if unique_only:
         assert len(devices) == 1

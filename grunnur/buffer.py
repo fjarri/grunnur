@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union, Optional
+from typing import Any, Union, Optional
 
 import numpy
 
@@ -33,7 +33,7 @@ class Buffer:
         self._buffer_adapter = buffer_adapter
 
     @property
-    def kernel_arg(self):
+    def kernel_arg(self) -> Any:
         # Has to be a property since buffer_adapter can be externally updated
         # (e.g. if it's a virtual buffer)
         return self._buffer_adapter.kernel_arg
@@ -53,7 +53,9 @@ class Buffer:
         """
         return self._buffer_adapter.size
 
-    def set(self, queue: Queue, buf: Union[numpy.ndarray, "Buffer"], no_async: bool = False):
+    def set(
+        self, queue: Queue, buf: Union[numpy.ndarray[Any, Any], "Buffer"], no_async: bool = False
+    ) -> None:
         """
         Copy the contents of the host array or another buffer to this buffer.
 
@@ -67,7 +69,7 @@ class Buffer:
                 f"buffer on device {self.device}"
             )
 
-        buf_adapter: Union[numpy.ndarray, BufferAdapter]
+        buf_adapter: Union[numpy.ndarray[Any, Any], BufferAdapter]
         if isinstance(buf, numpy.ndarray):
             buf_adapter = numpy.ascontiguousarray(buf)
         elif isinstance(buf, Buffer):
@@ -77,7 +79,7 @@ class Buffer:
 
         self._buffer_adapter.set(queue._queue_adapter, buf_adapter, no_async=no_async)
 
-    def get(self, queue: Queue, host_array: numpy.ndarray, async_: bool = False):
+    def get(self, queue: Queue, host_array: numpy.ndarray[Any, Any], async_: bool = False) -> None:
         """
         Copy the contents of the buffer to the host array.
 

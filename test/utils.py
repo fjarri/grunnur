@@ -39,7 +39,15 @@ def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=No
 
 
 def check_select_devices(
-    mock_stdin, mock_backend_factory, capsys, platforms_devices, inputs=None, **kwds
+    mock_stdin,
+    mock_backend_factory,
+    capsys,
+    platforms_devices,
+    inputs=None,
+    interactive=False,
+    quantity=1,
+    device_filter=None,
+    platform_filter=None,
 ):
 
     # CUDA API has a single fixed platform, so using the OpenCL one
@@ -55,7 +63,13 @@ def check_select_devices(
     api = API.from_api_id(backend.api_id)
 
     try:
-        devices = select_devices(api, **kwds)
+        devices = select_devices(
+            api,
+            interactive=interactive,
+            quantity=quantity,
+            device_filter=device_filter,
+            platform_filter=platform_filter,
+        )
         assert mock_stdin.empty()
     finally:
         # Otherwise the output will be shown in the console

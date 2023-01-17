@@ -1,14 +1,15 @@
 from functools import lru_cache
+from typing import Iterable, TypeVar, Optional, List, Iterator, Any, Tuple, cast
 
 import pytest
 
 from .api import API, all_api_ids
-from .platform import Platform
-from .device import Device
+from .platform import Platform, PlatformFilter
+from .device import Device, DeviceFilter
 from .context import Context
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: pytest.Parser) -> None:
 
     api_shortcuts = [api_id.shortcut for api_id in all_api_ids()]
     parser.addoption(
@@ -52,31 +53,45 @@ def pytest_addoption(parser):
         default=False,
     )
 
+    parser.addoption(
+        "--include-pure-parallel-devices",
+        action="store_true",
+        help="Include pure parallel devices (not supporting synchronization within a work group)",
+        default=False,
+    )
+
 
 @lru_cache()
-def get_apis(config):
+def get_apis(config: pytest.Config) -> List[API]:
     return API.all_by_shortcut(config.option.api)
 
 
-def concatenate(lists):
+_T = TypeVar("_T")
+
+
+def concatenate(lists: Iterable[List[_T]]) -> List[_T]:
     return sum(lists, [])
 
 
 @lru_cache()
-def get_platforms(config):
+def get_platforms(config: pytest.Config) -> List[Platform]:
     apis = get_apis(config)
     return concatenate(
-        Platform.all_by_masks(
+        Platform.all_filtered(
             api,
-            include_masks=config.option.platform_include_mask,
-            exclude_masks=config.option.platform_exclude_mask,
+            PlatformFilter(
+                include_masks=config.option.platform_include_mask,
+                exclude_masks=config.option.platform_exclude_mask,
+            ),
         )
         for api in apis
     )
 
 
 @lru_cache()
-def get_device_sets(config, unique_devices_only_override=None):
+def get_device_sets(
+    config: pytest.Config, unique_devices_only_override: Optional[bool] = None
+) -> List[List[Device]]:
 
     if unique_devices_only_override is not None:
         unique_devices_only = unique_devices_only_override
@@ -85,43 +100,46 @@ def get_device_sets(config, unique_devices_only_override=None):
 
     platforms = get_platforms(config)
     return [
-        Device.all_by_masks(
+        Device.all_filtered(
             platform,
-            include_masks=config.option.device_include_mask,
-            exclude_masks=config.option.device_exclude_mask,
-            unique_only=unique_devices_only,
+            DeviceFilter(
+                include_masks=config.option.device_include_mask,
+                exclude_masks=config.option.device_exclude_mask,
+                unique_only=unique_devices_only,
+                exclude_pure_parallel=not config.option.include_pure_parallel_devices,
+            ),
         )
         for platform in platforms
     ]
 
 
 @lru_cache()
-def get_devices(config):
+def get_devices(config: pytest.Config) -> List[Device]:
     return concatenate(get_device_sets(config))
 
 
 @lru_cache()
-def get_multi_device_sets(config):
+def get_multi_device_sets(config: pytest.Config) -> List[List[Device]]:
     device_sets = get_device_sets(config, unique_devices_only_override=False)
     return [device_set for device_set in device_sets if len(device_set) > 1]
 
 
 @pytest.fixture
-def context(device):
+def context(device: Device) -> Iterator[Context]:
     yield Context.from_devices([device])
 
 
 @pytest.fixture
-def some_context(some_device):
+def some_context(some_device: Device) -> Iterator[Context]:
     yield Context.from_devices([some_device])
 
 
 @pytest.fixture
-def multi_device_context(device_set):
+def multi_device_context(device_set: List[Device]) -> Iterator[Context]:
     yield Context.from_devices(device_set)
 
 
-def pytest_generate_tests(metafunc):
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 
     apis = get_apis(metafunc.config)
     platforms = get_platforms(metafunc.config)
@@ -129,7 +147,7 @@ def pytest_generate_tests(metafunc):
 
     api_ids = [api.id for api in apis]
 
-    fixtures = [
+    fixtures: List[Tuple[str, List[Any]]] = [
         ("api", apis),
         ("platform", platforms),
         ("device", devices),
@@ -138,14 +156,16 @@ def pytest_generate_tests(metafunc):
     for name, vals in fixtures:
         if name in metafunc.fixturenames:
             metafunc.parametrize(
-                name, vals, ids=["no_" + name] if len(vals) == 0 else lambda obj: obj.shortcut
+                name,
+                vals,
+                ids=["no_" + name] if len(vals) == 0 else lambda obj: cast(str, obj.shortcut),
             )
 
     if "some_device" in metafunc.fixturenames:
         metafunc.parametrize(
             "some_device",
             devices if len(devices) == 0 else [devices[0]],
-            ids=["no_device"] if len(devices) == 0 else lambda device: device.shortcut,
+            ids=["no_device"] if len(devices) == 0 else lambda device: cast(str, device.shortcut),
         )
 
     if "device_set" in metafunc.fixturenames:
@@ -156,7 +176,7 @@ def pytest_generate_tests(metafunc):
         )
 
 
-def pytest_report_header(config):
+def pytest_report_header(config: pytest.Config) -> None:
     devices = get_devices(config)
 
     if len(devices) == 0:
