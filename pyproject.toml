@@ -6,7 +6,7 @@ authors = [
     {name = "Bogdan Opanchuk", email = "bogdan@opanchuk.net"},
 ]
 dependencies = [
-    'numpy>=1.6',
+    'numpy>=1.22',
     'mako>=1',
 ]
 requires-python = ">=3.8"
