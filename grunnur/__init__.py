@@ -13,7 +13,7 @@ from .device_discovery import (
 )
 from .queue import Queue, MultiQueue
 from .array_metadata import ArrayMetadataLike
-from .array import Array, MultiArray
+from .array import Array, ArrayLike, MultiArray
 from .context import Context
 from .buffer import Buffer
 from .static import StaticKernel

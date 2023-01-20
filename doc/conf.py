@@ -34,6 +34,7 @@ release = "0.2.0"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
+    "sphinx.ext.intersphinx",
 ]
 
 autoclass_content = "both"
@@ -47,6 +48,9 @@ templates_path = ["_templates"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
+# Note: set to the lower bound of `numpy` version in the dependencies;
+# must be kept synchronized.
+intersphinx_mapping = {"numpy": ("https://numpy.org/doc/1.22", None)}
 
 # -- Options for HTML output -------------------------------------------------
 

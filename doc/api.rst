@@ -43,6 +43,7 @@ Naturally, there will always be a single (dummy) platform in CUDA.
     :members:
 
 .. autoclass:: PlatformFilter()
+    :show-inheritance:
     :members:
 
 
@@ -104,12 +105,15 @@ Buffers and arrays
 .. autoclass:: ArrayMetadataLike()
     :members:
 
+.. autoclass:: ArrayLike()
+    :members:
+
 .. autoclass:: Array()
     :members:
     :special-members: __getitem__
 
 .. autoclass:: grunnur.array.BaseSplay()
-    :members: ArrayLike
+    :members:
     :special-members: __call__
 
 .. autoclass:: MultiArray()
@@ -215,8 +219,6 @@ Data type checks and conversions
 .. autofunction:: complex_for
 
 .. autofunction:: real_for
-
-.. autofunction:: cast
 
 
 Function modules

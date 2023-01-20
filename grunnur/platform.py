@@ -11,6 +11,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class PlatformFilter(NamedTuple):
+    """
+    A set of filters for platform discovery.
+    """
+
     include_masks: Optional[List[str]] = None
     """A list of strings (treated as regexes), one of which must match the platform name."""
 

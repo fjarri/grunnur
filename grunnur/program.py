@@ -195,7 +195,7 @@ class Program:
         no_prelude: bool = False,
         fast_math: bool = False,
         render_args: Sequence[Any] = (),
-        render_globals: Dict[str, Any] = {},
+        render_globals: Mapping[str, Any] = {},
         compiler_options: Optional[Sequence[str]] = None,
         keep: bool = False,
         constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
