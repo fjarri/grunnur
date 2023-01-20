@@ -54,7 +54,10 @@ class Buffer:
         return self._buffer_adapter.size
 
     def set(
-        self, queue: Queue, buf: Union[numpy.ndarray[Any, Any], "Buffer"], no_async: bool = False
+        self,
+        queue: Queue,
+        buf: Union["numpy.ndarray[Any, numpy.dtype[Any]]", "Buffer"],
+        no_async: bool = False,
     ) -> None:
         """
         Copy the contents of the host array or another buffer to this buffer.
@@ -69,7 +72,7 @@ class Buffer:
                 f"buffer on device {self.device}"
             )
 
-        buf_adapter: Union[numpy.ndarray[Any, Any], BufferAdapter]
+        buf_adapter: Union["numpy.ndarray[Any, numpy.dtype[Any]]", BufferAdapter]
         if isinstance(buf, numpy.ndarray):
             buf_adapter = numpy.ascontiguousarray(buf)
         elif isinstance(buf, Buffer):
@@ -79,7 +82,9 @@ class Buffer:
 
         self._buffer_adapter.set(queue._queue_adapter, buf_adapter, no_async=no_async)
 
-    def get(self, queue: Queue, host_array: numpy.ndarray[Any, Any], async_: bool = False) -> None:
+    def get(
+        self, queue: Queue, host_array: "numpy.ndarray[Any, numpy.dtype[Any]]", async_: bool = False
+    ) -> None:
         """
         Copy the contents of the buffer to the host array.
 

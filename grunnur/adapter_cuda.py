@@ -489,7 +489,7 @@ class CuBufferAdapter(BufferAdapter):
     def set(
         self,
         queue_adapter: "QueueAdapter",
-        source: Union[numpy.ndarray[Any, Any], "BufferAdapter"],
+        source: Union["numpy.ndarray[Any, numpy.dtype[Any]]", "BufferAdapter"],
         no_async: bool = False,
     ) -> None:
         assert isinstance(queue_adapter, CuQueueAdapter)
@@ -519,7 +519,7 @@ class CuBufferAdapter(BufferAdapter):
     def get(
         self,
         queue_adapter: "QueueAdapter",
-        host_array: numpy.ndarray[Any, Any],
+        host_array: "numpy.ndarray[Any, numpy.dtype[Any]]",
         async_: bool = False,
     ) -> None:
         assert isinstance(queue_adapter, CuQueueAdapter)
@@ -539,7 +539,7 @@ class CuBufferAdapter(BufferAdapter):
 
 def normalize_constant_arrays(
     constant_arrays: Optional[Mapping[str, ArrayMetadataLike]]
-) -> Dict[str, Tuple[int, numpy.dtype[Any]]]:
+) -> Dict[str, Tuple[int, "numpy.dtype[Any]"]]:
     if constant_arrays is None:
         constant_arrays = {}
 
@@ -595,7 +595,7 @@ class CuProgramAdapter(ProgramAdapter):
         self,
         queue_adapter: QueueAdapter,
         name: str,
-        arr: Union[BufferAdapter, numpy.ndarray[Any, Any]],
+        arr: Union[BufferAdapter, "numpy.ndarray[Any, numpy.dtype[Any]]"],
     ) -> None:
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.

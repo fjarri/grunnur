@@ -58,14 +58,14 @@ def _set_constant_array(
     queue: Queue,
     program_adapter: ProgramAdapter,
     name: str,
-    arr: Union[Array, Buffer, numpy.ndarray[Any, Any]],
+    arr: Union[Array, Buffer, "numpy.ndarray[Any, numpy.dtype[Any]]"],
 ) -> None:
     """
     Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
     """
     queue_adapter = queue._queue_adapter
 
-    constant_data: Union[BufferAdapter, numpy.ndarray[Any, Any]]
+    constant_data: Union[BufferAdapter, "numpy.ndarray[Any, numpy.dtype[Any]]"]
 
     if isinstance(arr, Array):
         constant_data = arr.data._buffer_adapter
@@ -163,7 +163,10 @@ class SingleDeviceProgram:
         return cast(KernelAdapter, getattr(self._sd_program_adapter, kernel_name))
 
     def set_constant_array(
-        self, queue: Queue, name: str, arr: Union[Array, Buffer, numpy.ndarray[Any, Any]]
+        self,
+        queue: Queue,
+        name: str,
+        arr: Union[Array, Buffer, "numpy.ndarray[Any, numpy.dtype[Any]]"],
     ) -> None:
         """
         Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
@@ -238,7 +241,7 @@ class Program:
         self.kernel = KernelHub(self)
 
     def set_constant_array(
-        self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray[Any, Any]]
+        self, queue: Queue, name: str, arr: Union[Array, "numpy.ndarray[Any, numpy.dtype[Any]]"]
     ) -> None:
         """
         Uploads a constant array to the context's devices (**CUDA only**).
@@ -442,7 +445,9 @@ class Kernel:
     def prepare(
         self,
         global_size: Union[Sequence[int], Mapping[BoundDevice, Sequence[int]]],
-        local_size: Union[Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]] = None,
+        local_size: Union[
+            Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]
+        ] = None,
     ) -> "PreparedKernel":
         """
         Prepares the kernel for execution.
@@ -477,7 +482,9 @@ class Kernel:
         self,
         queue: Union[Queue, MultiQueue],
         global_size: Union[Sequence[int], Mapping[BoundDevice, Sequence[int]]],
-        local_size: Union[Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]] = None,
+        local_size: Union[
+            Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]
+        ] = None,
         *args: Union[MultiArray, Array, Buffer, numpy.generic],
         local_mem: int = 0,
     ) -> Any:

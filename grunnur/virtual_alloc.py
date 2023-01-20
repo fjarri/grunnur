@@ -102,14 +102,17 @@ class VirtualBufferAdapter(BufferAdapter):
         raise NotImplementedError("Virtual buffers do not support subregions")
 
     def get(
-        self, queue_adapter: QueueAdapter, host_array: numpy.ndarray[Any, Any], async_: bool = False
+        self,
+        queue_adapter: QueueAdapter,
+        host_array: "numpy.ndarray[Any, numpy.dtype[Any]]",
+        async_: bool = False,
     ) -> None:
         return self._real_buffer_adapter.get(queue_adapter, host_array, async_=async_)
 
     def set(
         self,
         queue_adapter: QueueAdapter,
-        source: Union[numpy.ndarray[Any, Any], BufferAdapter],
+        source: Union["numpy.ndarray[Any, numpy.dtype[Any]]", BufferAdapter],
         no_async: bool = False,
     ) -> None:
         return self._real_buffer_adapter.set(queue_adapter, source, no_async=no_async)

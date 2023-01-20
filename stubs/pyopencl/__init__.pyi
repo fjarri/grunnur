@@ -86,7 +86,7 @@ def enqueue_migrate_mem_objects(
 ) -> None: ...
 def enqueue_copy(
     queue: CommandQueue,
-    dest: Union[Buffer, numpy.ndarray[Any, Any]],
-    src: Union[Buffer, numpy.ndarray[Any, Any]],
+    dest: Union[Buffer, "numpy.ndarray[Any, numpy.dtype[Any]]"],
+    src: Union[Buffer, "numpy.ndarray[Any, numpy.dtype[Any]]"],
     is_blocking: bool = True,
 ) -> None: ...

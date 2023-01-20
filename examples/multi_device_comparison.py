@@ -25,7 +25,9 @@ KERNEL void sum(GLOBAL_MEM unsigned long *a, int pwr)
 """
 
 
-def calc_ref(x: numpy.ndarray[Any, Any], pwr: int) -> numpy.ndarray[Any, Any]:
+def calc_ref(
+    x: "numpy.ndarray[Any, numpy.dtype[Any]]", pwr: int
+) -> "numpy.ndarray[Any, numpy.dtype[Any]]":
     m = numpy.uint64(2**32 - 65)
     res = x.copy()
     for i in range(1, pwr):

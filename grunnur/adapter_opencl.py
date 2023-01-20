@@ -480,13 +480,13 @@ class OclBufferAdapter(BufferAdapter):
     def set(
         self,
         queue_adapter: QueueAdapter,
-        source: Union[numpy.ndarray[Any, Any], "BufferAdapter"],
+        source: Union["numpy.ndarray[Any, numpy.dtype[Any]]", "BufferAdapter"],
         no_async: bool = False,
     ) -> None:
         assert isinstance(queue_adapter, OclQueueAdapter)
         assert queue_adapter._device_adapter == self._device_adapter
 
-        buf_data: Union["pyopencl.Buffer", numpy.ndarray[Any, Any]]
+        buf_data: Union["pyopencl.Buffer", "numpy.ndarray[Any, numpy.dtype[Any]]"]
         if isinstance(source, BufferAdapter):
             assert isinstance(source, OclBufferAdapter)
             buf_data = source._pyopencl_buffer
@@ -503,7 +503,10 @@ class OclBufferAdapter(BufferAdapter):
         )
 
     def get(
-        self, queue_adapter: QueueAdapter, host_array: numpy.ndarray[Any, Any], async_: bool = False
+        self,
+        queue_adapter: QueueAdapter,
+        host_array: "numpy.ndarray[Any, numpy.dtype[Any]]",
+        async_: bool = False,
     ) -> None:
         assert isinstance(queue_adapter, OclQueueAdapter)
         assert queue_adapter._device_adapter == self._device_adapter
@@ -559,7 +562,7 @@ class OclProgramAdapter(ProgramAdapter):
         self,
         queue_adapter: QueueAdapter,
         name: str,
-        arr: Union[BufferAdapter, numpy.ndarray[Any, Any]],
+        arr: Union[BufferAdapter, "numpy.ndarray[Any, numpy.dtype[Any]]"],
     ) -> None:
         raise RuntimeError("OpenCL does not allow setting constant arrays externally")
 

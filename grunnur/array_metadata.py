@@ -15,7 +15,7 @@ class ArrayMetadataLike(Protocol):
     shape: Tuple[int, ...]
     """Array shape."""
 
-    dtype: numpy.dtype[Any]
+    dtype: "numpy.dtype[Any]"
     """The type of an array element."""
 
 
@@ -28,7 +28,7 @@ class ArrayMetadata:
     shape: Tuple[int, ...]
     """Array shape."""
 
-    dtype: numpy.dtype[Any]
+    dtype: "numpy.dtype[Any]"
     """Array item data type."""
 
     strides: Tuple[int, ...]
@@ -44,7 +44,7 @@ class ArrayMetadata:
     def __init__(
         self,
         shape: Sequence[int],
-        dtype: numpy.dtype[Any],
+        dtype: "numpy.dtype[Any]",
         strides: Optional[Sequence[int]] = None,
         first_element_offset: int = 0,
         buffer_size: Optional[int] = None,

@@ -39,7 +39,7 @@ class Array:
     shape: Tuple[int, ...]
     """Array shape."""
 
-    dtype: numpy.dtype[Any]
+    dtype: "numpy.dtype[Any]"
     """Array item data type."""
 
     strides: Tuple[int, ...]
@@ -47,7 +47,9 @@ class Array:
 
     @classmethod
     def from_host(
-        cls, queue_or_device: Union[Queue, BoundDevice], host_arr: numpy.ndarray[Any, Any]
+        cls,
+        queue_or_device: Union[Queue, BoundDevice],
+        host_arr: "numpy.ndarray[Any, numpy.dtype[Any]]",
     ) -> "Array":
         """
         Creates an array object from a host array.
@@ -68,7 +70,7 @@ class Array:
         cls,
         device: BoundDevice,
         shape: Sequence[int],
-        dtype: numpy.dtype[Any],
+        dtype: "numpy.dtype[Any]",
         strides: Optional[Sequence[int]] = None,
         first_element_offset: int = 0,
         allocator: Callable[[BoundDevice, int], Buffer] = Buffer.allocate,
@@ -118,7 +120,10 @@ class Array:
         return Array(new_metadata, data)
 
     def set(
-        self, queue: Queue, array: Union[numpy.ndarray[Any, Any], "Array"], no_async: bool = False
+        self,
+        queue: Queue,
+        array: Union["numpy.ndarray[Any, numpy.dtype[Any]]", "Array"],
+        no_async: bool = False,
     ) -> None:
         """
         Copies the contents of the host array to the array.
@@ -127,7 +132,7 @@ class Array:
         :param array: the source array.
         :param no_async: if `True`, the transfer blocks until completion.
         """
-        array_data: Union[numpy.ndarray[Any, Any], Buffer]
+        array_data: Union["numpy.ndarray[Any, numpy.dtype[Any]]", Buffer]
         if isinstance(array, numpy.ndarray):
             array_data = array
         elif isinstance(array, Array):
@@ -145,8 +150,11 @@ class Array:
         self.data.set(queue, array_data, no_async=no_async)
 
     def get(
-        self, queue: Queue, dest: Optional[numpy.ndarray[Any, Any]] = None, async_: bool = False
-    ) -> numpy.ndarray[Any, Any]:
+        self,
+        queue: Queue,
+        dest: Optional["numpy.ndarray[Any, numpy.dtype[Any]]"] = None,
+        async_: bool = False,
+    ) -> "numpy.ndarray[Any, numpy.dtype[Any]]":
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -242,7 +250,7 @@ class MultiArray:
     shape: Tuple[int, ...]
     """Array shape."""
 
-    dtype: numpy.dtype[Any]
+    dtype: "numpy.dtype[Any]"
     """Array item data type."""
 
     shapes: Dict[BoundDevice, Tuple[int, ...]]
@@ -257,7 +265,7 @@ class MultiArray:
     def from_host(
         cls,
         mqueue: MultiQueue,
-        host_arr: numpy.ndarray[Any, Any],
+        host_arr: "numpy.ndarray[Any, numpy.dtype[Any]]",
         splay: Optional[BaseSplay] = None,
     ) -> "MultiArray":
         """
@@ -286,7 +294,7 @@ class MultiArray:
         cls,
         devices: BoundMultiDevice,
         shape: Sequence[int],
-        dtype: numpy.dtype[Any],
+        dtype: "numpy.dtype[Any]",
         allocator: Callable[[BoundDevice, int], Buffer] = Buffer.allocate,
         splay: Optional[BaseSplay] = None,
     ) -> "MultiArray":
@@ -319,7 +327,7 @@ class MultiArray:
         self,
         devices: BoundMultiDevice,
         shape: Tuple[int, ...],
-        dtype: numpy.dtype[Any],
+        dtype: "numpy.dtype[Any]",
         subarrays: Mapping[BoundDevice, Array],
         splay: BaseSplay,
     ):
@@ -334,9 +342,9 @@ class MultiArray:
     def get(
         self,
         mqueue: MultiQueue,
-        dest: Optional[numpy.ndarray[Any, Any]] = None,
+        dest: Optional["numpy.ndarray[Any, numpy.dtype[Any]]"] = None,
         async_: bool = False,
-    ) -> numpy.ndarray[Any, Any]:
+    ) -> "numpy.ndarray[Any, numpy.dtype[Any]]":
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -359,7 +367,7 @@ class MultiArray:
     def set(
         self,
         mqueue: MultiQueue,
-        array: Union[numpy.ndarray[Any, Any], "MultiArray"],
+        array: Union["numpy.ndarray[Any, numpy.dtype[Any]]", "MultiArray"],
         no_async: bool = False,
     ) -> None:
         """

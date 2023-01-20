@@ -175,7 +175,7 @@ class StaticKernel:
         return self._prepared_kernel(queue, *args)
 
     def set_constant_array(
-        self, queue: Queue, name: str, arr: Union[Array, numpy.ndarray[Any, Any]]
+        self, queue: Queue, name: str, arr: Union[Array, "numpy.ndarray[Any, numpy.dtype[Any]]"]
     ) -> None:
         """
         Uploads a constant array to the context's devices (**CUDA only**).

@@ -61,6 +61,6 @@ def memcpy_dtod_async(
     stream: Optional[Stream] = None,
 ) -> None: ...
 
-_T = TypeVar("_T", bound=numpy.dtype[Any])
+_T = TypeVar("_T", bound="numpy.dtype[Any]")
 
 def pagelocked_empty(shape: Sequence[int], dtype: _T) -> numpy.ndarray[Any, _T]: ...

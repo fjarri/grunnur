@@ -359,7 +359,7 @@ class BufferAdapter(ABC):
     def set(
         self,
         queue_adapter: "QueueAdapter",
-        source: Union[numpy.ndarray[Any, Any], "BufferAdapter"],
+        source: Union["numpy.ndarray[Any, numpy.dtype[Any]]", "BufferAdapter"],
         no_async: bool = False,
     ) -> None:
         pass
@@ -368,7 +368,7 @@ class BufferAdapter(ABC):
     def get(
         self,
         queue_adapter: "QueueAdapter",
-        host_array: numpy.ndarray[Any, Any],
+        host_array: "numpy.ndarray[Any, numpy.dtype[Any]]",
         async_: bool = False,
     ) -> None:
         pass
@@ -397,7 +397,7 @@ class ProgramAdapter(ABC):
         self,
         queue_adapter: QueueAdapter,
         name: str,
-        arr: Union[BufferAdapter, numpy.ndarray[Any, Any]],
+        arr: Union[BufferAdapter, "numpy.ndarray[Any, numpy.dtype[Any]]"],
     ) -> None:
         pass
 
