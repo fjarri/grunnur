@@ -24,7 +24,9 @@ Main features
 Where to get help
 -----------------
 
-For the purposes of a discussion forum and usage questions please use `the issue tracker <https://github.com/fjarri/grunnur/issues>`_, marking your issue with the ``discussion`` label.
+Please file issues in the `the issue tracker <https://github.com/fjarri/grunnur/issues>`_.
+
+Discussions and questions are handled by Github's `discussion board <https://github.com/fjarri/grunnur/discussions>`_.
 
 
 Table of contents
