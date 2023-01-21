@@ -33,6 +33,7 @@ docs = [
     "setuptools-scm",
 ]
 lint = [
+    "pytest>=6", # We use some types from it.
     "mypy>=0.941",
     "black",
 ]
