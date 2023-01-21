@@ -16,9 +16,6 @@ class Snippet:
     def __init__(self, template: DefTemplate, render_globals: Mapping[str, Any] = {}):
         """
         Creates a snippet out of a prepared template.
-
-        :param template:
-        :param render_globals:
         """
         self.name = template.name
         self.template = template

@@ -1,15 +1,16 @@
 from typing import Any, Protocol, Tuple, Optional, Sequence, Union, runtime_checkable
 
 import numpy
+from numpy.typing import DTypeLike
 
-from .dtypes import normalize_type
+from .dtypes import _normalize_type
 
 
 @runtime_checkable
 class ArrayMetadataLike(Protocol):
     """
     A protocol for an object providing array metadata.
-    `numpy.ndarray` or :py:class:`Array` follow this protocol.
+    :py:class:`numpy.ndarray` or :py:class:`Array` follow this protocol.
     """
 
     shape: Tuple[int, ...]
@@ -44,14 +45,14 @@ class ArrayMetadata:
     def __init__(
         self,
         shape: Sequence[int],
-        dtype: "numpy.dtype[Any]",
+        dtype: DTypeLike,
         strides: Optional[Sequence[int]] = None,
         first_element_offset: int = 0,
         buffer_size: Optional[int] = None,
     ):
 
         shape = tuple(shape)
-        dtype = normalize_type(dtype)
+        dtype = _normalize_type(dtype)
 
         default_strides = get_strides(shape, dtype.itemsize)
 

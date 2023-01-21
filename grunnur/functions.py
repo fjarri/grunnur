@@ -45,9 +45,6 @@ def cast(in_dtype: "numpy.dtype[Any]", out_dtype: "numpy.dtype[Any]") -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that casts values of ``in_dtype`` to ``out_dtype``.
-
-    :param in_dtype:
-    :param out_dtype:
     """
     return Module(
         TEMPLATE.get_def("cast"),
@@ -64,9 +61,6 @@ def add(*in_dtypes: "numpy.dtype[Any]", out_dtype: Optional["numpy.dtype[Any]"] 
     This is necessary since on some platforms complex numbers are based on 2-vectors,
     and therefore the ``+`` operator for a complex and a real number
     works in an unexpected way (returning ``(a.x + b, a.y + b)`` instead of ``(a.x + b, a.y)``).
-
-    :param in_dtypes:
-    :param out_dtype:
     """
     out_dtype = derive_out_dtype(*in_dtypes, out_dtype=out_dtype)
     return Module(
@@ -80,9 +74,6 @@ def mul(*in_dtypes: "numpy.dtype[Any]", out_dtype: Optional["numpy.dtype[Any]"] 
     Returns a :py:class:`~grunnur.Module`  with a function of
     ``len(in_dtypes)`` arguments that multiplies values of types ``in_dtypes``.
     If ``out_dtype`` is given, it will be set as a return type for this function.
-
-    :param in_dtypes:
-    :param out_dtype:
     """
     out_dtype = derive_out_dtype(*in_dtypes, out_dtype=out_dtype)
     return Module(
@@ -100,10 +91,6 @@ def div(
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that divides a value of type ``dividend_dtype`` by a value of type ``divisor_dtype``.
     If ``out_dtype`` is given, it will be set as a return type for this function.
-
-    :param dividend_dtype:
-    :param divisor_dtype:
-    :param out_dtype:
     """
     out_dtype = derive_out_dtype(dividend_dtype, divisor_dtype, out_dtype=out_dtype)
     return Module(
@@ -122,8 +109,6 @@ def conj(dtype: "numpy.dtype[Any]") -> Module:
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that conjugates the value of type ``dtype``
     (if it is not a complex data type, the value will not be modified).
-
-    :param dtype:
     """
     return Module(TEMPLATE.get_def("conj"), render_globals=dict(dtypes=dtypes, dtype=dtype))
 
@@ -133,8 +118,6 @@ def polar_unit(dtype: "numpy.dtype[Any]") -> Module:
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that returns a complex number ``exp(i * theta) == (cos(theta), sin(theta))``
     for a value ``theta`` of type ``dtype`` (must be a real data type).
-
-    :param dtype:
     """
     if not dtypes.is_real(dtype):
         raise ValueError("polar_unit() can only be applied to real dtypes")
@@ -147,8 +130,6 @@ def norm(dtype: "numpy.dtype[Any]") -> Module:
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that returns the 2-norm of the value of type ``dtype``
     (product by the complex conjugate if the value is complex, square otherwise).
-
-    :param dtype:
     """
     return Module(TEMPLATE.get_def("norm"), render_globals=dict(dtypes=dtypes, dtype=dtype))
 
@@ -158,8 +139,6 @@ def exp(dtype: "numpy.dtype[Any]") -> Module:
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that exponentiates the value of type ``dtype``
     (must be a real or a complex data type).
-
-    :param dtype:
     """
     # Supporting this will require an explicit output type specification.
     if dtypes.is_integer(dtype):
@@ -191,10 +170,6 @@ def pow(
     the input is cast to ``out_dtype`` *before* exponentiation.
     If ``exponent_dtype`` is real, but both ``base_dtype`` and ``out_dtype`` are integer,
     a ``ValueError`` is raised.
-
-    :param base_dtype:
-    :param exponent_dtype:
-    :param out_dtype:
     """
     if exponent_dtype is None:
         exponent_dtype = base_dtype
@@ -239,8 +214,6 @@ def polar(dtype: "numpy.dtype[Any]") -> Module:
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that returns the complex-valued ``rho * exp(i * theta)``
     for values ``rho, theta`` of type ``dtype`` (must be a real data type).
-
-    :param dtype:
     """
     if not dtypes.is_real(dtype):
         raise ValueError("polar() of " + str(dtype) + " is not supported")

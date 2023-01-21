@@ -6,7 +6,7 @@ import grunnur.dtypes as dtypes
 
 
 def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=None):
-    dtype = dtypes.normalize_type(dtype)
+    dtype = numpy.dtype(dtype)  # normalize to access the fields
 
     if offset != 0:
         raise NotImplementedError()

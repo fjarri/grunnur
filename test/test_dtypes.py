@@ -5,12 +5,6 @@ from grunnur import dtypes
 from grunnur.modules import render_with_modules
 
 
-def test_normalize_type():
-    dtype = dtypes.normalize_type(numpy.int32)
-    assert dtype == numpy.int32
-    assert isinstance(dtype, numpy.dtype)
-
-
 def test_ctype_builtin():
     assert dtypes.ctype(numpy.int32) == "int"
 
@@ -39,10 +33,12 @@ def test_is_real():
 
 
 def test_promote_type():
-    assert dtypes._promote_type(numpy.int8) == numpy.int32
-    assert dtypes._promote_type(numpy.uint8) == numpy.uint32
-    assert dtypes._promote_type(numpy.float16) == numpy.float32
-    assert dtypes._promote_type(numpy.int32) == numpy.int32
+    assert dtypes._promote_type(numpy.dtype("int8")) == numpy.int32
+    assert dtypes._promote_type(numpy.dtype("uint8")) == numpy.uint32
+    assert dtypes._promote_type(numpy.dtype("float16")) == numpy.float32
+    assert dtypes._promote_type(numpy.dtype("csingle")) == numpy.complex64
+    assert dtypes._promote_type(numpy.dtype("int32")) == numpy.int32
+    assert dtypes._promote_type(numpy.dtype("int64")) == numpy.int64
 
 
 def test_result_type():
@@ -53,17 +49,7 @@ def test_min_scalar_type():
     assert dtypes.min_scalar_type(1) == numpy.uint32
     assert dtypes.min_scalar_type(-1) == numpy.int32
     assert dtypes.min_scalar_type(1.0) == numpy.float32
-
-    assert dtypes.min_scalar_type(2**31 - 1, force_signed=True) == numpy.int32
-    # 2**31 will not fit into int32 type
-    assert dtypes.min_scalar_type(2**31, force_signed=True) == numpy.int64
-
-
-def test_detect_type():
-    assert dtypes.detect_type(numpy.int8(-1)) == numpy.int32
-    assert dtypes.detect_type(numpy.int64(-1)) == numpy.int64
-    assert dtypes.detect_type(-1) == numpy.int32
-    assert dtypes.detect_type(-1.0) == numpy.float32
+    assert dtypes.min_scalar_type(1 + 2j) == numpy.complex64
 
 
 def test_complex_for():

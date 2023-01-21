@@ -13,6 +13,8 @@
 import os
 import sys
 
+from numpy.typing import DTypeLike
+
 sys.path.insert(0, os.path.abspath("../"))
 
 
@@ -35,10 +37,12 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
 ]
 
 autoclass_content = "both"
 autodoc_member_order = "groupwise"
+autodoc_type_aliases = dict(DTypeLike="DTypeLike")
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -50,7 +54,10 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # Note: set to the lower bound of `numpy` version in the dependencies;
 # must be kept synchronized.
-intersphinx_mapping = {"numpy": ("https://numpy.org/doc/1.22", None)}
+intersphinx_mapping = {
+    "numpy": ("https://numpy.org/doc/1.22", None),
+    "python": ("https://docs.python.org/3", None),
+}
 
 # -- Options for HTML output -------------------------------------------------
 

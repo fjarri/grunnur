@@ -103,9 +103,15 @@ Buffers and arrays
     :members:
 
 .. autoclass:: ArrayMetadataLike()
+    :show-inheritance:
     :members:
 
 .. autoclass:: ArrayLike()
+    :show-inheritance:
+    :members:
+    :special-members: __getitem__
+
+.. autoclass:: grunnur.array._ArrayLike()
     :members:
 
 .. autoclass:: Array()
@@ -171,6 +177,13 @@ Utilities
 Data type utilities
 -------------------
 
+.. module:: numpy.typing
+
+.. py:class:: DTypeLike
+
+    ``intersphinx`` fails to pick this up.
+    See `numpy.typing.DTypeLike <https://numpy.org/doc/1.22/reference/typing.html#numpy.typing.DTypeLike>`_ for the actual documentation.
+
 .. module:: grunnur.dtypes
 
 C interop
@@ -200,8 +213,6 @@ Struct helpers
 Data type checks and conversions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autofunction:: normalize_type
-
 .. autofunction:: is_complex
 
 .. autofunction:: is_double
@@ -213,8 +224,6 @@ Data type checks and conversions
 .. autofunction:: result_type
 
 .. autofunction:: min_scalar_type
-
-.. autofunction:: detect_type
 
 .. autofunction:: complex_for
 

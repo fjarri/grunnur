@@ -19,6 +19,7 @@ from typing import (
 )
 
 import numpy
+from numpy.typing import DTypeLike
 
 from .array_metadata import ArrayMetadata, ArrayMetadataLike
 from .context import Context, BoundDevice, BoundMultiDevice
@@ -70,10 +71,10 @@ class Array:
         cls,
         device: BoundDevice,
         shape: Sequence[int],
-        dtype: "numpy.dtype[Any]",
+        dtype: DTypeLike,
         strides: Optional[Sequence[int]] = None,
         first_element_offset: int = 0,
-        allocator: Callable[[BoundDevice, int], Buffer] = Buffer.allocate,
+        allocator: Optional[Callable[[BoundDevice, int], Buffer]] = None,
     ) -> "Array":
         """
         Creates an empty array.
@@ -84,11 +85,14 @@ class Array:
         :param allocator: an optional callable taking two arguments
             (the bound device, and the buffer size in bytes)
             and returning a :py:class:`Buffer` object.
+            If ``None``, will use :py:meth:`Buffer.allocate`.
         """
         metadata = ArrayMetadata(
             shape, dtype, strides=strides, first_element_offset=first_element_offset
         )
         size = metadata.buffer_size
+        if allocator is None:
+            allocator = Buffer.allocate
         data = allocator(device, size)
 
         return cls(metadata, data)
@@ -177,18 +181,21 @@ class Array:
 @runtime_checkable
 class ArrayLike(ArrayMetadataLike, Protocol):
     """
-    The type of an array-like object (the one having a ``shape``
-    and supporting views via ``__getitem__()``)
+    A protocol for an array-like object supporting views via ``__getitem__()``.
+    :py:class:`numpy.ndarray` or :py:class:`Array` follow this protocol.
     """
 
     def __getitem__(
         self: "_ArrayLike", slices: Union[slice, Tuple[slice, ...]]
     ) -> "_ArrayLike":  # pragma: no cover
+        """
+        Returns a view of this array.
+        """
         ...
 
 
 _ArrayLike = TypeVar("_ArrayLike", bound=ArrayLike)
-_Device = TypeVar("_Device", bound=Device)
+"""Any type that follows the :py:class:`ArrayLike` protocol."""
 
 
 class BaseSplay(ABC):
@@ -197,7 +204,9 @@ class BaseSplay(ABC):
     """
 
     @abstractmethod
-    def __call__(self, arr: _ArrayLike, devices: Sequence[_Device]) -> Dict[_Device, _ArrayLike]:
+    def __call__(
+        self, arr: _ArrayLike, devices: Sequence[BoundDevice]
+    ) -> Dict[BoundDevice, _ArrayLike]:
         """
         Creates a dictionary of views of an array-like object for each of the given devices.
 
@@ -213,7 +222,9 @@ class EqualSplay(BaseSplay):
     The outermost dimension should be larger or equal to the number of devices.
     """
 
-    def __call__(self, arr: _ArrayLike, devices: Sequence[_Device]) -> Dict[_Device, _ArrayLike]:
+    def __call__(
+        self, arr: _ArrayLike, devices: Sequence[BoundDevice]
+    ) -> Dict[BoundDevice, _ArrayLike]:
         parts = len(devices)
         outer_dim = arr.shape[0]
         assert parts <= outer_dim
@@ -235,7 +246,9 @@ class CloneSplay(BaseSplay):
     Copies the given array to each device.
     """
 
-    def __call__(self, arr: _ArrayLike, devices: Sequence[_Device]) -> Dict[_Device, _ArrayLike]:
+    def __call__(
+        self, arr: _ArrayLike, devices: Sequence[BoundDevice]
+    ) -> Dict[BoundDevice, _ArrayLike]:
         return {device: arr for device in devices}
 
 
@@ -287,15 +300,15 @@ class MultiArray:
             for device in mqueue.devices
         }
 
-        return cls(mqueue.devices, host_arr.shape, host_arr.dtype, subarrays, splay)
+        return cls(mqueue.devices, ArrayMetadata(host_arr.shape, host_arr.dtype), subarrays, splay)
 
     @classmethod
     def empty(
         cls,
         devices: BoundMultiDevice,
         shape: Sequence[int],
-        dtype: "numpy.dtype[Any]",
-        allocator: Callable[[BoundDevice, int], Buffer] = Buffer.allocate,
+        dtype: DTypeLike,
+        allocator: Optional[Callable[[BoundDevice, int], Buffer]] = None,
         splay: Optional[BaseSplay] = None,
     ) -> "MultiArray":
         """
@@ -305,8 +318,9 @@ class MultiArray:
         :param shape: array shape.
         :param dtype: array data type.
         :param allocator: an optional callable taking two integer arguments
-            (buffer size in bytes, and the device to allocate it on)
+            (the device to allocate it on and the buffer size in bytes)
             and returning a :py:class:`Buffer` object.
+            If ``None``, will use :py:meth:`Buffer.allocate`.
         :param splay: the splay strategy (if ``None``, an :py:class:`EqualSplay` object is used).
         """
 
@@ -321,19 +335,18 @@ class MultiArray:
             for device, submetadata in submetadatas.items()
         }
 
-        return cls(devices, metadata.shape, dtype, subarrays, splay)
+        return cls(devices, metadata, subarrays, splay)
 
     def __init__(
         self,
         devices: BoundMultiDevice,
-        shape: Tuple[int, ...],
-        dtype: "numpy.dtype[Any]",
+        metadata: ArrayMetadata,
         subarrays: Mapping[BoundDevice, Array],
         splay: BaseSplay,
     ):
         self.devices = devices
-        self.shape = shape
-        self.dtype = dtype
+        self.shape = metadata.shape
+        self.dtype = metadata.dtype
         self.subarrays = dict(subarrays)
         self.shapes = {device: subarray.shape for device, subarray in self.subarrays.items()}
 
