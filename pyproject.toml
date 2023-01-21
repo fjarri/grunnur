@@ -60,6 +60,8 @@ source-includes = [
     "pytest.ini",
 ]
 
+[tool.setuptools_scm]
+
 [build-system]
 requires = ["pdm-pep517"]
 build-backend = "pdm.pep517.api"
