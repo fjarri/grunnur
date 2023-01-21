@@ -15,10 +15,10 @@ from grunnur import (
 )
 from grunnur.template import DefTemplate
 
-from .mock_base import MockKernel, MockDefTemplate, MockDefTemplate
-from .mock_pycuda import PyCUDADeviceInfo
-from .mock_pyopencl import PyOpenCLDeviceInfo
-from .test_program import _test_constant_memory
+from mock_base import MockKernel, MockDefTemplate, MockDefTemplate
+from mock_pycuda import PyCUDADeviceInfo
+from mock_pyopencl import PyOpenCLDeviceInfo
+from test_program import _test_constant_memory
 
 
 SRC = """

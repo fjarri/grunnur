@@ -2,8 +2,8 @@ import pytest
 
 from grunnur import PlatformFilter, DeviceFilter
 
-from .utils import check_select_devices
-from .mock_pyopencl import PyOpenCLDeviceInfo
+from utils import check_select_devices
+from mock_pyopencl import PyOpenCLDeviceInfo
 
 
 def test_platform_take_single(mock_stdin, mock_backend_factory, capsys):

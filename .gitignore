@@ -5,4 +5,4 @@ htmlcov
 .mypy_cache
 build
 dist
-doc/_build
+docs/_build

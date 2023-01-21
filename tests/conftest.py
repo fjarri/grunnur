@@ -20,8 +20,8 @@ from grunnur.pytest_plugin import pytest_addoption as grunnur_pytest_addoption
 from grunnur.pytest_plugin import pytest_generate_tests as grunnur_pytest_generate_tests
 from grunnur.pytest_plugin import pytest_report_header as grunnur_pytest_report_header
 
-from .mock_pycuda import MockPyCUDA
-from .mock_pyopencl import MockPyOpenCL
+from mock_pycuda import MockPyCUDA
+from mock_pyopencl import MockPyOpenCL
 
 
 class MockBackendFactory:

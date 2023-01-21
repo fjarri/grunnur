@@ -18,14 +18,12 @@ class ArrayMetadataLike(Protocol):
         """
         Array shape.
         """
-        ...
 
     @property
     def dtype(self) -> "numpy.dtype[Any]":
         """
         The type of an array element.
         """
-        ...
 
 
 class ArrayMetadata:

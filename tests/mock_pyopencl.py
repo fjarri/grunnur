@@ -6,7 +6,7 @@ import numpy
 from grunnur import opencl_api_id
 from grunnur.adapter_base import DeviceType
 
-from .mock_base import MockSource
+from mock_base import MockSource
 
 
 class MemFlags(IntEnum):

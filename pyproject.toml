@@ -45,9 +45,20 @@ grunnur = "grunnur.pytest_plugin"
 line-length = 100
 target-version = ['py38']
 
-[tool]
-[tool.pdm]
-[tool.pdm.dev-dependencies]
+[tool.pdm.build]
+source-includes = [
+    "**/*.pyi",
+    "examples/*.py",
+    "tests/*.py",
+    "docs/*.rst",
+    "docs/*.py",
+    "docs/*.bat",
+    "docs/Makefile",
+    ".coveragerc",
+    ".mypy.ini",
+    ".readthedocs.yml",
+    "pytest.ini",
+]
 
 [build-system]
 requires = ["pdm-pep517"]

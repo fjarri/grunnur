@@ -11,7 +11,7 @@ import grunnur.functions as functions
 from grunnur.template import RenderError
 from grunnur.utils import prod
 
-from .utils import get_test_array
+from utils import get_test_array
 
 
 def get_func_kernel(func_module, out_dtype, in_dtypes):

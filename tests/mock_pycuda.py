@@ -9,7 +9,7 @@ import numpy
 from grunnur import cuda_api_id
 from grunnur.utils import prod
 
-from .mock_base import MockSource
+from mock_base import MockSource
 
 
 class MockPyCUDA:

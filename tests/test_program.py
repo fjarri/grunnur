@@ -22,8 +22,8 @@ from grunnur import (
 )
 from grunnur.template import Template, DefTemplate
 
-from .mock_base import MockKernel, MockDefTemplate
-from .mock_pycuda import PyCUDADeviceInfo
+from mock_base import MockKernel, MockDefTemplate
+from mock_pycuda import PyCUDADeviceInfo
 
 
 SRC_OPENCL = """
