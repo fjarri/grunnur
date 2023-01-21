@@ -119,13 +119,11 @@ def find_local_size_decomposition(
 
     threads_num = prod(global_size)
 
-    best_ratio = None
-    best_local_size = None
+    best_ratio: Optional[float] = None
+    best_local_size: Optional[List[int]] = None
 
     for local_size in get_decompositions(flat_local_size, len(global_size)):
-        bounding_global_size = tuple(
-            ls * min_blocks(gs, ls) for gs, ls in zip(global_size, local_size)
-        )
+        bounding_global_size = [ls * min_blocks(gs, ls) for gs, ls in zip(global_size, local_size)]
         empty_threads = prod(bounding_global_size) - threads_num
         ratio = empty_threads / threads_num
 

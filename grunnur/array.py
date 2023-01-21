@@ -293,7 +293,7 @@ class MultiArray:
             splay = EqualSplay()
 
         assert isinstance(host_arr, ArrayMetadataLike)
-        host_subarrays = splay(host_arr, mqueue.queues)
+        host_subarrays = splay(host_arr, list(mqueue.queues))
 
         subarrays = {
             device: Array.from_host(mqueue.queues[device], host_subarrays[device])
@@ -370,7 +370,7 @@ class MultiArray:
             dest = numpy.empty(self.shape, self.dtype)
 
         assert isinstance(dest, ArrayLike)
-        dest_subarrays = self._splay(dest, self.subarrays)
+        dest_subarrays = self._splay(dest, list(self.subarrays))
 
         for device, subarray in self.subarrays.items():
             subarray.get(mqueue.queues[device], dest_subarrays[device], async_=async_)
@@ -391,6 +391,7 @@ class MultiArray:
         :param no_async: if `True`, the transfer blocks until completion.
         """
 
+        subarrays: Mapping[BoundDevice, Union[Array, "numpy.ndarray[Any, numpy.dtype[Any]]"]]
         if isinstance(array, numpy.ndarray):
             assert isinstance(array, ArrayLike)
             subarrays = self._splay(array, self.devices)

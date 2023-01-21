@@ -13,11 +13,19 @@ class ArrayMetadataLike(Protocol):
     :py:class:`numpy.ndarray` or :py:class:`Array` follow this protocol.
     """
 
-    shape: Tuple[int, ...]
-    """Array shape."""
+    @property
+    def shape(self) -> Tuple[int, ...]:
+        """
+        Array shape.
+        """
+        ...
 
-    dtype: "numpy.dtype[Any]"
-    """The type of an array element."""
+    @property
+    def dtype(self) -> "numpy.dtype[Any]":
+        """
+        The type of an array element.
+        """
+        ...
 
 
 class ArrayMetadata:
