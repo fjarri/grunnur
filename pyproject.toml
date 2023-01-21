@@ -30,6 +30,7 @@ tests = [
 docs = [
     "sphinx>=4",
     "furo",
+    "setuptools-scm",
 ]
 lint = [
     "mypy>=0.941",

@@ -13,6 +13,7 @@
 import os
 import sys
 
+import setuptools_scm
 from numpy.typing import DTypeLike
 
 sys.path.insert(0, os.path.abspath("../"))
@@ -25,7 +26,7 @@ copyright = "2020–now, Bogdan Opanchuk"
 author = "Bogdan Opanchuk"
 
 # The full version, including alpha/beta/rc tags
-release = "0.2.0"
+release = setuptools_scm.get_version(relative_to=os.path.abspath("../pyproject.toml"))
 
 
 # -- General configuration ---------------------------------------------------
