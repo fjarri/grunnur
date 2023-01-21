@@ -29,7 +29,6 @@ jobs:
     - name: Install dependencies
       run: |
         pdm sync -G tests
-    # py-solc-x can do it too, but let's use standard system tools
     - name: Test with pytest
       run: |
         pdm run py.test --cov=grunnur --cov-report=xml test
