@@ -59,6 +59,7 @@ class StaticKernel:
         render_globals: Mapping[str, Any] = {},
         constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
         keep: bool = False,
+        fast_math: bool = False,
         compiler_options: Optional[Sequence[str]] = None,
     ):
         """
@@ -122,6 +123,7 @@ class StaticKernel:
                     render_globals=new_render_globals,
                     constant_arrays=constant_arrays,
                     keep=keep,
+                    fast_math=fast_math,
                     compiler_options=compiler_options,
                 )
                 kernel_adapter = program.get_kernel_adapter(name)
