@@ -1,12 +1,12 @@
 import numpy
 import pytest
 
-from grunnur import API, Context, Buffer, Queue, cuda_api_id
+from grunnur import API, Context, Buffer, Queue, cuda_api_id, opencl_api_id
 
 
 def test_allocate_and_copy(mock_or_real_context):
 
-    context, _mocked = mock_or_real_context
+    context, mocked = mock_or_real_context
 
     length = 100
     dtype = numpy.dtype("int32")
@@ -38,6 +38,11 @@ def test_allocate_and_copy(mock_or_real_context):
     buf_region.get(queue, res_region)
     queue.synchronize()
     assert (res_region == arr_region).all()
+
+    # Check that our mock can detect taking a sub-region of a sub-region (segfault in OpenCL)
+    if mocked and context.api.id == opencl_api_id():
+        with pytest.raises(RuntimeError, match="Cannot create a subregion of subregion"):
+            buf_region.get_sub_region(0, 10)
 
     # Write a subregion
     arr_region = (numpy.ones(50) * 100).astype(dtype)
@@ -81,6 +86,31 @@ def test_allocate_and_copy(mock_or_real_context):
     assert (res2[50:150] == arr).all()
     assert (res2[:50] == 1).all()
     assert (res2[150:] == 1).all()
+
+
+def test_migrate_on_copy(monkeypatch, mock_4_device_context):
+    context = mock_4_device_context
+    size = 100
+    src = Buffer.allocate(context.devices[0], size)
+    dest = Buffer.allocate(context.devices[0], size)
+
+    queue0 = Queue(context.devices[0])
+    queue1 = Queue(context.devices[1])
+
+    arr = numpy.arange(size).astype(numpy.uint8)
+
+    src.set(queue0, arr)
+    queue0.synchronize()
+
+    monkeypatch.setattr(queue1, "device", queue0.device)
+
+    if context.api.id == cuda_api_id():
+        message = "Trying to access an allocation from a device different to where it was created"
+    else:
+        message = "Trying to access a buffer from a device different to where it was migrated to"
+
+    with pytest.raises(RuntimeError, match=message):
+        dest.set(queue1, src)
 
 
 def test_flags(mock_backend_pyopencl):

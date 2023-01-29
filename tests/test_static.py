@@ -14,10 +14,8 @@ from grunnur import (
     MultiArray,
 )
 from grunnur.template import DefTemplate
+from grunnur.testing import MockKernel, MockDefTemplate, PyCUDADeviceInfo, PyOpenCLDeviceInfo
 
-from mock_base import MockKernel, MockDefTemplate, MockDefTemplate
-from mock_pycuda import PyCUDADeviceInfo
-from mock_pyopencl import PyOpenCLDeviceInfo
 from test_program import _test_constant_memory
 
 

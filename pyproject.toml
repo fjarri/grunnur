@@ -26,6 +26,7 @@ pycuda = [
 tests = [
     "pytest>=6",
     "pytest-cov",
+    "pytest-grunnur>=0.1",
 ]
 docs = [
     "sphinx>=4",
@@ -33,13 +34,9 @@ docs = [
     "setuptools-scm",
 ]
 lint = [
-    "pytest>=6", # We use some types from it.
     "mypy>=0.941",
     "black",
 ]
-
-[project.entry-points.pytest11]
-grunnur = "grunnur.pytest_plugin"
 
 [tool.black]
 line-length = 100

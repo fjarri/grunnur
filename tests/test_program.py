@@ -12,6 +12,7 @@ from grunnur import (
     Program,
     Queue,
     MultiQueue,
+    Buffer,
     Array,
     MultiArray,
     CompilationError,
@@ -21,9 +22,7 @@ from grunnur import (
     DeviceFilter,
 )
 from grunnur.template import Template, DefTemplate
-
-from mock_base import MockKernel, MockDefTemplate
-from mock_pycuda import PyCUDADeviceInfo
+from grunnur.testing import MockKernel, MockDefTemplate, PyCUDADeviceInfo
 
 
 SRC_OPENCL = """
@@ -346,6 +345,23 @@ def test_compiler_options(mock_context):
         assert "--my_option" in adapter._pyopencl_program.test_get_options()
     elif mock_context.api.id == cuda_api_id():
         assert "--my_option" in adapter._pycuda_program.test_get_options()
+
+
+def test_wrong_kernel_argument(mock_context):
+    src = MockDefTemplate(kernels=[MockKernel("multiply", [None, None, None, numpy.int32])])
+    program = Program([mock_context.device], src)
+    queue = Queue(mock_context.device)
+
+    buf = Buffer.allocate(mock_context.device, 100)
+
+    with pytest.raises(TypeError, match="Incorrect argument type: <class 'int'>"):
+        program.kernel.multiply(queue, (100,), None, buf, buf, buf, 4)
+
+    if mock_context.api.id == cuda_api_id():
+        with pytest.raises(
+            RuntimeError, match="A previously freed allocation or an incorrect address is used"
+        ):
+            program.kernel.multiply(queue, (100,), None, numpy.uintp(0), buf, buf, 4)
 
 
 def test_wrong_device_idxs(mock_4_device_context):

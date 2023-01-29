@@ -494,7 +494,6 @@ class CuBufferAdapter(BufferAdapter):
     ) -> None:
         assert isinstance(queue_adapter, CuQueueAdapter)
         device_idx = queue_adapter._device_idx
-        assert device_idx == self._device_idx
         self._context_adapter.activate_device(device_idx)
 
         # PyCUDA needs pointers to be passed as `numpy.number` to kernels,
@@ -524,7 +523,6 @@ class CuBufferAdapter(BufferAdapter):
     ) -> None:
         assert isinstance(queue_adapter, CuQueueAdapter)
         device_idx = queue_adapter._device_idx
-        assert device_idx == self._device_idx
         self._context_adapter.activate_device(device_idx)
 
         # PyCUDA needs pointers to be passed as `numpy.number` to kernels,

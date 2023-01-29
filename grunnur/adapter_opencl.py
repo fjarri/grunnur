@@ -434,14 +434,6 @@ class OclContextAdapter(ContextAdapter):
 
         pyopencl_buffer = pyopencl.Buffer(self._pyopencl_context, flags, size=size)
 
-        queue = pyopencl.CommandQueue(
-            self._pyopencl_context,
-            device=self._device_adapters[device_adapter.device_idx]._pyopencl_device,
-        )
-        pyopencl.enqueue_migrate_mem_objects(
-            queue, [pyopencl_buffer], flags=pyopencl.mem_migration_flags.CONTENT_UNDEFINED
-        )
-
         return OclBufferAdapter(self, device_adapter, pyopencl_buffer)
 
     def make_queue_adapter(self, device_adapter: DeviceAdapter) -> "OclQueueAdapter":
@@ -484,8 +476,6 @@ class OclBufferAdapter(BufferAdapter):
         no_async: bool = False,
     ) -> None:
         assert isinstance(queue_adapter, OclQueueAdapter)
-        assert queue_adapter._device_adapter == self._device_adapter
-
         buf_data: Union["pyopencl.Buffer", "numpy.ndarray[Any, numpy.dtype[Any]]"]
         if isinstance(source, BufferAdapter):
             assert isinstance(source, OclBufferAdapter)
@@ -509,7 +499,6 @@ class OclBufferAdapter(BufferAdapter):
         async_: bool = False,
     ) -> None:
         assert isinstance(queue_adapter, OclQueueAdapter)
-        assert queue_adapter._device_adapter == self._device_adapter
         pyopencl.enqueue_copy(
             queue_adapter._pyopencl_queue, host_array, self._pyopencl_buffer, is_blocking=not async_
         )

@@ -6,59 +6,24 @@ from grunnur import API, Context, Device, cuda_api_id, opencl_api_id
 from grunnur.api import all_api_ids
 from grunnur.adapter_base import APIID
 from grunnur.virtual_alloc import TrivialManager, ZeroOffsetManager
+from grunnur.testing import MockPyCUDA, MockPyOpenCL, MockBackendFactory
+
+from pytest_grunnur import get_devices, get_multi_device_sets
 
 # Cannot just use the plugin directly since it is loaded before the coverage plugin,
-# and all the function definitions in all `grunnur` modules get marked as not covered.
-from grunnur.pytest_plugin import (
-    context,
-    some_context,
-    multi_device_context,
-    get_devices,
-    get_multi_device_sets,
-)
-from grunnur.pytest_plugin import pytest_addoption as grunnur_pytest_addoption
-from grunnur.pytest_plugin import pytest_generate_tests as grunnur_pytest_generate_tests
-from grunnur.pytest_plugin import pytest_report_header as grunnur_pytest_report_header
-
-from mock_pycuda import MockPyCUDA
-from mock_pyopencl import MockPyOpenCL
+# and all the things the plugin uses from `grunnur` get marked as not covered.
+from pytest_grunnur.plugin import context
+import pytest_grunnur.plugin
 
 
-class MockBackendFactory:
-    def __init__(self, monkeypatch):
-        self.monkeypatch = monkeypatch
+def pytest_addoption(parser):
+    # Manually adding options from `pytest_grunnur` (see the note in the imports)
+    pytest_grunnur.plugin.pytest_addoption(parser)
 
-        # Clear out all existing backends
-        for api_id in all_api_ids():
-            self.mock(api_id, disable=True)
 
-    def _set_backend_cuda(self, backend=None):
-        pycuda_driver = backend.pycuda_driver if backend else None
-        pycuda_compiler = backend.pycuda_compiler if backend else None
-        self.monkeypatch.setattr("grunnur.adapter_cuda.pycuda_driver", pycuda_driver)
-        self.monkeypatch.setattr("grunnur.adapter_cuda.pycuda_compiler", pycuda_compiler)
-
-    def mock_pycuda(self, disable=False):
-        backend = MockPyCUDA() if not disable else None
-        self._set_backend_cuda(backend)
-        return backend
-
-    def _set_backend_opencl(self, backend=None):
-        pyopencl = backend.pyopencl if backend else None
-        self.monkeypatch.setattr("grunnur.adapter_opencl.pyopencl", pyopencl)
-
-    def mock_pyopencl(self, disable=False):
-        backend = MockPyOpenCL() if not disable else None
-        self._set_backend_opencl(backend)
-        return backend
-
-    def mock(self, api_id, disable=False):
-        if api_id == cuda_api_id():
-            return self.mock_pycuda(disable=disable)
-        elif api_id == opencl_api_id():
-            return self.mock_pyopencl(disable=disable)
-        else:
-            raise ValueError(f"Unknown API ID: {api_id}")
+def pytest_report_header(config):
+    # Manually adding the header from `pytest_grunnur` (see the note in the imports)
+    pytest_grunnur.plugin.pytest_report_header(config)
 
 
 @pytest.fixture(scope="function")
@@ -185,10 +150,6 @@ def valloc_cls(request):
     yield request.param
 
 
-def pytest_addoption(parser):
-    grunnur_pytest_addoption(parser)
-
-
 def _mock_or_real_context_make_id(value):
     if value is None:
         return "no_real_devices"
@@ -212,7 +173,8 @@ def _mock_or_real_multi_device_context_make_id(value):
 
 
 def pytest_generate_tests(metafunc):
-    grunnur_pytest_generate_tests(metafunc)
+    # Manually adding the fixtures from `pytest_grunnur` (see the note in the imports)
+    pytest_grunnur.plugin.pytest_generate_tests(metafunc)
 
     api_ids = all_api_ids()
     devices = get_devices(metafunc.config)
@@ -227,7 +189,3 @@ def pytest_generate_tests(metafunc):
         values = (device_sets if len(device_sets) > 0 else [None]) + all_api_ids()
         ids = [_mock_or_real_multi_device_context_make_id(value) for value in values]
         metafunc.parametrize("mock_or_real_multi_device_context", values, ids=ids, indirect=True)
-
-
-def pytest_report_header(config):
-    grunnur_pytest_report_header(config)

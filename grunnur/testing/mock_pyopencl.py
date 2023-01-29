@@ -1,12 +1,13 @@
 from enum import Enum, IntEnum
+from typing import Sequence, Optional, Union, List, Any, Dict, Tuple, cast
 import weakref
 
 import numpy
 
-from grunnur import opencl_api_id
-from grunnur.adapter_base import DeviceType
+from .. import opencl_api_id
+from ..adapter_base import DeviceType
 
-from mock_base import MockSource
+from .mock_base import MockSource, MockKernel
 
 
 class MemFlags(IntEnum):
@@ -19,31 +20,29 @@ class MemMigrationFlags(IntEnum):
 
 
 class MockPyOpenCL:
-    def __init__(self):
+    def __init__(self) -> None:
         self.pyopencl = Mock_pyopencl(self)
         self.api_id = opencl_api_id()
-        self.platforms = []
+        self.platforms: List["Platform"] = []
 
-    def add_platform(self, platform_name=None):
+    def add_platform(self, platform_name: Optional[str] = None) -> "Platform":
         if platform_name is None:
             platform_name = "Platform" + str(len(self.platforms))
         platform = Platform(self, platform_name)
         self.platforms.append(platform)
         return platform
 
-    def add_platform_with_devices(self, platform_name, device_infos):
+    def add_platform_with_devices(
+        self, platform_name: Optional[str], device_infos: Sequence[Union["PyOpenCLDeviceInfo", str]]
+    ) -> "Platform":
         platform = self.add_platform(platform_name)
         for device_info in device_infos:
             if isinstance(device_info, str):
                 device_info = PyOpenCLDeviceInfo(name=device_info)
-            elif isinstance(device_info, PyOpenCLDeviceInfo):
-                pass
-            else:
-                raise TypeError(type(device_info))
             platform.add_device(device_info)
         return platform
 
-    def add_devices(self, device_infos):
+    def add_devices(self, device_infos: Sequence["PyOpenCLDeviceInfo"]) -> "Platform":
         # Prevent incorrect usage - this method is added to be similar to that of PyCUDA mock,
         # so it can only be used once.
         assert len(self.platforms) == 0
@@ -59,7 +58,7 @@ class KernelWorkGroupInfo(Enum):
 
 
 class Mock_pyopencl:
-    def __init__(self, backend):
+    def __init__(self, backend: MockPyOpenCL):
 
         self._backend_ref = weakref.ref(backend)
 
@@ -78,10 +77,18 @@ class Mock_pyopencl:
         self.mem_migration_flags = MemMigrationFlags
         self.kernel_work_group_info = KernelWorkGroupInfo
 
-    def get_platforms(self):
-        return self._backend_ref().platforms
+    def get_platforms(self) -> List["Platform"]:
+        backend = self._backend_ref()
+        assert backend is not None
+        return backend.platforms
 
-    def enqueue_copy(self, queue, dest, src, wait_for=None, is_blocking=False):
+    def enqueue_copy(
+        self,
+        queue: "CommandQueue",
+        dest: Union["Buffer", "numpy.ndarray[Any, numpy.dtype[Any]]"],
+        src: Union["Buffer", "numpy.ndarray[Any, numpy.dtype[Any]]"],
+        is_blocking: bool = False,
+    ) -> None:
         if isinstance(dest, Buffer):
             assert queue.context == dest.context
             dest._access_from(queue.device)
@@ -100,56 +107,45 @@ class Mock_pyopencl:
 
         assert dest_size >= src_size
 
+        assert isinstance(dest, Buffer) or isinstance(src, Buffer)
         if isinstance(dest, Buffer):
             dest._set(src)
-        elif isinstance(dest, numpy.ndarray) and isinstance(src, Buffer):
-            src._get(dest)
         else:
-            raise TypeError(f"Not supported: {type(dest)} and {type(src)}")
-
-    def enqueue_marker(self, queue, wait_for=None):
-        return Event(queue)
-
-    def enqueue_migrate_mem_objects(self, queue, mem_objects, flags=0, wait_for=None):
-        for mem_object in mem_objects:
-            mem_object._migrate(queue.device)
-
-
-class Event:
-    def __init__(self, queue):
-        self.command_queue = queue
+            # mypy is not smart enough to combine the `assert` above with the condition of the `if`
+            src = cast(Buffer, src)
+            src._get(dest)
 
 
 class Platform:
-    def __init__(self, backend, name):
+    def __init__(self, backend: MockPyOpenCL, name: str):
         self._backend_ref = weakref.ref(backend)
         self.name = name
-        self._devices = []
+        self._devices: List["Device"] = []
         self.vendor = "Mock Platforms"
         self.version = "OpenCL 1.2"
 
-    def add_device(self, device_info):
+    def add_device(self, device_info: "PyOpenCLDeviceInfo") -> None:
         device = Device(self, device_info)
         self._devices.append(device)
 
-    def get_devices(self):
+    def get_devices(self) -> List["Device"]:
         return self._devices
 
 
 class PyOpenCLDeviceInfo:
     def __init__(
         self,
-        name="DefaultDeviceName",
-        vendor="Mock Devices",
-        type=DeviceType.GPU,
-        max_work_group_size=1024,
-        max_work_item_sizes=[1024, 1024, 1024],
-        local_mem_size=64 * 1024,
-        address_bits=32,
-        max_compute_units=8,
-        extensions=[],
-        compute_capability_major_nv=None,
-        warp_size_nv=None,
+        name: str = "DefaultDeviceName",
+        vendor: str = "Mock Devices",
+        type: DeviceType = DeviceType.GPU,
+        max_work_group_size: int = 1024,
+        max_work_item_sizes: Sequence[int] = (1024, 1024, 1024),
+        local_mem_size: int = 64 * 1024,
+        address_bits: int = 32,
+        max_compute_units: int = 8,
+        extensions: Sequence[str] = (),
+        compute_capability_major_nv: Optional[int] = None,
+        warp_size_nv: Optional[int] = None,
     ):
         self.name = name
         self.vendor = vendor
@@ -165,7 +161,7 @@ class PyOpenCLDeviceInfo:
 
 
 class Device:
-    def __init__(self, platform, device_info):
+    def __init__(self, platform: Platform, device_info: PyOpenCLDeviceInfo):
 
         self.name = device_info.name
         self._backend_ref = platform._backend_ref
@@ -183,65 +179,76 @@ class Device:
         self.warp_size_nv = device_info.warp_size_nv
 
     @property
-    def platform(self):
-        return self._platform_ref()
+    def platform(self) -> Platform:
+        platform = self._platform_ref()
+        assert platform is not None
+        return platform
 
 
 class Context:
-    def __init__(self, devices):
+    def __init__(self, devices: Sequence[Device]):
         self._backend_ref = devices[0]._backend_ref
         self.devices = devices
 
 
 class CommandQueue:
-    def __init__(self, context, device=None):
+    def __init__(self, context: Context, device: Device):
         self._backend_ref = context._backend_ref
         self.context = context
+        assert device in context.devices
+        self.device = device
 
-        if device is None:
-            self.device = context.devices[0]
-        else:
-            assert device in context.devices
-            self.device = device
-
-    def finish(self):
+    def finish(self) -> None:
         pass
 
 
 class Program:
-    def __init__(self, context, src):
+    def __init__(self, context: Context, src: MockSource):
         self._backend_ref = context._backend_ref
         self.context = context
         self.src = src
-        self._kernels = {}
+        self._kernels: Dict[str, "Kernel"] = {}
+        self._options: List[str] = []
 
-    def build(self, options=[], devices=None, cache_dir=None):
+    def build(
+        self,
+        options: Sequence[str] = [],
+        devices: Optional[Sequence[Device]] = None,
+        cache_dir: Optional[str] = None,
+    ) -> None:
         assert isinstance(self.src, MockSource)
         assert all(isinstance(option, str) for option in options)
         assert cache_dir is None or isinstance(cache_dir, str)
 
         # In Grunnur, we always build separate programs for each device
+        assert devices is not None
         assert len(devices) == 1 and devices[0] in self.context.devices
 
         if self.src.should_fail:
             raise PyopenclRuntimeError()
 
-        self._options = options
+        self._options = list(options)
         self._kernels = {kernel.name: Kernel(self, kernel) for kernel in self.src.kernels}
 
-    def test_get_options(self):
+    def test_get_options(self) -> List[str]:
         return self._options
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> "Kernel":
         return self._kernels[name]
 
 
 class Kernel:
-    def __init__(self, program, kernel):
+    def __init__(self, program: Program, kernel: MockKernel):
         self.program = program
         self._kernel = kernel
 
-    def __call__(self, queue, global_size, local_size, *args, wait_for=None):
+    def __call__(
+        self,
+        queue: CommandQueue,
+        global_size: Tuple[int, ...],
+        local_size: Optional[Tuple[int, ...]],
+        *args: Union["Buffer", numpy.generic],
+    ) -> None:
         assert isinstance(global_size, tuple)
         assert 1 <= len(global_size) <= 3
         if local_size is not None:
@@ -254,22 +261,36 @@ class Kernel:
             if isinstance(arg, Buffer):
                 assert param is None
                 assert arg.context == queue.context
-                assert arg._migrated_to == queue.device
-            elif isinstance(arg, numpy.number):
+                assert arg._migrated_to is None or arg._migrated_to == queue.device
+            elif isinstance(arg, numpy.generic):
                 assert arg.dtype == param
             else:
                 raise TypeError(f"Incorrect argument type: {type(arg)}")
 
-    def get_work_group_info(self, attribute, device):
+    def get_work_group_info(
+        self, attribute: KernelWorkGroupInfo, device: Device
+    ) -> Tuple[int, ...]:
         if attribute == KernelWorkGroupInfo.WORK_GROUP_SIZE:
             device_idx = device.platform.get_devices().index(device)
             return self._kernel.max_total_local_sizes[device_idx]
-        else:
-            raise ValueError(f"Unknown attribute: {attribute}")
+        else:  # pragma: no cover
+            raise NotImplementedError(f"Unknown attribute: {attribute}")
+
+
+def insert_data(buf: bytes, offset: int, data: bytes) -> bytes:
+    return buf[:offset] + data + buf[offset + len(data) :]
 
 
 class Buffer:
-    def __init__(self, context, flags, size, _migrated_to=None, _offset=0, _base_buffer=None):
+    def __init__(
+        self,
+        context: Context,
+        flags: Any,
+        size: int,
+        _migrated_to: Optional[Device] = None,
+        _offset: int = 0,
+        _base_buffer: Optional["Buffer"] = None,
+    ):
         self.context = context
         self.flags = flags
         self.size = size
@@ -280,10 +301,7 @@ class Buffer:
             self._buffer = b"\xef" * size
         self._base_buffer = _base_buffer
 
-    def _migrate(self, device):
-        self._migrated_to = device
-
-    def _set(self, arr):
+    def _set(self, arr: Union["Buffer", "numpy.ndarray[Any, numpy.dtype[Any]]"]) -> None:
         if isinstance(arr, numpy.ndarray):
             data = arr.tobytes()
         else:
@@ -292,14 +310,12 @@ class Buffer:
 
         assert len(data) <= self.size
 
-        insert_data = lambda buf: buf[: self.offset] + data + buf[self.offset + len(data) :]
-
         if self._base_buffer is None:
-            self._buffer = insert_data(self._buffer)
+            self._buffer = insert_data(self._buffer, self.offset, data)
         else:
-            self._base_buffer._buffer = insert_data(self._base_buffer._buffer)
+            self._base_buffer._buffer = insert_data(self._base_buffer._buffer, self.offset, data)
 
-    def _get(self, arr):
+    def _get(self, arr: "numpy.ndarray[Any, numpy.dtype[Any]]") -> None:
         data = arr.tobytes()
         assert len(data) <= self.size
 
@@ -309,15 +325,15 @@ class Buffer:
         buf_as_arr = numpy.frombuffer(buf, arr.dtype).reshape(arr.shape)
         numpy.copyto(arr, buf_as_arr)
 
-    def _access_from(self, device):
+    def _access_from(self, device: Device) -> None:
         if self._migrated_to is None:
             self._migrated_to = device
         elif device != self._migrated_to:
             raise RuntimeError(
-                "Trying to access a buffer from a different device it was migrated to"
+                "Trying to access a buffer from a device different to where it was migrated to"
             )
 
-    def get_sub_region(self, origin, size):
+    def get_sub_region(self, origin: int, size: int) -> "Buffer":
         assert origin + size <= self.size
         # Trying to do that in PyOpenCL leads to segfault
         if self._base_buffer is not None:
