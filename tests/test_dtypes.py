@@ -272,7 +272,6 @@ def test_align_nested():
 
 
 def test_align_preserve_nested_aligned():
-
     dtype_int3 = numpy.dtype(
         dict(names=["x"], formats=[(numpy.int32, 3)], itemsize=16, aligned=True)
     )
@@ -355,7 +354,6 @@ def test_ctype_struct():
 
 
 def test_ctype_struct_nested():
-
     dtype_nested = numpy.dtype(dict(names=["val1", "pad"], formats=[numpy.int8, numpy.int8]))
 
     dtype = numpy.dtype(
@@ -399,7 +397,6 @@ def test_ctype_to_ctype_struct():
 
 
 def test_ctype_struct():
-
     dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],
@@ -422,7 +419,6 @@ def test_ctype_struct():
 
 
 def test_ctype_struct_ignore_alignment():
-
     dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],

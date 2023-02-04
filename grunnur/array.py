@@ -98,7 +98,6 @@ class Array:
         return cls(metadata, data)
 
     def __init__(self, array_metadata: ArrayMetadata, data: Buffer):
-
         self._metadata = array_metadata
 
         self.device = data.device

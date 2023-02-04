@@ -155,7 +155,6 @@ class VirtualManager(ABC):
         return VirtualAllocator(self, dependencies)
 
     def _allocate_virtual(self, size: int, dependencies: Set[int]) -> Buffer:
-
         new_id = self._id_counter
         self._id_counter += 1
 
@@ -251,7 +250,6 @@ class VirtualAllocationStatistics:
     def __init__(
         self, real_buffers: Iterable[Buffer], virtual_buffers: Iterable[VirtualBufferAdapter]
     ):
-
         real_sizes = [rb.size for rb in real_buffers]
         virtual_sizes = [vb.size for vb in virtual_buffers]
 
@@ -339,7 +337,6 @@ class ZeroOffsetManager(VirtualManager):
         self._real_id_counter = 0
 
     def _allocate_specific(self, new_id: int, size: int, dependencies: Set[int]) -> Buffer:
-
         # Dependencies should be bidirectional.
         # So if some new allocation says it depends on earlier ones,
         # we need to update their dependency lists.

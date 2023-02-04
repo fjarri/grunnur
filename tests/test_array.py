@@ -6,7 +6,6 @@ from grunnur.array_metadata import ArrayMetadata
 
 
 def _check_array_operations(queue, array_cls):
-
     arr = numpy.arange(100)
     arr_dev = array_cls.from_host(queue, arr)
 
@@ -52,7 +51,6 @@ def test_single_device(mock_or_real_context):
 
 
 def test_set_from_non_contiguous(mock_or_real_context):
-
     context, _mocked = mock_or_real_context
 
     queue = Queue(context.device)

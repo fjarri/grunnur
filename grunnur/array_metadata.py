@@ -56,7 +56,6 @@ class ArrayMetadata:
         first_element_offset: int = 0,
         buffer_size: Optional[int] = None,
     ):
-
         shape = tuple(shape)
         dtype = _normalize_type(dtype)
 

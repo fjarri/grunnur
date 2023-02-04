@@ -52,7 +52,6 @@ KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b,
 
 @pytest.mark.parametrize("no_prelude", [False, True], ids=["with_prelude", "no_prelude"])
 def test_compile(mock_or_real_context, no_prelude):
-
     context, mocked = mock_or_real_context
 
     if mocked:
@@ -98,7 +97,6 @@ def test_compile(mock_or_real_context, no_prelude):
 
 
 def test_compile_multi_device(mock_or_real_multi_device_context):
-
     context, mocked = mock_or_real_multi_device_context
     devices = context.devices[[1, 0]]
 
@@ -187,7 +185,6 @@ KERNEL void copy_from_cm(
 
 
 def _test_constant_memory(context, mocked, is_static):
-
     cm1 = numpy.arange(16).astype(numpy.int32)
     cm2 = numpy.arange(16).astype(numpy.int32) * 2 + 1
     cm3 = numpy.arange(16).astype(numpy.int32) * 3 + 2
@@ -221,7 +218,6 @@ def _test_constant_memory(context, mocked, is_static):
         dtype: numpy.dtype
 
     if context.api.id == cuda_api_id():
-
         # Use different forms of constant array representation
         constant_arrays = dict(
             cm1=cm1,  # as an array(-like) object
@@ -253,7 +249,6 @@ def _test_constant_memory(context, mocked, is_static):
 
         copy_from_cm(queue, res_dev)
     else:
-
         if is_static:
             copy_from_cm = StaticKernel([context.device], src, "copy_from_cm", global_size=[16])
         else:
@@ -286,7 +281,6 @@ KERNEL void compile_error(GLOBAL_MEM int *dest)
 
 
 def test_compilation_error(mock_or_real_context, capsys):
-
     context, mocked = mock_or_real_context
 
     if mocked:
@@ -310,7 +304,6 @@ def test_compilation_error(mock_or_real_context, capsys):
 
 
 def test_keep(mock_or_real_context, capsys):
-
     context, mocked = mock_or_real_context
 
     if mocked:
@@ -335,7 +328,6 @@ def test_keep(mock_or_real_context, capsys):
 
 
 def test_compiler_options(mock_context):
-
     src = MockDefTemplate(kernels=[MockKernel("multiply", [None, None, None, numpy.int32])])
     program = Program([mock_context.device], src, compiler_options=["--my_option"])
 
@@ -378,7 +370,6 @@ def test_wrong_device_idxs(mock_4_device_context):
 
 
 def test_wrong_context(mock_backend):
-
     mock_backend.add_devices(["Device0"])
 
     src = MockDefTemplate(kernels=[MockKernel("multiply", [None])])
@@ -406,7 +397,6 @@ def test_wrong_context(mock_backend):
 
 
 def test_set_constant_array_errors(mock_4_device_context):
-
     context = mock_4_device_context
 
     api = API.from_api_id(mock_4_device_context.api.id)

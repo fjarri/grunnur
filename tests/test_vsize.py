@@ -44,7 +44,6 @@ def test_get_decompositions():
 
 
 def test_find_local_size_decomposition():
-
     # Main pathway: the algorithm can find a local size
     # with less than `threshold` ratio of empty threads
     global_size = (128, 200, 300)

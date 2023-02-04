@@ -49,7 +49,6 @@ def check_select_devices(
     device_filter=None,
     platform_filter=None,
 ):
-
     # CUDA API has a single fixed platform, so using the OpenCL one
     backend = mock_backend_factory.mock_pyopencl()
 

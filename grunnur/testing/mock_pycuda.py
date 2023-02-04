@@ -119,7 +119,6 @@ class Mock_pycuda_compiler:
 
 
 class BaseSourceModule(ABC):
-
     _context: "BaseContext"
 
     @abstractmethod
@@ -148,11 +147,9 @@ class BaseSourceModule(ABC):
 
 @lru_cache()
 def make_source_module_class(backend: MockPyCUDA) -> Type[BaseSourceModule]:
-
     backend_ref = weakref.ref(backend)
 
     class SourceModule(BaseSourceModule):
-
         _backend_ref = backend_ref
 
         def __init__(
@@ -213,13 +210,11 @@ class FunctionAttribute(Enum):
 
 
 class Mock_pycuda_driver:
-
     Function: Type["BaseFunction"]
 
     DeviceAllocation: Type["BaseDeviceAllocation"]
 
     def __init__(self, backend: MockPyCUDA, cuda_version: Tuple[int, int, int]):
-
         self._backend_ref = weakref.ref(backend)
         self._version = cuda_version
 
@@ -342,7 +337,6 @@ class PyCUDADeviceInfo:
 
 
 class BaseDevice(ABC):
-
     max_grid_dim_x: int
     max_grid_dim_y: int
     max_grid_dim_z: int
@@ -378,11 +372,9 @@ class BaseDevice(ABC):
 # (so that we can control the properties of the mock).
 @lru_cache()
 def make_device_class(backend: MockPyCUDA) -> Type[BaseDevice]:
-
     backend_ref = weakref.ref(backend)
 
     class Device(BaseDevice):
-
         _backend_ref = backend_ref
 
         def __init__(self, device_idx: int):
@@ -438,7 +430,6 @@ def make_device_class(backend: MockPyCUDA) -> Type[BaseDevice]:
 
 
 class BaseContext(ABC):
-
     _device_idx: int
 
     @abstractmethod
@@ -467,7 +458,6 @@ class BaseContext(ABC):
 @lru_cache()
 def make_context_class(backend: MockPyCUDA) -> Type[BaseContext]:
     class Context(BaseContext):
-
         # Since we need the backend in __del__(),
         # we want to make sure that it is alive as long as a this object is alive.
         _backend = backend
@@ -499,7 +489,6 @@ def make_context_class(backend: MockPyCUDA) -> Type[BaseContext]:
 
 
 class BaseStream(ABC):
-
     _context: BaseContext
 
     @abstractmethod
@@ -509,11 +498,9 @@ class BaseStream(ABC):
 
 @lru_cache()
 def make_stream_class(backend: MockPyCUDA) -> Type[BaseStream]:
-
     backend_ref = weakref.ref(backend)
 
     class Stream(BaseStream):
-
         _backend_ref = backend_ref
 
         def __init__(self) -> None:
@@ -530,7 +517,6 @@ def make_stream_class(backend: MockPyCUDA) -> Type[BaseStream]:
 
 
 class BaseDeviceAllocation(ABC):
-
     _context: BaseContext
     _idx: int
     _offset: int
@@ -574,11 +560,9 @@ class BaseDeviceAllocation(ABC):
 
 @lru_cache()
 def make_device_allocation_class(backend: MockPyCUDA) -> Type[BaseDeviceAllocation]:
-
     backend_ref = weakref.ref(backend)
 
     class DeviceAllocation(BaseDeviceAllocation):
-
         _backend_ref = backend_ref
 
         @classmethod
@@ -678,11 +662,9 @@ class BaseFunction(ABC):
 
 @lru_cache()
 def make_function_class(backend: MockPyCUDA) -> Type[BaseFunction]:
-
     backend_ref = weakref.ref(backend)
 
     class Function(BaseFunction):
-
         _backend_ref = backend_ref
 
         def __init__(self, source_module: BaseSourceModule, kernel: MockKernel):

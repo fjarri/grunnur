@@ -285,7 +285,6 @@ def extract_arg(
     ],
     device: BoundDevice,
 ) -> Union[BufferAdapter, numpy.generic]:
-
     single_device_arg: Union[Array, Buffer, numpy.generic]
     if isinstance(arg, Mapping):
         single_device_arg = arg[device]
@@ -316,7 +315,6 @@ class PreparedKernel:
         local_sizes: Mapping[BoundDevice, Optional[Sequence[int]]],
         hold_reference: Optional["Kernel"] = None,
     ):
-
         # If this object can be used by itself (e.g. when created from `Kernel.prepare()`),
         # this attribute will hold thre reference to the original `Kernel`.
         # On the other hand, in `StaticKernel` the object is used internally,

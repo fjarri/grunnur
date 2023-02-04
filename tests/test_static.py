@@ -32,7 +32,6 @@ KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b)
 
 
 def test_compile_static(mock_or_real_context):
-
     context, mocked = mock_or_real_context
 
     if mocked:
@@ -62,7 +61,6 @@ def test_compile_static(mock_or_real_context):
 
 
 def test_compile_static_multi_device(mock_or_real_multi_device_context):
-
     context, mocked = mock_or_real_multi_device_context
 
     if mocked:
@@ -123,7 +121,6 @@ def test_zero_max_total_local_size(mock_context):
 
 
 def test_virtual_sizes_error_propagated(mock_backend_pycuda):
-
     # Testing for PyCUDA backend only since mocked PyOpenCL backend does not have a way
     # to set maximum global sizes (PyOpenCL devices don't have a corresponding parameter),
     # and PyCUDA is enough to test the required code path.

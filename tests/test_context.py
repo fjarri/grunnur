@@ -75,7 +75,6 @@ def test_from_backend_contexts_opencl(mock_backend_pyopencl):
 
 
 def test_from_backend_contexts_several_apis(mock_backend_pycuda, mock_backend_pyopencl):
-
     backend = mock_backend_pyopencl
     backend.add_platform_with_devices("Platform1", ["Device1"])
 
@@ -151,7 +150,6 @@ def test_from_backend_contexts_cuda_multi_device(mock_backend_pycuda):
 
 
 def test_from_criteria(mock_backend_pyopencl):
-
     backend = mock_backend_pyopencl
 
     backend.add_platform_with_devices("foo-bar", ["Device1"])
@@ -263,7 +261,6 @@ def test_device_shortcut(mock_backend_pyopencl):
 
 
 def test_deactivate(mock_backend_pyopencl, mock_backend_pycuda):
-
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1"])
     mock_backend_pycuda.add_devices(["Device1"])
 

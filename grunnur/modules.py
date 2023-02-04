@@ -184,7 +184,6 @@ class SourceCollector:
         args: Sequence[Any],
         render_globals: Mapping[str, Any],
     ) -> str:
-
         # This caching serves two purposes.
         # First, it reduces the amount of generated code by not generating
         # the same module several times.

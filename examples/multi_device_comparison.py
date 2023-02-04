@@ -63,7 +63,6 @@ def test_single_device(device_idx: int, full_len: int, benchmark: bool = False) 
 
 
 def test_multi_device(device_idxs: Sequence[int], full_len: int, benchmark: bool = False) -> None:
-
     pwr = 50
 
     a = numpy.arange(full_len).astype(numpy.uint64)

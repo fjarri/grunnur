@@ -58,7 +58,6 @@ class ReferenceIds:
             self.grid_size = tuple(min_blocks(gs, ls) for gs, ls in zip(global_size, local_size))
 
     def _tile_pattern(self, pattern, axis, full_shape):
-
         pattern_shape = [x if i == axis else 1 for i, x in enumerate(full_shape)]
         pattern = pattern.reshape(*pattern_shape)
 
@@ -132,7 +131,6 @@ def test_ids(context, vstest):
     global_ids = Array.empty(context.device, ref.global_size, numpy.int32)
 
     for vdim in range(len(vstest.global_size)):
-
         get_ids(
             queue,
             vs.real_global_size,

@@ -545,7 +545,6 @@ def ctype_struct(dtype: DTypeLike, ignore_alignment: bool = False) -> Module:
 def _flatten_dtype(
     dtype: "numpy.dtype[Any]", prefix: List[Union[str, int]] = []
 ) -> List[Tuple[List[Union[str, int]], numpy.dtype[Any]]]:
-
     if dtype.names is None:
         return [(prefix, dtype)]
 

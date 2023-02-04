@@ -82,7 +82,6 @@ class StaticKernel:
         sources = {}
         vs_metadata = {}
         for device in multi_device:
-
             device_params = device.params
 
             kernel_ls = n_local_size[device]
@@ -96,7 +95,6 @@ class StaticKernel:
             max_total_local_size = device_params.max_total_local_size
 
             while True:
-
                 # Try to find kernel launch parameters for the requested local size.
                 # May raise VirtualSizeError if it's not possible,
                 # just let it pass to the caller.

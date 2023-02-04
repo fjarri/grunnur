@@ -201,7 +201,6 @@ def test_device_take_all_available(mock_stdin, mock_backend_factory, capsys):
 
 
 def test_filter_include_platforms(mock_stdin, mock_backend_factory, capsys):
-
     platforms_devices = [
         ("PlatformFoo", ["Device1", "Device2"]),
         ("PlatformBar", ["Device3", "Device4", "Device5"]),
@@ -219,7 +218,6 @@ def test_filter_include_platforms(mock_stdin, mock_backend_factory, capsys):
 
 
 def test_filter_exclude_platforms(mock_stdin, mock_backend_factory, capsys):
-
     platforms_devices = [
         ("PlatformFoo", ["Device1", "Device2"]),
         ("PlatformBar", ["Device3", "Device4", "Device5"]),
@@ -237,7 +235,6 @@ def test_filter_exclude_platforms(mock_stdin, mock_backend_factory, capsys):
 
 
 def test_filter_include_devices(mock_stdin, mock_backend_factory, capsys):
-
     platforms_devices = [
         ("PlatformFoo", ["DeviceFoo", "DeviceBar"]),
         ("PlatformBar", ["DeviceFoo", "DeviceBar", "DeviceBaz"]),
@@ -258,7 +255,6 @@ def test_filter_include_devices(mock_stdin, mock_backend_factory, capsys):
 
 
 def test_filter_exclude_devices(mock_stdin, mock_backend_factory, capsys):
-
     platforms_devices = [
         ("PlatformFoo", ["DeviceFoo", "DeviceBar"]),
         ("PlatformBar", ["DeviceFoo", "DeviceBar", "DeviceBaz"]),
@@ -278,7 +274,6 @@ def test_filter_exclude_devices(mock_stdin, mock_backend_factory, capsys):
 
 
 def test_filter_exclude_all_devices(mock_stdin, mock_backend_factory, capsys):
-
     platforms_devices = [
         ("PlatformFoo", ["DeviceFoo", "DeviceBar"]),
         ("PlatformBar", ["DeviceFoo", "DeviceBar", "DeviceBaz"]),
@@ -298,7 +293,6 @@ def test_filter_exclude_all_devices(mock_stdin, mock_backend_factory, capsys):
     "unique_only", [False, True], ids=["unique_only=False", "unique_only=True"]
 )
 def test_unique_devices_only(mock_stdin, mock_backend_factory, capsys, unique_only):
-
     platforms_devices = [
         ("PlatformFoo", ["DeviceFoo", "DeviceFoo"]),
         ("PlatformBar", ["DeviceBar", "DeviceBar", "DeviceBaz"]),
@@ -320,7 +314,6 @@ def test_unique_devices_only(mock_stdin, mock_backend_factory, capsys, unique_on
 
 @pytest.mark.parametrize("exclude_pp", [False, True], ids=["exclude_pp=False", "exclude_pp=True"])
 def test_include_pure_parallel_devices(mock_stdin, mock_backend_factory, capsys, exclude_pp):
-
     # `check_select_devices()` mocks OpenCL, so we can use multiple platforms
     # and OpenCL-specific device info
     platforms_devices = [

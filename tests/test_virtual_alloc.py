@@ -11,7 +11,6 @@ from grunnur.virtual_alloc import extract_dependencies, TrivialManager, ZeroOffs
 
 
 def allocate_test_set(virtual_alloc, allocate_callable):
-
     # Allocate virtual buffers with dependencies
 
     buffers_metadata = [
@@ -37,7 +36,6 @@ def allocate_test_set(virtual_alloc, allocate_callable):
 
 @pytest.mark.parametrize("pack", [False, True], ids=["no_pack", "pack"])
 def test_contract(context, valloc_cls, pack):
-
     dtype = numpy.int32
 
     program = Program(
@@ -84,7 +82,6 @@ def test_contract(context, valloc_cls, pack):
 
 @pytest.mark.parametrize("pack", [False, True], ids=["no_pack", "pack"])
 def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, pack):
-
     # Using PyCUDA backend here because it tracks the allocations.
 
     context = mock_context_pycuda
@@ -121,7 +118,6 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
 
 
 def test_extract_dependencies(mock_context):
-
     queue = Queue(mock_context.device)
     virtual_alloc = TrivialManager(mock_context.device).allocator()
 
@@ -158,7 +154,6 @@ def check_statistics(buffers_metadata, stats):
 
 
 def test_statistics(mock_context, valloc_cls):
-
     context = mock_context
     queue = Queue(context.device)
     virtual_alloc = valloc_cls(context.device)
@@ -190,7 +185,6 @@ def test_non_existent_dependencies(mock_context, valloc_cls):
 
 
 def test_virtual_buffer(mock_4_device_context_pyopencl):
-
     # Using an OpenCL mock context here because it keeps track of buffer migrations
 
     context = mock_4_device_context_pyopencl

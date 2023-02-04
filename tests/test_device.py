@@ -160,7 +160,6 @@ def test_device_parameters_opencl_cpu(mock_backend_pyopencl):
 
 
 def test_device_parameters_opencl_cuda1(mock_backend_pyopencl):
-
     # CUDA 1.x
 
     device_info = PyOpenCLDeviceInfo(
@@ -176,7 +175,6 @@ def test_device_parameters_opencl_cuda1(mock_backend_pyopencl):
 
 
 def test_device_parameters_opencl_cuda2(mock_backend_pyopencl):
-
     # CUDA 2.x+
 
     device_info = PyOpenCLDeviceInfo(
@@ -192,7 +190,6 @@ def test_device_parameters_opencl_cuda2(mock_backend_pyopencl):
 
 
 def test_device_parameters_opencl_unknown_nv(mock_backend_pyopencl):
-
     # Unknown nVidia device
 
     device_info = PyOpenCLDeviceInfo(vendor="NVIDIA")
@@ -243,7 +240,6 @@ def test_device_parameters_cuda(mock_backend_pycuda):
 
 
 def test_device_parameters_cuda_1(mock_backend_pycuda):
-
     # CUDA 1.x
 
     device_info = PyCUDADeviceInfo(compute_capability=1)

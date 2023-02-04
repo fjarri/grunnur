@@ -100,7 +100,6 @@ def test_struct_offsets_array(context):
 
 
 def test_struct_offsets_field_alignments(context):
-
     dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],

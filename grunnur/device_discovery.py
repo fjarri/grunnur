@@ -21,7 +21,6 @@ def platforms_and_devices_by_mask(
     suitable_platforms = Platform.all_filtered(api, platform_filter)
 
     for platform in suitable_platforms:
-
         suitable_devices = Device.all_filtered(platform, device_filter)
 
         if (quantity is None and len(suitable_devices) > 0) or (
@@ -35,7 +34,6 @@ def platforms_and_devices_by_mask(
 def _select_devices_interactive(
     suitable_pds: Sequence[Tuple[Platform, Sequence[Device]]], quantity: Optional[int] = 1
 ) -> List[Device]:
-
     if len(suitable_pds) == 1:
         platform, devices = suitable_pds[0]
         print(f"Platform: {platform.name}")

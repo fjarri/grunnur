@@ -203,7 +203,6 @@ class CuDeviceAdapter(DeviceAdapter):
 
 class CuDeviceParameters(DeviceParameters):
     def __init__(self, pycuda_device: "pycuda_driver.Device"):
-
         self._type = DeviceType.GPU
 
         self._max_total_local_size = pycuda_device.max_threads_per_block
@@ -265,7 +264,6 @@ class _ContextStack:
     """
 
     def __init__(self, pycuda_contexts: Sequence["pycuda_driver.Context"], take_ownership: bool):
-
         self._active_context: Optional[int] = None
         self._owns_contexts = take_ownership
         self._pycuda_contexts: Dict[int, "pycuda_driver.Context"] = {}
@@ -391,7 +389,6 @@ class CuContextAdapter(ContextAdapter):
         compiler_options: Optional[Sequence[str]] = None,
         constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
     ) -> "CuProgramAdapter":
-
         assert isinstance(device_adapter, CuDeviceAdapter)
 
         normalized_constant_arrays = normalize_constant_arrays(constant_arrays)
@@ -444,7 +441,6 @@ class CuBufferAdapter(BufferAdapter):
         managed: bool = False,
         base_buffer: Optional["CuBufferAdapter"] = None,
     ):
-
         if base_buffer is None:
             context_adapter.activate_device(device_idx)
             base_allocation = pycuda_driver.mem_alloc(size)
@@ -668,7 +664,6 @@ class CuPreparedKernelAdapter(PreparedKernelAdapter):
         global_size: Sequence[int],
         local_size: Optional[Sequence[int]] = None,
     ):
-
         context_adapter = kernel_adapter._context_adapter
         device_idx = kernel_adapter._device_idx
 
@@ -696,7 +691,6 @@ class CuPreparedKernelAdapter(PreparedKernelAdapter):
         *args: Union[BufferAdapter, numpy.generic],
         local_mem: int = 0,
     ) -> None:
-
         assert isinstance(queue_adapter, CuQueueAdapter)
 
         # Sanity check. If it happened, there's something wrong in the abstraction layer logic

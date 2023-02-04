@@ -383,7 +383,6 @@ class OclContextAdapter(ContextAdapter):
         compiler_options: Optional[Sequence[str]] = None,
         constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
     ) -> "OclProgramAdapter":
-
         assert isinstance(device_adapter, OclDeviceAdapter)
 
         # Sanity check: should have been caught in compile()
@@ -606,7 +605,6 @@ class OclPreparedKernelAdapter(PreparedKernelAdapter):
         *args: Union[BufferAdapter, numpy.generic],
         local_mem: int = 0,
     ) -> "pyopencl.Event":
-
         # Local memory size is passed via regular kernel arguments in OpenCL.
         # Should be checked in `PreparedKernel`.
         assert local_mem == 0

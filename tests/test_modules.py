@@ -160,7 +160,6 @@ def test_process_objects():
 
 
 def test_module_cache():
-
     # a module with no parameters
     m1 = Module.from_callable(lambda prefix: "m1: ${prefix}", name="m1")
 

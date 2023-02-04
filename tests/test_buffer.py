@@ -5,7 +5,6 @@ from grunnur import API, Context, Buffer, Queue, cuda_api_id, opencl_api_id
 
 
 def test_allocate_and_copy(mock_or_real_context):
-
     context, mocked = mock_or_real_context
 
     length = 100

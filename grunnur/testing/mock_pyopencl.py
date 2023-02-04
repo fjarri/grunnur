@@ -59,7 +59,6 @@ class KernelWorkGroupInfo(Enum):
 
 class Mock_pyopencl:
     def __init__(self, backend: MockPyOpenCL):
-
         self._backend_ref = weakref.ref(backend)
 
         self.device_type = DeviceType
@@ -162,7 +161,6 @@ class PyOpenCLDeviceInfo:
 
 class Device:
     def __init__(self, platform: Platform, device_info: PyOpenCLDeviceInfo):
-
         self.name = device_info.name
         self._backend_ref = platform._backend_ref
         self._platform_ref = weakref.ref(platform)

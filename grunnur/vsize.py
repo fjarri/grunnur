@@ -400,7 +400,6 @@ class VsizeModules(NamedTuple):
         local_groups: ShapeGroups,
         grid_groups: ShapeGroups,
     ) -> "VsizeModules":
-
         local_id_mod = Module(
             TEMPLATE.get_def("local_id"),
             render_globals=dict(virtual_local_size=virtual_local_size, local_groups=local_groups),
@@ -506,7 +505,6 @@ class VirtualSizeError(Exception):
 
 
 class VirtualSizes:
-
     real_local_size: Tuple[int, ...]
     real_global_size: Tuple[int, ...]
     vsize_modules: VsizeModules
@@ -520,7 +518,6 @@ class VirtualSizes:
         virtual_global_size: Sequence[int],
         virtual_local_size: Optional[Sequence[int]] = None,
     ):
-
         if virtual_local_size is not None:
             if len(virtual_local_size) != len(virtual_global_size):
                 raise ValueError(
