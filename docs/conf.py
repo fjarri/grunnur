@@ -12,6 +12,7 @@
 #
 import os
 import sys
+import importlib.metadata
 
 import setuptools_scm
 from numpy.typing import DTypeLike
@@ -23,7 +24,10 @@ copyright = "2020–now, Bogdan Opanchuk"
 author = "Bogdan Opanchuk"
 
 # The full version, including alpha/beta/rc tags
-release = setuptools_scm.get_version(relative_to=os.path.abspath("../pyproject.toml"))
+try:
+    release = importlib.metadata.version(project)
+except importlib.metadata.PackageNotFoundError:
+    release = setuptools_scm.get_version(relative_to=os.path.abspath("../pyproject.toml"))
 
 
 # -- General configuration ---------------------------------------------------
