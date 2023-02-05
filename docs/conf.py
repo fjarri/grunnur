@@ -16,9 +16,6 @@ import sys
 import setuptools_scm
 from numpy.typing import DTypeLike
 
-sys.path.insert(0, os.path.abspath("../"))
-
-
 # -- Project information -----------------------------------------------------
 
 project = "grunnur"

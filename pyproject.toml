@@ -1,6 +1,6 @@
 [project]
 name = "grunnur"
-version = "0.3.0"
+dynamic = ["version"]
 description = "Uniform API for PyOpenCL and PyCUDA."
 authors = [
     {name = "Bogdan Opanchuk", email = "bogdan@opanchuk.net"},
@@ -31,7 +31,7 @@ tests = [
 docs = [
     "sphinx>=4",
     "furo",
-    "setuptools-scm",
+    "setuptools-scm>=7",
 ]
 lint = [
     "mypy>=0.941",
@@ -41,6 +41,9 @@ lint = [
 [tool.black]
 line-length = 100
 target-version = ['py38']
+
+[tool.pdm]
+version = { source = "scm" }
 
 [tool.pdm.build]
 source-includes = [
@@ -53,12 +56,14 @@ source-includes = [
     "docs/Makefile",
     ".coveragerc",
     ".mypy.ini",
-    ".readthedocs.yml",
     "pytest.ini",
 ]
 
 [tool.setuptools_scm]
 
 [build-system]
-requires = ["pdm-pep517"]
+requires = [
+    "pdm-pep517",
+    "setuptools_scm[toml]>=7",
+]
 build-backend = "pdm.pep517.api"
