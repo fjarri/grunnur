@@ -271,9 +271,9 @@ dependencies = [
 
 [[package]]
 name = "pytest-grunnur"
-version = "0.1.0"
+version = "0.2.0"
 requires_python = ">=3.8"
-summary = "Uniform API for PyOpenCL and PyCUDA."
+summary = "Py.Test plugin for Grunnur-based packages."
 dependencies = [
     "grunnur>=0.3",
     "pytest>=6",
@@ -431,7 +431,7 @@ summary = "Backport of pathlib-compatible object wrapper for zip files"
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:b3c14e953a66ca948ba0f38af0495f7b3b0b1fec7fee970fd5544bcb0e20eef1"
+content_hash = "sha256:d9eae94b1618ac4ea96548812502075c51bedb5eda17fccde0d7543342bc70b6"
 
 [metadata.files]
 "alabaster 0.7.13" = [
@@ -852,8 +852,8 @@ content_hash = "sha256:b3c14e953a66ca948ba0f38af0495f7b3b0b1fec7fee970fd5544bcb0
     {url = "https://files.pythonhosted.org/packages/ea/70/da97fd5f6270c7d2ce07559a19e5bf36a76f0af21500256f005a69d9beba/pytest-cov-4.0.0.tar.gz", hash = "sha256:996b79efde6433cdbd0088872dbc5fb3ed7fe1578b68cdbba634f14bb8dd0470"},
     {url = "https://files.pythonhosted.org/packages/fe/1f/9ec0ddd33bd2b37d6ec50bb39155bca4fe7085fa78b3b434c05459a860e3/pytest_cov-4.0.0-py3-none-any.whl", hash = "sha256:2feb1b751d66a8bd934e5edfa2e961d11309dc37b73b0eabe73b5945fee20f6b"},
 ]
-"pytest-grunnur 0.1.0" = [
-    {url = "https://files.pythonhosted.org/packages/34/cf/4b6a700e15c0f482f8b2e2d3c9344b8ca09f66058f28314cc2935fc220b8/pytest-grunnur-0.1.0.tar.gz", hash = "sha256:70ece49515702e522dee1ab2fce7bebec975fd10de7689685c93e507ed98414f"},
+"pytest-grunnur 0.2.0" = [
+    {url = "https://files.pythonhosted.org/packages/15/76/15a7b286db2ca15db819dff3235f1985e3ccbfe1ddb8ac93909b99ccce30/pytest-grunnur-0.2.0.tar.gz", hash = "sha256:206537091e2fca35ad5a262125adf62bccf4389a7a2600fe4ec9ab3abcfba3c9"},
 ]
 "pytools 2022.1.14" = [
     {url = "https://files.pythonhosted.org/packages/b5/00/b7350b62803926f1d8fbbcaa50e38bcc93354aa73894c13155825eec897f/pytools-2022.1.14.tar.gz", hash = "sha256:41017371610bb2a03685597c5285205e6597c7f177383d95c8b871244b12c14e"},
