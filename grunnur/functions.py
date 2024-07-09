@@ -26,7 +26,7 @@ def check_information_loss(
             + str(expected_dtype)
             + " to "
             + str(out_dtype),
-            numpy.ComplexWarning,
+            numpy.exceptions.ComplexWarning,
         )
 
 

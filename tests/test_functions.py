@@ -1,5 +1,6 @@
 import numpy
 import itertools
+from functools import partial
 from warnings import catch_warnings, filterwarnings
 
 import pytest
@@ -355,7 +356,7 @@ def _test_cast(context, out_code, in_codes, is_mocked):
     check_func(
         context,
         functions.cast(in_dtypes[0], out_dtype),
-        numpy.cast[out_dtype],
+        partial(numpy.asarray, dtype=out_dtype),
         out_dtype,
         in_dtypes,
         is_mocked=is_mocked,
@@ -379,7 +380,7 @@ def test_cast_complex_to_real(context):
         check_func(
             context,
             functions.cast(in_dtypes[0], out_dtype),
-            numpy.cast[out_dtype],
+            partial(numpy.asarray, dtype=out_dtype),
             out_dtype,
             in_dtypes,
         )
@@ -398,7 +399,7 @@ def _test_div(context, out_code, in_codes, is_mocked):
     check_func(
         context,
         functions.div(*in_dtypes, out_dtype=out_dtype),
-        lambda x, y: numpy.cast[out_dtype](x / y),
+        lambda x, y: numpy.asarray(x / y, out_dtype),
         out_dtype,
         in_dtypes,
         is_mocked=is_mocked,
@@ -465,7 +466,7 @@ def _test_add_cast(context, out_code, in_codes, is_mocked):
 
     # Temporarily catching imaginary part truncation warnings
     with catch_warnings():
-        filterwarnings("ignore", "", numpy.ComplexWarning)
+        filterwarnings("ignore", "", numpy.exceptions.ComplexWarning)
         add = functions.add(*in_dtypes, out_dtype=out_dtype)
 
     check_func(context, add, reference_add, out_dtype, in_dtypes, is_mocked=is_mocked)
@@ -531,7 +532,7 @@ def _test_mul_cast(context, out_code, in_codes, is_mocked):
 
     # Temporarily catching imaginary part truncation warnings
     with catch_warnings():
-        filterwarnings("ignore", "", numpy.ComplexWarning)
+        filterwarnings("ignore", "", numpy.exceptions.ComplexWarning)
         mul = functions.mul(*in_dtypes, out_dtype=out_dtype)
 
     # Relax tolerance a little - in single precision the difference may sometimes go to 1e-5

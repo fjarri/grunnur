@@ -95,7 +95,7 @@ def is_double(dtype: DTypeLike) -> bool:
     Returns ``True`` if ``dtype`` is double precision floating point.
     """
     dtype = _normalize_type(dtype)
-    return numpy.issubdtype(dtype, numpy.float_) or numpy.issubdtype(dtype, numpy.complex_)
+    return numpy.issubdtype(dtype, numpy.float64) or numpy.issubdtype(dtype, numpy.complex128)
 
 
 def is_integer(dtype: DTypeLike) -> bool:
@@ -203,9 +203,9 @@ def c_constant(
 
     numpy_val: Union[numpy.generic, "numpy.ndarray[Any, numpy.dtype[Any]]"]
     if isinstance(val, numpy.ndarray):
-        numpy_val = numpy.cast[dtype](val)
+        numpy_val = numpy.asarray(val, dtype)
     else:
-        numpy_val = numpy.cast[dtype](val).flat[0]
+        numpy_val = numpy.asarray(val, dtype).flat[0]
 
     if len(numpy_val.shape) > 0:
         return _c_constant_arr(numpy_val, numpy_val.shape)
