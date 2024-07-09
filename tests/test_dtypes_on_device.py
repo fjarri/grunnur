@@ -1,6 +1,6 @@
 import numpy
 
-from grunnur import dtypes, Program, Queue, Array
+from grunnur import Array, Program, Queue, dtypes
 
 
 def check_struct_fill(context, dtype):
@@ -45,10 +45,7 @@ def check_struct_fill(context, dtype):
 
 
 def test_struct_offsets(context):
-    """
-    Test the correctness of alignment for an explicit set of field offsets.
-    """
-
+    """Test the correctness of alignment for an explicit set of field offsets."""
     dtype_nested = numpy.dtype(
         dict(
             names=["val1", "pad"],
@@ -73,24 +70,13 @@ def test_struct_offsets(context):
 
 
 def test_struct_offsets_array(context):
-    """
-    Test the correctness of alignment for an explicit set of field offsets.
-    """
+    """Test the correctness of alignment for an explicit set of field offsets."""
     dtype_nested = numpy.dtype(dict(names=["val1", "pad"], formats=[numpy.int8, numpy.int8]))
 
     dtype = numpy.dtype(
         dict(
             names=["pad", "struct_arr", "regular_arr"],
             formats=[numpy.int32, numpy.dtype((dtype_nested, 2)), numpy.dtype((numpy.int16, 3))],
-        )
-    )
-
-    dtype_ref = numpy.dtype(
-        dict(
-            names=["pad", "struct_arr", "regular_arr"],
-            formats=[numpy.int32, (dtype_nested, (2,)), (numpy.int16, (3,))],
-            offsets=[0, 4, 8],
-            itemsize=16,
         )
     )
 

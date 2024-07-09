@@ -1,7 +1,10 @@
+# Arguments are actually used in templates, but Ruff cannot parse it.
+# ruff: noqa: ARG005
+
 import pytest
 
+from grunnur.modules import Module, Snippet, render_with_modules
 from grunnur.template import DefTemplate, RenderError
-from grunnur.modules import Snippet, Module, render_with_modules
 
 
 def test_snippet_from_callable():
@@ -12,8 +15,10 @@ def test_snippet_from_callable():
 
 def test_snippet_from_string():
     snippet = Snippet.from_string("${z}", render_globals=dict(z=3))
-    res = render_with_modules("${s}", render_globals=dict(s=snippet)).strip()
     assert render_with_modules(snippet).strip() == "3"
+
+    res = render_with_modules("${s}", render_globals=dict(s=snippet)).strip()
+    assert res == "3"
 
 
 def test_module_from_callable():
@@ -57,7 +62,7 @@ def test_render_string():
 
 
 def test_render_string_with_args():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="A textual source cannot have `render_args` set."):
         render_with_modules("abcde", render_args=[1, 2])
 
 
@@ -93,14 +98,12 @@ def test_render_error():
 
     assert e.args == ("_mod_foo_0_", 1)
     assert e.globals == dict(baz=3)
-    assert type(e.exception) == NameError
+    assert type(e.exception) is NameError
     assert e.source == module.template.source
 
 
 class CustomObj:
-    """
-    A class supporting custom module processing.
-    """
+    """A class supporting custom module processing."""
 
     def __init__(self, module):
         self.module = module

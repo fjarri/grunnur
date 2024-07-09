@@ -1,31 +1,30 @@
 from __future__ import annotations
 
-from typing import Any, Union, Optional
+from typing import TYPE_CHECKING, Any
 
 import numpy
 
-from .adapter_base import BufferAdapter
-from .context import BoundDevice
-from .queue import Queue
+if TYPE_CHECKING:  # pragma: no cover
+    from .adapter_base import BufferAdapter
+    from .context import BoundDevice
+    from .queue import Queue
 
 
 class Buffer:
-    """
-    A memory buffer on device.
-    """
+    """A memory buffer on device."""
 
     device: BoundDevice
     """Device on which this buffer is allocated."""
 
     @classmethod
-    def allocate(cls, device: BoundDevice, size: int) -> "Buffer":
+    def allocate(cls, device: BoundDevice, size: int) -> Buffer:
         """
         Allocate a buffer of ``size`` bytes.
 
         :param device: the device on which this buffer will be allocated.
         :param size: the buffer's size in bytes.
         """
-        buffer_adapter = device.context._context_adapter.allocate(device._device_adapter, size)
+        buffer_adapter = device.context._context_adapter.allocate(device._device_adapter, size)  # noqa: SLF001
         return cls(device, buffer_adapter)
 
     def __init__(self, device: BoundDevice, buffer_adapter: BufferAdapter):
@@ -48,15 +47,14 @@ class Buffer:
 
     @property
     def size(self) -> int:
-        """
-        This buffer's size (in bytes).
-        """
+        """The buffer's size (in bytes)."""
         return self._buffer_adapter.size
 
     def set(
         self,
         queue: Queue,
-        buf: Union["numpy.ndarray[Any, numpy.dtype[Any]]", "Buffer"],
+        buf: numpy.ndarray[Any, numpy.dtype[Any]] | Buffer,
+        *,
         no_async: bool = False,
     ) -> None:
         """
@@ -72,18 +70,22 @@ class Buffer:
                 f"buffer on device {self.device}"
             )
 
-        buf_adapter: Union["numpy.ndarray[Any, numpy.dtype[Any]]", BufferAdapter]
+        buf_adapter: numpy.ndarray[Any, numpy.dtype[Any]] | BufferAdapter
         if isinstance(buf, numpy.ndarray):
             buf_adapter = numpy.ascontiguousarray(buf)
         elif isinstance(buf, Buffer):
-            buf_adapter = buf._buffer_adapter
+            buf_adapter = buf._buffer_adapter  # noqa: SLF001
         else:
             raise TypeError(f"Cannot set from an object of type {type(buf)}")
 
-        self._buffer_adapter.set(queue._queue_adapter, buf_adapter, no_async=no_async)
+        self._buffer_adapter.set(queue._queue_adapter, buf_adapter, no_async=no_async)  # noqa: SLF001
 
     def get(
-        self, queue: Queue, host_array: "numpy.ndarray[Any, numpy.dtype[Any]]", async_: bool = False
+        self,
+        queue: Queue,
+        host_array: numpy.ndarray[Any, numpy.dtype[Any]],
+        *,
+        async_: bool = False,
     ) -> None:
         """
         Copy the contents of the buffer to the host array.
@@ -98,13 +100,15 @@ class Buffer:
                 f"buffer on device {self.device}"
             )
 
-        self._buffer_adapter.get(queue._queue_adapter, host_array, async_=async_)
+        self._buffer_adapter.get(queue._queue_adapter, host_array, async_=async_)  # noqa: SLF001
 
-    def get_sub_region(self, origin: int, size: int) -> "Buffer":
+    def get_sub_region(self, origin: int, size: int) -> Buffer:
         """
         Return a buffer object describing a subregion of this buffer.
 
         :param origin: the offset of the subregion.
         :param size: the size of the subregion.
         """
+        if origin + size > self.size:
+            raise ValueError("The requested subregion extends beyond the buffer length")
         return Buffer(self.device, self._buffer_adapter.get_sub_region(origin, size))

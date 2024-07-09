@@ -1,8 +1,7 @@
-from typing import Protocol, Any, Optional, Union
+from typing import Any, Protocol
 
 from .. import all_api_ids, cuda_api_id, opencl_api_id
 from ..adapter_base import APIID
-
 from .mock_pycuda import MockPyCUDA
 from .mock_pyopencl import MockPyOpenCL
 
@@ -21,7 +20,7 @@ class MockBackendFactory:
         for api_id in all_api_ids():
             self.disable(api_id)
 
-    def _set_backend_cuda(self, backend: Optional[MockPyCUDA] = None) -> None:
+    def _set_backend_cuda(self, backend: MockPyCUDA | None = None) -> None:
         pycuda_driver = backend.pycuda_driver if backend else None
         pycuda_compiler = backend.pycuda_compiler if backend else None
         self.monkeypatch.setattr("grunnur.adapter_cuda.pycuda_driver", pycuda_driver)
@@ -35,7 +34,7 @@ class MockBackendFactory:
     def disable_pycuda(self) -> None:
         self._set_backend_cuda(None)
 
-    def _set_backend_opencl(self, backend: Optional[MockPyOpenCL] = None) -> None:
+    def _set_backend_opencl(self, backend: MockPyOpenCL | None = None) -> None:
         pyopencl = backend.pyopencl if backend else None
         self.monkeypatch.setattr("grunnur.adapter_opencl.pyopencl", pyopencl)
 
@@ -50,15 +49,13 @@ class MockBackendFactory:
     def disable(self, api_id: APIID) -> None:
         if api_id == cuda_api_id():
             return self.disable_pycuda()
-        elif api_id == opencl_api_id():
+        if api_id == opencl_api_id():
             return self.disable_pyopencl()
-        else:
-            raise ValueError(f"Unknown API ID: {api_id}")
+        raise ValueError(f"Unknown API ID: {api_id}")
 
-    def mock(self, api_id: APIID) -> Union[MockPyOpenCL, MockPyCUDA]:
+    def mock(self, api_id: APIID) -> MockPyOpenCL | MockPyCUDA:
         if api_id == cuda_api_id():
             return self.mock_pycuda()
-        elif api_id == opencl_api_id():
+        if api_id == opencl_api_id():
             return self.mock_pyopencl()
-        else:
-            raise ValueError(f"Unknown API ID: {api_id}")
+        raise ValueError(f"Unknown API ID: {api_id}")

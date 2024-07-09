@@ -1,9 +1,14 @@
-from typing import Any, Protocol, Tuple, Optional, Sequence, Union, runtime_checkable
+from __future__ import annotations
 
-import numpy
-from numpy.typing import DTypeLike
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from .dtypes import _normalize_type
+
+if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Sequence
+
+    import numpy
+    from numpy.typing import DTypeLike
 
 
 @runtime_checkable
@@ -14,16 +19,12 @@ class ArrayMetadataLike(Protocol):
     """
 
     @property
-    def shape(self) -> Tuple[int, ...]:
-        """
-        Array shape.
-        """
+    def shape(self) -> tuple[int, ...]:
+        """Array shape."""
 
     @property
-    def dtype(self) -> "numpy.dtype[Any]":
-        """
-        The type of an array element.
-        """
+    def dtype(self) -> numpy.dtype[Any]:
+        """The type of an array element."""
 
 
 class ArrayMetadata:
@@ -32,34 +33,34 @@ class ArrayMetadata:
     without actual data attached to it.
     """
 
-    shape: Tuple[int, ...]
+    shape: tuple[int, ...]
     """Array shape."""
 
-    dtype: "numpy.dtype[Any]"
+    dtype: numpy.dtype[Any]
     """Array item data type."""
 
-    strides: Tuple[int, ...]
+    strides: tuple[int, ...]
     """Array strides."""
 
     is_contiguous: bool
     """If ``True``, means that array's data forms a continuous chunk of memory."""
 
     @classmethod
-    def from_arraylike(cls, array: ArrayMetadataLike) -> "ArrayMetadata":
+    def from_arraylike(cls, array: ArrayMetadataLike) -> ArrayMetadata:
         return cls(array.shape, array.dtype, strides=getattr(array, "strides", None))
 
     def __init__(
         self,
         shape: Sequence[int],
         dtype: DTypeLike,
-        strides: Optional[Sequence[int]] = None,
+        strides: Sequence[int] | None = None,
         first_element_offset: int = 0,
-        buffer_size: Optional[int] = None,
+        buffer_size: int | None = None,
     ):
         shape = tuple(shape)
         dtype = _normalize_type(dtype)
 
-        default_strides = get_strides(shape, dtype.itemsize)
+        default_strides = _get_strides(shape, dtype.itemsize)
 
         if strides is None:
             strides = default_strides
@@ -70,7 +71,7 @@ class ArrayMetadata:
             # can be contioguous, but that's too hard to determine.
             self.contiguous = strides == default_strides
 
-        min_offset, max_offset = get_range(shape, dtype.itemsize, strides)
+        min_offset, max_offset = _get_range(shape, dtype.itemsize, strides)
         if buffer_size is None:
             buffer_size = first_element_offset + max_offset
 
@@ -96,7 +97,7 @@ class ArrayMetadata:
         self._full_max_offset = full_max_offset
         self.buffer_size = buffer_size
 
-    def minimal_subregion(self) -> Tuple[int, int, "ArrayMetadata"]:
+    def minimal_subregion(self) -> tuple[int, int, ArrayMetadata]:
         """
         Returns the metadata for the minimal subregion that fits all the data in this view,
         along with the subgregion offset in the current buffer and the required subregion length.
@@ -112,18 +113,18 @@ class ArrayMetadata:
         )
         return subregion_origin, subregion_size, new_metadata
 
-    def __getitem__(self, slices: Union[slice, Tuple[slice, ...]]) -> "ArrayMetadata":
+    def __getitem__(self, slices: slice | tuple[slice, ...]) -> ArrayMetadata:
         if isinstance(slices, slice):
             slices = (slices,)
         if len(slices) < len(self.shape):
             slices += (slice(None),) * (len(self.shape) - len(slices))
-        new_fe_offset, new_shape, new_strides = get_view(self.shape, self.strides, slices)
+        new_fe_offset, new_shape, new_strides = _get_view(self.shape, self.strides, slices)
         return ArrayMetadata(
             new_shape, self.dtype, strides=new_strides, first_element_offset=new_fe_offset
         )
 
 
-def get_strides(shape: Sequence[int], itemsize: int) -> Tuple[int, ...]:
+def _get_strides(shape: Sequence[int], itemsize: int) -> tuple[int, ...]:
     # Constructs strides for a contiguous array of shape ``shape`` and item size ``itemsize``.
     strides = []
     stride = itemsize
@@ -133,7 +134,7 @@ def get_strides(shape: Sequence[int], itemsize: int) -> Tuple[int, ...]:
     return tuple(reversed(strides))
 
 
-def normalize_slice(length: int, stride: int, slice_: slice) -> Tuple[int, int, int]:
+def _normalize_slice(length: int, stride: int, slice_: slice) -> tuple[int, int, int]:
     """
     Given a slice over an array of length ``length`` with the stride ``stride`` between elements,
     return a tuple ``(offset, last, stride)`` where ``offset`` is the offset of the first
@@ -150,35 +151,39 @@ def normalize_slice(length: int, stride: int, slice_: slice) -> Tuple[int, int, 
     return offset, length, new_stride
 
 
-def get_view(
+def _get_view(
     shape: Sequence[int], strides: Sequence[int], slices: Sequence[slice]
-) -> Tuple[int, Tuple[int, ...], Tuple[int, ...]]:
+) -> tuple[int, tuple[int, ...], tuple[int, ...]]:
     """
     Given an array shape and strides, and a sequence of slices defining a view,
     returns a tuple of three elements: the offset of the first element of the view,
     the view shape and the view strides.
     """
-    assert len(slices) == len(shape)
-    assert len(strides) == len(shape)
+    if len(strides) != len(shape):
+        raise ValueError("Shape and strides must have the same length")
+    if len(slices) != len(shape):
+        raise ValueError("Shape and slices must have the same length")
 
     offsets, lengths, strides = zip(
         *[
-            normalize_slice(length, stride, slice_)
-            for length, stride, slice_ in zip(shape, strides, slices)
-        ]
+            _normalize_slice(length, stride, slice_)
+            for length, stride, slice_ in zip(shape, strides, slices, strict=True)
+        ],
+        strict=True,
     )
 
     return sum(offsets), tuple(lengths), tuple(strides)
 
 
-def get_range(shape: Sequence[int], itemsize: int, strides: Sequence[int]) -> Tuple[int, int]:
+def _get_range(shape: Sequence[int], itemsize: int, strides: Sequence[int]) -> tuple[int, int]:
     """
     Given an array shape, item size (in bytes), and a sequence of strides,
     returns a pair ``(min_offset, max_offset)``,
     where ``min_offset`` is the minimum byte offset of an array element,
     and ``max_offset`` is the maximum byte offset of an array element plus itemsize.
     """
-    assert len(strides) == len(shape)
+    if len(strides) != len(shape):
+        raise ValueError("Shape and strides must have the same length")
 
     # Now the address of an element (i1, i2, ...) of the resulting view is
     #     addr = i1 * stride1 + i2 * stride2 + ...,
@@ -190,11 +195,11 @@ def get_range(shape: Sequence[int], itemsize: int, strides: Sequence[int]) -> Tu
 
     # Since we separated the offsets already, for each dimension the address
     # of the first element is 0. We calculate the address of the last byte in each dimension.
-    last_addrs = [(length - 1) * stride for length, stride in zip(shape, strides)]
+    last_addrs = [(length - 1) * stride for length, stride in zip(shape, strides, strict=True)]
 
     # Sort the pairs (0, last_addr)
     pairs = [(0, last_addr) if last_addr > 0 else (last_addr, 0) for last_addr in last_addrs]
-    minima, maxima = zip(*pairs)
+    minima, maxima = zip(*pairs, strict=True)
 
     min_offset = sum(minima)
     max_offset = sum(maxima) + itemsize

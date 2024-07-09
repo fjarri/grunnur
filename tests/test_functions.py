@@ -1,17 +1,15 @@
-import numpy
 import itertools
+import re
 from functools import partial
 from warnings import catch_warnings, filterwarnings
 
+import numpy
 import pytest
 
-from grunnur import Program, Queue, Array
+from grunnur import Array, Program, Queue, dtypes, functions
 from grunnur.modules import render_with_modules
-import grunnur.dtypes as dtypes
-import grunnur.functions as functions
 from grunnur.template import RenderError
 from grunnur.utils import prod
-
 from utils import get_test_array
 
 
@@ -24,13 +22,13 @@ def get_func_kernel(func_module, out_dtype, in_dtypes):
     %>
     KERNEL void test(
         GLOBAL_MEM ${out_ctype} *dest
-        %for arg, ctype in zip(argnames, in_ctypes):
+        %for arg, ctype in zip(argnames, in_ctypes, strict=True):
         , GLOBAL_MEM ${ctype} *${arg}
         %endfor
         )
     {
         const SIZE_T i = get_global_id(0);
-        %for arg, ctype in zip(argnames, in_ctypes):
+        %for arg, ctype in zip(argnames, in_ctypes, strict=True):
         ${ctype} ${arg}_load = ${arg}[i];
         %endfor
 
@@ -38,14 +36,12 @@ def get_func_kernel(func_module, out_dtype, in_dtypes):
     }
     """
 
-    full_src = render_with_modules(
+    return render_with_modules(
         src,
         render_globals=dict(
             dtypes=dtypes, in_dtypes=in_dtypes, out_dtype=out_dtype, func=func_module
         ),
     )
-
-    return full_src
 
 
 def generate_dtypes(out_code, in_codes):
@@ -70,11 +66,12 @@ def check_func(
     reference_func,
     out_dtype,
     in_dtypes,
+    *,
     atol=1e-8,
     rtol=1e-5,
     is_mocked=False,
 ):
-    N = 256
+    test_size = 256
 
     full_src = get_func_kernel(func_module, out_dtype, in_dtypes)
 
@@ -87,11 +84,11 @@ def check_func(
 
     queue = Queue(context.device)
 
-    arrays = [get_test_array(N, dt, no_zeros=True, high=8) for dt in in_dtypes]
+    arrays = [get_test_array(test_size, dt, no_zeros=True, high=8) for dt in in_dtypes]
     arrays_dev = [Array.from_host(queue, array) for array in arrays]
-    dest_dev = Array.empty(context.device, [N], out_dtype)
+    dest_dev = Array.empty(context.device, [test_size], out_dtype)
 
-    test(queue, [N], None, dest_dev, *arrays_dev)
+    test(queue, [test_size], None, dest_dev, *arrays_dev)
 
     assert numpy.allclose(
         dest_dev.get(queue), reference_func(*arrays).astype(out_dtype), atol=atol, rtol=rtol
@@ -122,7 +119,9 @@ def test_exp_mocked(mock_context, out_code, in_codes):
 
 
 def test_exp_of_integer():
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match=re.escape("exp() of <class 'numpy.int32'> is not supported")
+    ):
         functions.exp(numpy.int32)
 
 
@@ -186,21 +185,23 @@ def test_pow_cast_output_mocked(mock_context):
 
 
 def test_pow_complex_exponent():
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match=re.escape("pow() with a complex exponent is not supported")
+    ):
         functions.pow(numpy.float32, exponent_dtype=numpy.complex64)
 
 
 def test_pow_int_to_float():
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match=re.escape("pow(integer, float): integer is not supported")
+    ):
         functions.pow(numpy.int32, exponent_dtype=numpy.float32, out_dtype=numpy.int32)
 
 
 @pytest.mark.parametrize(("out_code", "in_codes"), [("c", "cf"), ("f", "ff")])
 def test_pow_zero_base(context, out_code, in_codes):
-    """
-    Specific tests for 0^0 and 0^x.
-    """
-    N = 256
+    """Specific tests for 0^0 and 0^x."""
+    test_size = 256
 
     out_dtype, in_dtypes = generate_dtypes(out_code, in_codes)
     func_module = functions.pow(in_dtypes[0], exponent_dtype=in_dtypes[1], out_dtype=out_dtype)
@@ -209,19 +210,19 @@ def test_pow_zero_base(context, out_code, in_codes):
     test = program.kernel.test
 
     queue = Queue(context.device)
-    bases = Array.from_host(queue, numpy.zeros(N, in_dtypes[0]))
+    bases = Array.from_host(queue, numpy.zeros(test_size, in_dtypes[0]))
 
     # zero exponents
-    exponents = Array.from_host(queue, numpy.zeros(N, in_dtypes[1]))
-    dest_dev = Array.empty(context.device, [N], out_dtype)
-    test(queue, [N], None, dest_dev, bases, exponents)
-    assert numpy.allclose(dest_dev.get(queue), numpy.ones(N, in_dtypes[0]))
+    exponents = Array.from_host(queue, numpy.zeros(test_size, in_dtypes[1]))
+    dest_dev = Array.empty(context.device, [test_size], out_dtype)
+    test(queue, [test_size], None, dest_dev, bases, exponents)
+    assert numpy.allclose(dest_dev.get(queue), numpy.ones(test_size, in_dtypes[0]))
 
     # non-zero exponents
-    exponents = Array.from_host(queue, numpy.ones(N, in_dtypes[1]))
-    dest_dev = Array.empty(context.device, [N], out_dtype)
-    test(queue, [N], None, dest_dev, bases, exponents)
-    assert numpy.allclose(dest_dev.get(queue), numpy.zeros(N, in_dtypes[0]))
+    exponents = Array.from_host(queue, numpy.ones(test_size, in_dtypes[1]))
+    dest_dev = Array.empty(context.device, [test_size], out_dtype)
+    test(queue, [test_size], None, dest_dev, bases, exponents)
+    assert numpy.allclose(dest_dev.get(queue), numpy.zeros(test_size, in_dtypes[0]))
 
 
 # polar_unit()
@@ -253,7 +254,9 @@ def test_polar_unit_mocked(mock_context, out_code, in_codes):
 
 
 def test_polar_unit_of_complex():
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match=re.escape("polar_unit() can only be applied to real dtypes")
+    ):
         functions.polar_unit(numpy.complex64)
 
 
@@ -286,7 +289,9 @@ def test_polar_mocked(mock_context, out_code, in_codes):
 
 
 def test_polar_of_complex():
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match=re.escape("polar() of <class 'numpy.complex64'> is not supported")
+    ):
         functions.polar(numpy.complex64)
 
 
@@ -433,9 +438,7 @@ _test_add_parameters = pytest.mark.parametrize("in_codes", ["ff", "cc", "cf", "f
 
 
 def _test_add(context, in_codes, is_mocked):
-    """
-    Checks multi-argument add() with a variety of data types.
-    """
+    """Checks multi-argument add() with a variety of data types."""
     out_dtype, in_dtypes = generate_dtypes("auto", in_codes)
     reference_add = make_reference_add(out_dtype)
     add = functions.add(*in_dtypes, out_dtype=out_dtype)
@@ -458,9 +461,7 @@ _test_add_cast_parameters = pytest.mark.parametrize(
 
 
 def _test_add_cast(context, out_code, in_codes, is_mocked):
-    """
-    Check that add() casts the result correctly.
-    """
+    """Check that add() casts the result correctly."""
     out_dtype, in_dtypes = generate_dtypes(out_code, in_codes)
     reference_add = make_reference_add(out_dtype)
 
@@ -499,9 +500,7 @@ _test_mul_parameters = pytest.mark.parametrize("in_codes", ["ff", "cc", "cf", "f
 
 
 def _test_mul(context, in_codes, is_mocked):
-    """
-    Checks multi-argument mul() with a variety of data types.
-    """
+    """Checks multi-argument mul() with a variety of data types."""
     out_dtype, in_dtypes = generate_dtypes("auto", in_codes)
     reference_mul = make_reference_mul(out_dtype)
     mul = functions.mul(*in_dtypes, out_dtype=out_dtype)
@@ -524,9 +523,7 @@ _test_mul_cast_parameters = pytest.mark.parametrize(
 
 
 def _test_mul_cast(context, out_code, in_codes, is_mocked):
-    """
-    Check that mul() casts the result correctly.
-    """
+    """Check that mul() casts the result correctly."""
     out_dtype, in_dtypes = generate_dtypes(out_code, in_codes)
     reference_mul = make_reference_mul(out_dtype)
 

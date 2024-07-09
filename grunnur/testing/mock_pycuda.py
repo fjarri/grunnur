@@ -1,17 +1,25 @@
+# This is a testing module, so it has a lot of assertions and private attribute access.
+# ruff: noqa: S101, SLF001
+
+from __future__ import annotations
+
+import os.path
+import weakref
 from abc import ABC, abstractmethod
 from enum import Enum
 from functools import lru_cache
+from pathlib import Path
 from tempfile import mkdtemp
-from typing import Tuple, List, Dict, Protocol, Sequence, Type, Optional, Any, Union, cast
-import os.path
-import weakref
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy
 
 from .. import cuda_api_id
 from ..utils import prod
+from .mock_base import MockKernel, MockSource
 
-from .mock_base import MockSource, MockKernel
+if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Sequence
 
 
 class ConvertibleToInt(Protocol):
@@ -20,12 +28,12 @@ class ConvertibleToInt(Protocol):
 
 
 class MockPyCUDA:
-    def __init__(self, cuda_version: Tuple[int, int, int] = (10, 0, 0)):
-        self.pycuda_driver = Mock_pycuda_driver(self, cuda_version)
-        self.pycuda_compiler = Mock_pycuda_compiler(self)
+    def __init__(self, cuda_version: tuple[int, int, int] = (10, 0, 0)):
+        self.pycuda_driver = MockPyCUDADriverModule(self, cuda_version)
+        self.pycuda_compiler = MockPyCUDACompilerModule(self)
 
-        self.device_infos: List[PyCUDADeviceInfo] = []
-        self._context_stack: List[weakref.ReferenceType[BaseContext]] = []
+        self.device_infos: list[PyCUDADeviceInfo] = []
+        self._context_stack: list[weakref.ReferenceType[BaseContext]] = []
 
         # Since we need to cast DeviceAllocation objects to integers (to add offsets),
         # there is no way to use a mock allocation object to track that.
@@ -36,18 +44,20 @@ class MockPyCUDA:
         self._allocation_start = 2**30
         self._allocation_step = 2**16
         self._allocation_idx = 0
-        self._allocations: Dict[int, Tuple[int, weakref.ReferenceType[BaseContext], bytes]] = {}
+        self._allocations: dict[int, tuple[int, weakref.ReferenceType[BaseContext], bytes]] = {}
 
         self.api_id = cuda_api_id()
 
-    def add_devices(self, device_infos: Sequence[Union[str, "PyCUDADeviceInfo"]]) -> None:
+    def add_devices(self, device_infos: Sequence[str | PyCUDADeviceInfo]) -> None:
         assert len(self.device_infos) == 0
         for device_info in device_infos:
             if isinstance(device_info, str):
-                device_info = PyCUDADeviceInfo(name=device_info)
-            self.device_infos.append(device_info)
+                typed_device_info = PyCUDADeviceInfo(name=device_info)
+            else:
+                typed_device_info = device_info
+            self.device_infos.append(typed_device_info)
 
-    def push_context(self, context: "BaseContext") -> None:
+    def push_context(self, context: BaseContext) -> None:
         if self.is_stacked(context):
             raise ValueError("The given context is already in the context stack")
         self._context_stack.append(weakref.ref(context))
@@ -55,18 +65,15 @@ class MockPyCUDA:
     def pop_context(self) -> None:
         self._context_stack.pop()
 
-    def current_context(self) -> "BaseContext":
+    def current_context(self) -> BaseContext:
         context = self._context_stack[-1]()
         assert context is not None
         return context
 
-    def is_stacked(self, context: "BaseContext") -> bool:
-        for stacked_context_ref in self._context_stack:
-            if stacked_context_ref() == context:
-                return True
-        return False
+    def is_stacked(self, context: BaseContext) -> bool:
+        return any(stacked_context_ref() == context for stacked_context_ref in self._context_stack)
 
-    def allocate(self, size: int) -> Tuple[int, int]:
+    def allocate(self, size: int) -> tuple[int, int]:
         assert size <= self._allocation_step
         idx = self._allocation_idx
         self._allocation_idx += 1
@@ -88,7 +95,7 @@ class MockPyCUDA:
     def free_allocation(self, idx: int) -> None:
         del self._allocations[idx]
 
-    def check_allocation(self, address: ConvertibleToInt) -> Tuple[int, int, int]:
+    def check_allocation(self, address: ConvertibleToInt) -> tuple[int, int, int]:
         # will work as long as we don't have offsets larger than `_allocation_step`
         idx = (int(address) - self._allocation_start) // self._allocation_step
         offset = (int(address) - self._allocation_start) % self._allocation_step
@@ -113,40 +120,37 @@ class PycudaCompileError(Exception):
     pass
 
 
-class Mock_pycuda_compiler:
+class MockPyCUDACompilerModule:
     def __init__(self, backend: MockPyCUDA):
         self.SourceModule = make_source_module_class(backend)
 
 
 class BaseSourceModule(ABC):
-    _context: "BaseContext"
+    _context: BaseContext
 
     @abstractmethod
     def __init__(
         self,
         src: MockSource,
+        *,
         no_extern_c: bool = False,
-        options: Optional[Sequence[str]] = None,
+        options: Sequence[str] | None = None,
         keep: bool = False,
-        cache_dir: Optional[str] = None,
-    ):
-        ...
+        cache_dir: str | None = None,
+    ): ...
 
     @abstractmethod
-    def test_get_options(self) -> Optional[Sequence[str]]:
-        ...
+    def test_get_options(self) -> Sequence[str] | None: ...
 
     @abstractmethod
-    def get_function(self, name: str) -> "BaseFunction":
-        ...
+    def get_function(self, name: str) -> BaseFunction: ...
 
     @abstractmethod
-    def get_global(self, name: str) -> Tuple["BaseDeviceAllocation", int]:
-        ...
+    def get_global(self, name: str) -> tuple[BaseDeviceAllocation, int]: ...
 
 
-@lru_cache()
-def make_source_module_class(backend: MockPyCUDA) -> Type[BaseSourceModule]:
+@lru_cache
+def make_source_module_class(backend: MockPyCUDA) -> type[BaseSourceModule]:
     backend_ref = weakref.ref(backend)
 
     class SourceModule(BaseSourceModule):
@@ -155,10 +159,11 @@ def make_source_module_class(backend: MockPyCUDA) -> Type[BaseSourceModule]:
         def __init__(
             self,
             src: MockSource,
+            *,
             no_extern_c: bool = False,
-            options: Optional[Sequence[str]] = None,
+            options: Sequence[str] | None = None,
             keep: bool = False,
-            cache_dir: Optional[str] = None,
+            cache_dir: str | None = None,
         ):
             assert isinstance(src, MockSource)
             assert isinstance(no_extern_c, bool)
@@ -166,7 +171,7 @@ def make_source_module_class(backend: MockPyCUDA) -> Type[BaseSourceModule]:
             assert isinstance(keep, bool)
 
             if src.should_fail:
-                raise PycudaCompileError()
+                raise PycudaCompileError
 
             backend = self._backend_ref()
             assert backend is not None
@@ -180,18 +185,19 @@ def make_source_module_class(backend: MockPyCUDA) -> Type[BaseSourceModule]:
 
             # See the note in compile_single_device(). Apparently that's how PyCUDA operates.
             if keep and cache_dir is not None:
-                temp_dir = mkdtemp()
-                with open(os.path.join(temp_dir, "kernel.cu"), "w") as f:
+                temp_dir = Path(mkdtemp())
+                temp_file = temp_dir / "kernel.cu"
+                with temp_file.open("w") as f:
                     f.write(str(src))
-                print(f"*** compiler output in {temp_dir}")
+                print(f"*** compiler output in {temp_dir}")  # noqa: T201
 
-        def test_get_options(self) -> Optional[Sequence[str]]:
+        def test_get_options(self) -> Sequence[str] | None:
             return self._options
 
-        def get_function(self, name: str) -> "BaseFunction":
+        def get_function(self, name: str) -> BaseFunction:
             return self._kernels[name]
 
-        def get_global(self, name: str) -> Tuple["BaseDeviceAllocation", int]:
+        def get_global(self, name: str) -> tuple[BaseDeviceAllocation, int]:
             size = self._constant_mem[name]
             backend = self._backend_ref()
             assert backend is not None
@@ -209,12 +215,12 @@ class FunctionAttribute(Enum):
     MAX_THREADS_PER_BLOCK = 0
 
 
-class Mock_pycuda_driver:
-    Function: Type["BaseFunction"]
+class MockPyCUDADriverModule:
+    Function: type[BaseFunction]
 
-    DeviceAllocation: Type["BaseDeviceAllocation"]
+    DeviceAllocation: type[BaseDeviceAllocation]
 
-    def __init__(self, backend: MockPyCUDA, cuda_version: Tuple[int, int, int]):
+    def __init__(self, backend: MockPyCUDA, cuda_version: tuple[int, int, int]):
         self._backend_ref = weakref.ref(backend)
         self._version = cuda_version
 
@@ -229,22 +235,22 @@ class Mock_pycuda_driver:
         self.mem_attach_flags = MemAttachFlags
         self.function_attribute = FunctionAttribute
 
-    def get_version(self) -> Tuple[int, int, int]:
+    def get_version(self) -> tuple[int, int, int]:
         return self._version
 
-    def mem_alloc(self, size: int) -> "BaseDeviceAllocation":
+    def mem_alloc(self, size: int) -> BaseDeviceAllocation:
         return self.DeviceAllocation._allocate(size)
 
     def memcpy_htod(
-        self, dest: "BaseDeviceAllocation", src: "numpy.ndarray[Any, numpy.dtype[Any]]"
+        self, dest: BaseDeviceAllocation, src: numpy.ndarray[Any, numpy.dtype[Any]]
     ) -> None:
         self.memcpy_htod_async(dest, src)
 
     def memcpy_htod_async(
         self,
-        dest: "BaseDeviceAllocation",
-        src: "numpy.ndarray[Any, numpy.dtype[Any]]",
-        stream: Optional["BaseStream"] = None,
+        dest: BaseDeviceAllocation,
+        src: numpy.ndarray[Any, numpy.dtype[Any]],
+        stream: BaseStream | None = None,
     ) -> None:
         backend = self._backend_ref()
         assert backend is not None
@@ -257,15 +263,15 @@ class Mock_pycuda_driver:
         dest._set(src)
 
     def memcpy_dtoh(
-        self, dest: "numpy.ndarray[Any, numpy.dtype[Any]]", src: "BaseDeviceAllocation"
+        self, dest: numpy.ndarray[Any, numpy.dtype[Any]], src: BaseDeviceAllocation
     ) -> None:
         self.memcpy_dtoh_async(dest, src)
 
     def memcpy_dtoh_async(
         self,
-        dest: "numpy.ndarray[Any, numpy.dtype[Any]]",
-        src: "BaseDeviceAllocation",
-        stream: Optional["BaseStream"] = None,
+        dest: numpy.ndarray[Any, numpy.dtype[Any]],
+        src: BaseDeviceAllocation,
+        stream: BaseStream | None = None,
     ) -> None:
         backend = self._backend_ref()
         assert backend is not None
@@ -277,17 +283,15 @@ class Mock_pycuda_driver:
         assert src._size >= dest.size * dest.dtype.itemsize
         src._get(dest)
 
-    def memcpy_dtod(
-        self, dest: "BaseDeviceAllocation", src: "BaseDeviceAllocation", size: int
-    ) -> None:
+    def memcpy_dtod(self, dest: BaseDeviceAllocation, src: BaseDeviceAllocation, size: int) -> None:
         self.memcpy_dtod_async(dest, src, size)
 
     def memcpy_dtod_async(
         self,
-        dest: "BaseDeviceAllocation",
-        src: "BaseDeviceAllocation",
+        dest: BaseDeviceAllocation,
+        src: BaseDeviceAllocation,
         size: int,
-        stream: Optional["BaseStream"] = None,
+        stream: BaseStream | None = None,
     ) -> None:
         backend = self._backend_ref()
         assert backend is not None
@@ -301,8 +305,8 @@ class Mock_pycuda_driver:
         dest._set(src)
 
     def pagelocked_empty(
-        self, shape: Sequence[int], dtype: "numpy.dtype[Any]"
-    ) -> "numpy.ndarray[Any, numpy.dtype[Any]]":
+        self, shape: Sequence[int], dtype: numpy.dtype[Any]
+    ) -> numpy.ndarray[Any, numpy.dtype[Any]]:
         return numpy.empty(shape, dtype)
 
 
@@ -345,33 +349,28 @@ class BaseDevice(ABC):
     max_block_dim_z: int
 
     @abstractmethod
-    def __init__(self, device_idx: int):
-        ...
+    def __init__(self, device_idx: int): ...
 
     @abstractmethod
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
     @abstractmethod
-    def compute_capability(self) -> Tuple[int, int]:
-        ...
+    def compute_capability(self) -> tuple[int, int]: ...
 
     @abstractmethod
-    def make_context(self) -> "BaseContext":
-        ...
+    def make_context(self) -> BaseContext: ...
 
     @staticmethod
     @abstractmethod
-    def count() -> int:
-        ...
+    def count() -> int: ...
 
 
 # We need a device class that is an actual class
 # (so that `type()` works on the results of its `__call__()`),
 # but at the same time retains a reference to the backend object used to create it
 # (so that we can control the properties of the mock).
-@lru_cache()
-def make_device_class(backend: MockPyCUDA) -> Type[BaseDevice]:
+@lru_cache
+def make_device_class(backend: MockPyCUDA) -> type[BaseDevice]:
     backend_ref = weakref.ref(backend)
 
     class Device(BaseDevice):
@@ -403,7 +402,7 @@ def make_device_class(backend: MockPyCUDA) -> Type[BaseDevice]:
         def name(self) -> str:
             return self._name
 
-        def compute_capability(self) -> Tuple[int, int]:
+        def compute_capability(self) -> tuple[int, int]:
             return (self._compute_capability, 0)
 
         def make_context(self) -> BaseContext:
@@ -413,7 +412,7 @@ def make_device_class(backend: MockPyCUDA) -> Type[BaseDevice]:
             context.push()
             return context
 
-        def __eq__(self, other: Any) -> bool:
+        def __eq__(self, other: object) -> bool:
             assert isinstance(other, Device)
             return self._device_idx == other._device_idx
 
@@ -433,30 +432,25 @@ class BaseContext(ABC):
     _device_idx: int
 
     @abstractmethod
-    def __init__(self, device_idx: int):
-        ...
+    def __init__(self, device_idx: int): ...
 
     @staticmethod
     @abstractmethod
-    def pop() -> None:
-        ...
+    def pop() -> None: ...
 
     @staticmethod
     @abstractmethod
-    def get_device() -> BaseDevice:
-        ...
+    def get_device() -> BaseDevice: ...
 
     @abstractmethod
-    def push(self) -> None:
-        ...
+    def push(self) -> None: ...
 
     @abstractmethod
-    def is_stacked(self) -> bool:
-        ...
+    def is_stacked(self) -> bool: ...
 
 
-@lru_cache()
-def make_context_class(backend: MockPyCUDA) -> Type[BaseContext]:
+@lru_cache
+def make_context_class(backend: MockPyCUDA) -> type[BaseContext]:
     class Context(BaseContext):
         # Since we need the backend in __del__(),
         # we want to make sure that it is alive as long as a this object is alive.
@@ -492,12 +486,11 @@ class BaseStream(ABC):
     _context: BaseContext
 
     @abstractmethod
-    def synchronize(self) -> None:
-        ...
+    def synchronize(self) -> None: ...
 
 
-@lru_cache()
-def make_stream_class(backend: MockPyCUDA) -> Type[BaseStream]:
+@lru_cache
+def make_stream_class(backend: MockPyCUDA) -> type[BaseStream]:
     backend_ref = weakref.ref(backend)
 
     class Stream(BaseStream):
@@ -524,57 +517,48 @@ class BaseDeviceAllocation(ABC):
 
     @classmethod
     @abstractmethod
-    def _allocate(cls, size: int) -> "BaseDeviceAllocation":
-        ...
+    def _allocate(cls, size: int) -> BaseDeviceAllocation: ...
 
     @classmethod
     @abstractmethod
-    def _from_memcpy_arg(cls, arg: Union["BaseDeviceAllocation", int]) -> "BaseDeviceAllocation":
-        ...
+    def _from_memcpy_arg(cls, arg: BaseDeviceAllocation | int) -> BaseDeviceAllocation: ...
 
     @classmethod
     @abstractmethod
-    def _from_kernel_arg(
-        cls, arg: Union["BaseDeviceAllocation", numpy.uintp]
-    ) -> "BaseDeviceAllocation":
-        ...
+    def _from_kernel_arg(cls, arg: BaseDeviceAllocation | numpy.uintp) -> BaseDeviceAllocation: ...
 
     @abstractmethod
-    def __init__(self, idx: int, address: int, offset: int, size: int, owns_buffer: bool = False):
-        ...
+    def __init__(
+        self, idx: int, address: int, offset: int, size: int, *, owns_buffer: bool = False
+    ): ...
 
     @abstractmethod
-    def _set(
-        self, arr: Union["numpy.ndarray[Any, numpy.dtype[Any]]", "BaseDeviceAllocation"]
-    ) -> None:
-        ...
+    def _set(self, arr: numpy.ndarray[Any, numpy.dtype[Any]] | BaseDeviceAllocation) -> None: ...
 
     @abstractmethod
-    def _get(self, arr: "numpy.ndarray[Any, numpy.dtype[Any]]") -> None:
-        ...
+    def _get(self, arr: numpy.ndarray[Any, numpy.dtype[Any]]) -> None: ...
 
     @abstractmethod
-    def __int__(self) -> int:
-        ...
+    def __int__(self) -> int: ...
 
 
-@lru_cache()
-def make_device_allocation_class(backend: MockPyCUDA) -> Type[BaseDeviceAllocation]:
+@lru_cache
+def make_device_allocation_class(backend: MockPyCUDA) -> type[BaseDeviceAllocation]:  # noqa: C901
     backend_ref = weakref.ref(backend)
 
     class DeviceAllocation(BaseDeviceAllocation):
         _backend_ref = backend_ref
 
         @classmethod
-        def _allocate(cls, size: int) -> "DeviceAllocation":
+        def _allocate(cls, size: int) -> DeviceAllocation:
             idx, address = backend.allocate(size)
             return cls(idx, address, 0, size, owns_buffer=True)
 
         @classmethod
-        def _from_memcpy_arg(cls, arg: Union["BaseDeviceAllocation", int]) -> "DeviceAllocation":
+        def _from_memcpy_arg(cls, arg: BaseDeviceAllocation | int) -> DeviceAllocation:
             # `memcpy` functions in PyCUDA require pointers to be `int`s,
             # and kernels require them to be `numpy.number`s. Go figure.
-            assert isinstance(arg, (cls, int))
+            assert isinstance(arg, cls | int)
             if isinstance(arg, cls):
                 return arg
             arg = cast(int, arg)  # mypy is not smart enough to derive that
@@ -587,14 +571,12 @@ def make_device_allocation_class(backend: MockPyCUDA) -> Type[BaseDeviceAllocati
             return cls(idx, arg, offset, size, owns_buffer=False)
 
         @classmethod
-        def _from_kernel_arg(
-            cls, arg: Union["BaseDeviceAllocation", numpy.uintp]
-        ) -> "DeviceAllocation":
-            assert isinstance(arg, (cls, numpy.uintp))
+        def _from_kernel_arg(cls, arg: BaseDeviceAllocation | numpy.uintp) -> DeviceAllocation:
+            assert isinstance(arg, cls | numpy.uintp)
             return cls._from_memcpy_arg(int(arg))
 
         def __init__(
-            self, idx: int, address: int, offset: int, size: int, owns_buffer: bool = False
+            self, idx: int, address: int, offset: int, size: int, *, owns_buffer: bool = False
         ):
             backend = self._backend_ref()
             assert backend is not None
@@ -605,9 +587,7 @@ def make_device_allocation_class(backend: MockPyCUDA) -> Type[BaseDeviceAllocati
             self._size = size
             self._owns_buffer = owns_buffer
 
-        def _set(
-            self, arr: Union["numpy.ndarray[Any, numpy.dtype[Any]]", "BaseDeviceAllocation"]
-        ) -> None:
+        def _set(self, arr: numpy.ndarray[Any, numpy.dtype[Any]] | BaseDeviceAllocation) -> None:
             backend = self._backend_ref()
             assert backend is not None
             if isinstance(arr, numpy.ndarray):
@@ -617,7 +597,7 @@ def make_device_allocation_class(backend: MockPyCUDA) -> Type[BaseDeviceAllocati
             assert len(data) <= self._size
             backend.set_allocation_buffer(self._idx, self._offset, data)
 
-        def _get(self, arr: "numpy.ndarray[Any, numpy.dtype[Any]]") -> None:
+        def _get(self, arr: numpy.ndarray[Any, numpy.dtype[Any]]) -> None:
             backend = self._backend_ref()
             assert backend is not None
             data = arr.tobytes()
@@ -641,27 +621,24 @@ def make_device_allocation_class(backend: MockPyCUDA) -> Type[BaseDeviceAllocati
 
 class BaseFunction(ABC):
     @abstractmethod
-    def __init__(self, source_module: BaseSourceModule, kernel: MockKernel):
-        ...
+    def __init__(self, source_module: BaseSourceModule, kernel: MockKernel): ...
 
     @abstractmethod
     def __call__(
         self,
-        *args: Union[BaseDeviceAllocation, numpy.generic],
-        grid: Tuple[int, int, int],
-        block: Tuple[int, int, int],
+        *args: BaseDeviceAllocation | numpy.generic,
+        grid: tuple[int, int, int],
+        block: tuple[int, int, int],
         stream: BaseStream,
-        shared: Optional[int] = None,
-    ) -> None:
-        ...
+        shared: int | None = None,
+    ) -> None: ...
 
     @abstractmethod
-    def get_attribute(self, attribute: FunctionAttribute) -> Tuple[int, ...]:
-        ...
+    def get_attribute(self, attribute: FunctionAttribute) -> tuple[int, ...]: ...
 
 
-@lru_cache()
-def make_function_class(backend: MockPyCUDA) -> Type[BaseFunction]:
+@lru_cache
+def make_function_class(backend: MockPyCUDA) -> type[BaseFunction]:
     backend_ref = weakref.ref(backend)
 
     class Function(BaseFunction):
@@ -673,11 +650,12 @@ def make_function_class(backend: MockPyCUDA) -> Type[BaseFunction]:
 
         def __call__(
             self,
-            *args: Union[BaseDeviceAllocation, numpy.generic],
-            grid: Tuple[int, int, int],
-            block: Tuple[int, int, int],
+            *args: BaseDeviceAllocation | numpy.generic,
+            grid: tuple[int, int, int],
+            block: tuple[int, int, int],
             stream: BaseStream,
-            shared: Optional[int] = None,
+            # This is only needed to mimic PyCUDA API
+            shared: int | None = None,  # noqa: ARG002
         ) -> None:
             backend = self._backend_ref()
             assert backend is not None
@@ -689,7 +667,7 @@ def make_function_class(backend: MockPyCUDA) -> Type[BaseFunction]:
             assert isinstance(stream, backend.pycuda_driver.Stream)
             assert stream._context == current_context
 
-            for arg, param in zip(args, self._kernel.parameters):
+            for arg, param in zip(args, self._kernel.parameters, strict=True):
                 if param is None:
                     # Checks validity on creation
                     assert isinstance(arg, numpy.uintp)
@@ -705,20 +683,22 @@ def make_function_class(backend: MockPyCUDA) -> Type[BaseFunction]:
             max_block = [device.max_block_dim_x, device.max_block_dim_y, device.max_block_dim_z]
 
             assert isinstance(grid, tuple)
-            assert len(grid) == 3
+            assert len(grid) == 3  # noqa: PLR2004
             assert all(isinstance(x, int) for x in grid)
-            assert all(g <= max_g for g, max_g in zip(grid, max_grid))
+            assert all(g <= max_g for g, max_g in zip(grid, max_grid, strict=True))
 
             assert isinstance(block, tuple)
-            assert len(block) == 3
+            assert len(block) == 3  # noqa: PLR2004
             assert all(isinstance(x, int) for x in block)
-            assert all(b <= max_b for b, max_b in zip(block, max_block))
+            assert all(b <= max_b for b, max_b in zip(block, max_block, strict=True))
 
-        def get_attribute(self, attribute: FunctionAttribute) -> Tuple[int, ...]:
+        def get_attribute(self, attribute: FunctionAttribute) -> tuple[int, ...]:
             if attribute == FunctionAttribute.MAX_THREADS_PER_BLOCK:
                 device_idx = self._source_module._context._device_idx
                 return self._kernel.max_total_local_sizes[device_idx]
-            else:  # pragma: no cover
-                raise NotImplementedError(f"Unknown attribute: {attribute}")
+
+            # We don't really use any other attributes in this package,
+            # and this class is only used internally.
+            raise NotImplementedError(f"Unknown attribute: {attribute}")  # pragma: no cover
 
     return Function

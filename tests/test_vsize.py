@@ -1,16 +1,16 @@
 import pytest
 
-from grunnur.utils import prod, min_blocks
+from grunnur.utils import min_blocks, prod
 from grunnur.vsize import (
-    factorize,
     PrimeFactors,
-    get_decompositions,
-    find_local_size_decomposition,
-    group_dimensions,
-    find_bounding_shape,
     ShapeGroups,
-    VirtualSizes,
     VirtualSizeError,
+    VirtualSizes,
+    factorize,
+    find_bounding_shape,
+    find_local_size_decomposition,
+    get_decompositions,
+    group_dimensions,
 )
 
 
@@ -38,7 +38,7 @@ def test_get_decompositions():
     parts = 3
     decomps = list(get_decompositions(val, parts))
 
-    assert len(set([tuple(d) for d in decomps])) == len(decomps)
+    assert len({tuple(d) for d in decomps}) == len(decomps)
     assert all(prod(decomp) == val for decomp in decomps)
     assert all(len(decomp) == parts for decomp in decomps)
 
@@ -51,7 +51,9 @@ def test_find_local_size_decomposition():
     threshold = 0.05
     local_size = find_local_size_decomposition(global_size, flat_local_size, threshold=threshold)
 
-    full_global_size = [min_blocks(gs, ls) * ls for gs, ls in zip(global_size, local_size)]
+    full_global_size = [
+        min_blocks(gs, ls) * ls for gs, ls in zip(global_size, local_size, strict=True)
+    ]
 
     assert len(local_size) == len(global_size)
     assert prod(local_size) == flat_local_size
@@ -67,10 +69,15 @@ def test_find_local_size_decomposition():
     assert len(local_size) == len(global_size)
     assert prod(local_size) == flat_local_size
 
-    # Shortcut - if `product(global_size) < flat_local_size`, just return the global size
+    # Shortcut - if `product(global_size) == flat_local_size`, just return the global size
     global_size = [10, 10, 10]
-    local_size = find_local_size_decomposition(global_size, 1024)
+    local_size = find_local_size_decomposition(global_size, 1000)
     assert local_size == global_size
+
+    with pytest.raises(
+        ValueError, match="The given local size does not fit in the given global size"
+    ):
+        find_local_size_decomposition([10, 10, 10], 1024)
 
 
 def test_group_dimensions():
@@ -168,7 +175,9 @@ def test_virtual_sizes():
 
 
 def test_vsize_errors():
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="Global size and local size must have the same number of dimensions"
+    ):
         VirtualSizes(
             max_total_local_size=1024,
             max_local_sizes=(1024, 1024, 64),

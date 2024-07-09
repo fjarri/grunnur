@@ -1,29 +1,28 @@
-from typing import NamedTuple, Tuple
 import os.path
 import re
+from pathlib import Path
+from typing import NamedTuple
 
 import numpy
 import pytest
 
 from grunnur import (
-    cuda_api_id,
-    opencl_api_id,
-    cuda_api_id,
-    Program,
-    Queue,
-    MultiQueue,
-    Buffer,
-    Array,
-    MultiArray,
-    CompilationError,
-    StaticKernel,
     API,
+    Array,
+    Buffer,
+    CompilationError,
     Context,
     DeviceFilter,
+    MultiArray,
+    MultiQueue,
+    Program,
+    Queue,
+    StaticKernel,
+    cuda_api_id,
+    opencl_api_id,
 )
-from grunnur.template import Template, DefTemplate
-from grunnur.testing import MockKernel, MockDefTemplate, PyCUDADeviceInfo
-
+from grunnur.template import DefTemplate, Template
+from grunnur.testing import MockDefTemplate, MockKernel, PyCUDADeviceInfo
 
 SRC_OPENCL = """
 __kernel void multiply(__global int *dest, __global int *a, __global int *b, int c)
@@ -56,11 +55,10 @@ def test_compile(mock_or_real_context, no_prelude):
 
     if mocked:
         src = MockDefTemplate(kernels=[MockKernel("multiply", [None, None, None, numpy.int32])])
+    elif no_prelude:
+        src = SRC_CUDA if context.api.id == cuda_api_id() else SRC_OPENCL
     else:
-        if no_prelude:
-            src = SRC_CUDA if context.api.id == cuda_api_id() else SRC_OPENCL
-        else:
-            src = SRC_GENERIC
+        src = SRC_GENERIC
 
     program = Program([context.device], src, no_prelude=no_prelude)
 
@@ -214,7 +212,7 @@ def _test_constant_memory(context, mocked, is_static):
     res_dev = Array.empty(context.device, [16], numpy.int32)
 
     class Metadata(NamedTuple):
-        shape: Tuple[int, ...]
+        shape: tuple[int, ...]
         dtype: numpy.dtype
 
     if context.api.id == cuda_api_id():
@@ -283,10 +281,7 @@ KERNEL void compile_error(GLOBAL_MEM int *dest)
 def test_compilation_error(mock_or_real_context, capsys):
     context, mocked = mock_or_real_context
 
-    if mocked:
-        src = MockDefTemplate(should_fail=True)
-    else:
-        src = SRC_COMPILE_ERROR
+    src = MockDefTemplate(should_fail=True) if mocked else SRC_COMPILE_ERROR
 
     with pytest.raises(CompilationError):
         Program([context.device], src)
@@ -311,17 +306,17 @@ def test_keep(mock_or_real_context, capsys):
     else:
         src = SRC_GENERIC
 
-    program = Program([context.device], src, keep=True)
+    Program([context.device], src, keep=True)
     captured = capsys.readouterr()
-    path = re.match(r"\*\*\* compiler output in (.*)", captured.out).group(1)
-    assert os.path.isdir(path)
+    path = Path(re.match(r"\*\*\* compiler output in (.*)", captured.out).group(1))
+    assert path.is_dir()
 
     if context.api.id == opencl_api_id():
-        srcfile = os.path.join(path, "kernel.cl")
+        srcfile = path / "kernel.cl"
     elif context.api.id == cuda_api_id():
-        srcfile = os.path.join(path, "kernel.cu")
+        srcfile = path / "kernel.cu"
 
-    with open(srcfile) as f:
+    with srcfile.open() as f:
         source = f.read()
 
     assert str(src) in source

@@ -1,42 +1,30 @@
 from __future__ import annotations
 
-from math import log10
-from typing import (
-    Any,
-    Tuple,
-    Union,
-    List,
-    Dict,
-    Optional,
-    Iterable,
-    Mapping,
-    Generic,
-    TypeVar,
-    Callable,
-    Sequence,
-    cast,
-)
 import weakref
+from collections.abc import Callable, Mapping, Sequence
+from math import log10
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 import numpy
 
-from .device import Device
 from .adapter_base import (
     AdapterCompilationError,
-    KernelAdapter,
     BufferAdapter,
+    KernelAdapter,
     ProgramAdapter,
 )
-from .modules import render_with_modules
-from .utils import update_dict
-from .array_metadata import ArrayMetadataLike
+from .api import cuda_api_id
 from .array import Array, MultiArray
 from .buffer import Buffer
-from .queue import Queue, MultiQueue
-from .context import Context, BoundDevice, BoundMultiDevice
-from .api import cuda_api_id
-from .template import DefTemplate
-from .modules import Snippet
+from .context import BoundDevice, BoundMultiDevice, Context
+from .device import Device
+from .modules import Snippet, render_with_modules
+from .queue import MultiQueue, Queue
+from .utils import update_dict
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .array_metadata import ArrayMetadataLike
+    from .template import DefTemplate
 
 
 class CompilationError(RuntimeError):
@@ -58,19 +46,17 @@ def _set_constant_array(
     queue: Queue,
     program_adapter: ProgramAdapter,
     name: str,
-    arr: Union[Array, Buffer, "numpy.ndarray[Any, numpy.dtype[Any]]"],
+    arr: Array | Buffer | numpy.ndarray[Any, numpy.dtype[Any]],
 ) -> None:
-    """
-    Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
-    """
-    queue_adapter = queue._queue_adapter
+    """Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context."""
+    queue_adapter = queue._queue_adapter  # noqa: SLF001
 
-    constant_data: Union[BufferAdapter, "numpy.ndarray[Any, numpy.dtype[Any]]"]
+    constant_data: BufferAdapter | numpy.ndarray[Any, numpy.dtype[Any]]
 
     if isinstance(arr, Array):
-        constant_data = arr.data._buffer_adapter
+        constant_data = arr.data._buffer_adapter  # noqa: SLF001
     elif isinstance(arr, Buffer):
-        constant_data = arr._buffer_adapter
+        constant_data = arr._buffer_adapter  # noqa: SLF001
     elif isinstance(arr, numpy.ndarray):
         constant_data = arr
     else:
@@ -80,9 +66,7 @@ def _set_constant_array(
 
 
 class SingleDeviceProgram:
-    """
-    A program compiled for a single device.
-    """
+    """A program compiled for a single device."""
 
     device: BoundDevice
 
@@ -91,14 +75,15 @@ class SingleDeviceProgram:
     def __init__(
         self,
         device: BoundDevice,
-        template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
+        template_src: str | Callable[..., str] | DefTemplate | Snippet,
+        *,
         no_prelude: bool = False,
         fast_math: bool = False,
         render_args: Sequence[Any] = [],
         render_globals: Mapping[str, Any] = {},
-        constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
+        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
         keep: bool = False,
-        compiler_options: Optional[Sequence[str]] = None,
+        compiler_options: Sequence[str] | None = None,
     ):
         """
         Renders and compiles the given template on a single device.
@@ -126,16 +111,13 @@ class SingleDeviceProgram:
             template_src, render_args=render_args, render_globals=render_globals
         )
 
-        context_adapter = device.context._context_adapter
+        context_adapter = device.context._context_adapter  # noqa: SLF001
 
-        if no_prelude:
-            prelude = ""
-        else:
-            prelude = context_adapter.render_prelude(fast_math=fast_math)
+        prelude = "" if no_prelude else context_adapter.render_prelude(fast_math=fast_math)
 
         try:
             self._sd_program_adapter = context_adapter.compile_single_device(
-                device._device_adapter,
+                device._device_adapter,  # noqa: SLF001
                 prelude,
                 src,
                 fast_math=fast_math,
@@ -143,15 +125,15 @@ class SingleDeviceProgram:
                 keep=keep,
                 compiler_options=compiler_options,
             )
-        except AdapterCompilationError as e:
-            print(f"Failed to compile on {device}")
+        except AdapterCompilationError as exc:
+            print(f"Failed to compile on {device}")  # noqa: T201
 
-            lines = e.source.split("\n")
+            lines = exc.source.split("\n")
             max_num_len = int(log10(len(lines))) + 1
-            for i, l in enumerate(lines):
-                print(str(i + 1).rjust(max_num_len) + ": " + l)
+            for line_num, line in enumerate(lines):
+                print(str(line_num + 1).rjust(max_num_len) + ": " + line)  # noqa: T201
 
-            raise CompilationError(e.backend_exception)
+            raise CompilationError(exc.backend_exception) from exc
 
         self.source = self._sd_program_adapter.source
 
@@ -166,39 +148,39 @@ class SingleDeviceProgram:
         self,
         queue: Queue,
         name: str,
-        arr: Union[Array, Buffer, "numpy.ndarray[Any, numpy.dtype[Any]]"],
+        arr: Array | Buffer | numpy.ndarray[Any, numpy.dtype[Any]],
     ) -> None:
-        """
-        Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context.
-        """
+        """Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context."""
         _set_constant_array(queue, self._sd_program_adapter, name, arr)
 
 
 class Program:
-    """
-    A compiled program on device(s).
-    """
+    """A compiled program on device(s)."""
 
     devices: BoundMultiDevice
     """The devices on which this program was compiled."""
 
-    sources: Dict[BoundDevice, str]
+    sources: dict[BoundDevice, str]
     """Source files used for each device."""
 
-    kernel: "KernelHub"
-    """An object whose attributes are :py:class:`~grunnur.program.Kernel` objects with the corresponding names."""
+    kernel: KernelHub
+    """
+    An object whose attributes are :py:class:`~grunnur.program.Kernel` objects
+    with the corresponding names.
+    """
 
     def __init__(
         self,
         devices: Sequence[BoundDevice],
-        template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
+        template_src: str | Callable[..., str] | DefTemplate | Snippet,
+        *,
         no_prelude: bool = False,
         fast_math: bool = False,
         render_args: Sequence[Any] = (),
         render_globals: Mapping[str, Any] = {},
-        compiler_options: Optional[Sequence[str]] = None,
+        compiler_options: Sequence[str] | None = None,
         keep: bool = False,
-        constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
+        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
     ):
         """
         :param devices: a single- or a multi-device object on which to compile this program.
@@ -241,7 +223,7 @@ class Program:
         self.kernel = KernelHub(self)
 
     def set_constant_array(
-        self, queue: Queue, name: str, arr: Union[Array, "numpy.ndarray[Any, numpy.dtype[Any]]"]
+        self, queue: Queue, name: str, arr: Array | numpy.ndarray[Any, numpy.dtype[Any]]
     ) -> None:
         """
         Uploads a constant array to the context's devices (**CUDA only**).
@@ -255,14 +237,12 @@ class Program:
 
 
 class KernelHub:
-    """
-    An object providing access to the host program's kernels.
-    """
+    """An object providing access to the host program's kernels."""
 
     def __init__(self, program: Program):
         self._program_ref = weakref.proxy(program)
 
-    def __getattr__(self, kernel_name: str) -> "Kernel":
+    def __getattr__(self, kernel_name: str) -> Kernel:
         """
         Returns a :py:class:`~grunnur.program.Kernel` object for a function (CUDA)/kernel (OpenCL)
         with the name ``kernel_name``.
@@ -270,22 +250,20 @@ class KernelHub:
         program = self._program_ref
         sd_kernel_adapters = {
             device: sd_program.get_kernel_adapter(kernel_name)
-            for device, sd_program in program._sd_programs.items()
+            for device, sd_program in program._sd_programs.items()  # noqa: SLF001
         }
         return Kernel(program, sd_kernel_adapters)
 
 
 def extract_arg(
-    arg: Union[
-        Mapping[BoundDevice, Union[Array, Buffer, numpy.generic]],
-        MultiArray,
-        Array,
-        Buffer,
-        numpy.generic,
-    ],
+    arg: Mapping[BoundDevice, Array | Buffer | numpy.generic]
+    | MultiArray
+    | Array
+    | Buffer
+    | numpy.generic,
     device: BoundDevice,
-) -> Union[BufferAdapter, numpy.generic]:
-    single_device_arg: Union[Array, Buffer, numpy.generic]
+) -> BufferAdapter | numpy.generic:
+    single_device_arg: Array | Buffer | numpy.generic
     if isinstance(arg, Mapping):
         single_device_arg = arg[device]
     elif isinstance(arg, MultiArray):
@@ -294,11 +272,10 @@ def extract_arg(
         single_device_arg = arg
 
     if isinstance(single_device_arg, Array):
-        return single_device_arg.data._buffer_adapter
-    elif isinstance(single_device_arg, Buffer):
-        return single_device_arg._buffer_adapter
-    else:
-        return single_device_arg
+        return single_device_arg.data._buffer_adapter  # noqa: SLF001
+    if isinstance(single_device_arg, Buffer):
+        return single_device_arg._buffer_adapter  # noqa: SLF001
+    return single_device_arg
 
 
 class PreparedKernel:
@@ -312,14 +289,14 @@ class PreparedKernel:
         devices: BoundMultiDevice,
         sd_kernel_adapters: Mapping[BoundDevice, KernelAdapter],
         global_sizes: Mapping[BoundDevice, Sequence[int]],
-        local_sizes: Mapping[BoundDevice, Optional[Sequence[int]]],
-        hold_reference: Optional["Kernel"] = None,
+        local_sizes: Mapping[BoundDevice, Sequence[int] | None],
+        hold_reference: Kernel | None = None,
     ):
         # If this object can be used by itself (e.g. when created from `Kernel.prepare()`),
         # this attribute will hold thre reference to the original `Kernel`.
         # On the other hand, in `StaticKernel` the object is used internally,
-        # and holding a reference to the parent `StaticKernel` here will result in a reference cycle.
-        # So `StaticKernel` will just pass `None`.
+        # and holding a reference to the parent `StaticKernel` here
+        # will result in a reference cycle. So `StaticKernel` will just pass `None`.
         self._hold_reference = hold_reference
 
         self._prepared_kernel_adapters = {}
@@ -335,8 +312,8 @@ class PreparedKernel:
 
     def __call__(
         self,
-        queue: Union[Queue, MultiQueue],
-        *args: Union[MultiArray, Array, Buffer, numpy.generic],
+        queue: Queue | MultiQueue,
+        *args: MultiArray | Array | Buffer | numpy.generic,
         local_mem: int = 0,
     ) -> Any:
         """
@@ -380,7 +357,7 @@ class PreparedKernel:
             single_queue = queue.queues[device]
 
             pkernel = self._prepared_kernel_adapters[device]
-            ret_val = pkernel(single_queue._queue_adapter, *kernel_args, local_mem=0)
+            ret_val = pkernel(single_queue._queue_adapter, *kernel_args, local_mem=local_mem)  # noqa: SLF001
             ret_vals.append(ret_val)
 
         return ret_vals
@@ -388,12 +365,12 @@ class PreparedKernel:
 
 def normalize_sizes(
     devices: Sequence[BoundDevice],
-    global_size: Union[Sequence[int], Mapping[BoundDevice, Sequence[int]]],
-    local_size: Union[Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]] = None,
-) -> Tuple[
+    global_size: Sequence[int] | Mapping[BoundDevice, Sequence[int]],
+    local_size: Sequence[int] | None | Mapping[BoundDevice, Sequence[int] | None] = None,
+) -> tuple[
     BoundMultiDevice,
-    Dict[BoundDevice, Tuple[int, ...]],
-    Dict[BoundDevice, Optional[Tuple[int, ...]]],
+    dict[BoundDevice, tuple[int, ...]],
+    dict[BoundDevice, tuple[int, ...] | None],
 ]:
     if not isinstance(global_size, Mapping):
         global_size = {device: global_size for device in devices}
@@ -421,16 +398,14 @@ def normalize_sizes(
 
 
 class Kernel:
-    """
-    A kernel compiled for multiple devices.
-    """
+    """A kernel compiled for multiple devices."""
 
-    def __init__(self, program: Program, sd_kernel_adapters: Dict[BoundDevice, KernelAdapter]):
+    def __init__(self, program: Program, sd_kernel_adapters: dict[BoundDevice, KernelAdapter]):
         self._program = program
         self._sd_kernel_adapters = sd_kernel_adapters
 
     @property
-    def max_total_local_sizes(self) -> Dict[BoundDevice, int]:
+    def max_total_local_sizes(self) -> dict[BoundDevice, int]:
         """
         The maximum possible number of threads in a block (CUDA)/work items in a work group (OpenCL)
         for this kernel.
@@ -442,11 +417,9 @@ class Kernel:
 
     def prepare(
         self,
-        global_size: Union[Sequence[int], Mapping[BoundDevice, Sequence[int]]],
-        local_size: Union[
-            Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]
-        ] = None,
-    ) -> "PreparedKernel":
+        global_size: Sequence[int] | Mapping[BoundDevice, Sequence[int]],
+        local_size: Sequence[int] | None | Mapping[BoundDevice, Sequence[int] | None] = None,
+    ) -> PreparedKernel:
         """
         Prepares the kernel for execution.
 
@@ -459,8 +432,8 @@ class Kernel:
 
         :param global_size: the total number of threads (CUDA)/work items (OpenCL) in each dimension
             (column-major). Note that there may be a maximum size in each dimension as well
-            as the maximum number of dimensions. See :py:class:`~grunnur.adapter_base.DeviceParameters`
-            for details.
+            as the maximum number of dimensions.
+            See :py:class:`~grunnur.adapter_base.DeviceParameters` for details.
         :param local_size: the number of threads in a block (CUDA)/work items in a
             work group (OpenCL) in each dimension (column-major).
             If ``None``, it will be chosen automatically.
@@ -478,12 +451,10 @@ class Kernel:
 
     def __call__(
         self,
-        queue: Union[Queue, MultiQueue],
-        global_size: Union[Sequence[int], Mapping[BoundDevice, Sequence[int]]],
-        local_size: Union[
-            Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]
-        ] = None,
-        *args: Union[MultiArray, Array, Buffer, numpy.generic],
+        queue: Queue | MultiQueue,
+        global_size: Sequence[int] | Mapping[BoundDevice, Sequence[int]],
+        local_size: Sequence[int] | None | Mapping[BoundDevice, Sequence[int] | None] = None,
+        *args: MultiArray | Array | Buffer | numpy.generic,
         local_mem: int = 0,
     ) -> Any:
         """

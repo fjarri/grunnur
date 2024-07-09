@@ -1,57 +1,44 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import (
-    TypeVar,
-    Any,
-    Protocol,
-    Optional,
-    Mapping,
-    Callable,
-    Tuple,
-    Sequence,
-    Union,
-    Iterable,
-    Dict,
-    TypeVar,
-    cast,
-    runtime_checkable,
-)
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast, runtime_checkable
 
 import numpy
-from numpy.typing import DTypeLike
 
 from .array_metadata import ArrayMetadata, ArrayMetadataLike
-from .context import Context, BoundDevice, BoundMultiDevice
-from .device import Device
-from .queue import Queue, MultiQueue
 from .buffer import Buffer
+from .context import BoundDevice, BoundMultiDevice, Context
+from .device import Device
+from .queue import MultiQueue, Queue
 from .utils import min_blocks
+
+if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable, Mapping, Sequence
+
+    from numpy.typing import DTypeLike
 
 
 class Array:
-    """
-    Array on a single device.
-    """
+    """Array on a single device."""
 
     device: BoundDevice
     """Device this array is allocated on."""
 
-    shape: Tuple[int, ...]
+    shape: tuple[int, ...]
     """Array shape."""
 
-    dtype: "numpy.dtype[Any]"
+    dtype: numpy.dtype[Any]
     """Array item data type."""
 
-    strides: Tuple[int, ...]
+    strides: tuple[int, ...]
     """Array strides."""
 
     @classmethod
     def from_host(
         cls,
-        queue_or_device: Union[Queue, BoundDevice],
-        host_arr: "numpy.ndarray[Any, numpy.dtype[Any]]",
-    ) -> "Array":
+        queue_or_device: Queue | BoundDevice,
+        host_arr: numpy.ndarray[Any, numpy.dtype[Any]],
+    ) -> Array:
         """
         Creates an array object from a host array.
 
@@ -72,10 +59,10 @@ class Array:
         device: BoundDevice,
         shape: Sequence[int],
         dtype: DTypeLike,
-        strides: Optional[Sequence[int]] = None,
+        strides: Sequence[int] | None = None,
         first_element_offset: int = 0,
-        allocator: Optional[Callable[[BoundDevice, int], Buffer]] = None,
-    ) -> "Array":
+        allocator: Callable[[BoundDevice, int], Buffer] | None = None,
+    ) -> Array:
         """
         Creates an empty array.
 
@@ -115,7 +102,7 @@ class Array:
 
         self.data = data
 
-    def _view(self, slices: Union[slice, Tuple[slice, ...]]) -> "Array":
+    def _view(self, slices: slice | tuple[slice, ...]) -> Array:
         new_metadata = self._metadata[slices]
 
         origin, size, new_metadata = new_metadata.minimal_subregion()
@@ -125,7 +112,8 @@ class Array:
     def set(
         self,
         queue: Queue,
-        array: Union["numpy.ndarray[Any, numpy.dtype[Any]]", "Array"],
+        array: numpy.ndarray[Any, numpy.dtype[Any]] | Array,
+        *,
         no_async: bool = False,
     ) -> None:
         """
@@ -135,11 +123,11 @@ class Array:
         :param array: the source array.
         :param no_async: if `True`, the transfer blocks until completion.
         """
-        array_data: Union["numpy.ndarray[Any, numpy.dtype[Any]]", Buffer]
+        array_data: numpy.ndarray[Any, numpy.dtype[Any]] | Buffer
         if isinstance(array, numpy.ndarray):
             array_data = array
         elif isinstance(array, Array):
-            if not array._metadata.contiguous:
+            if not array._metadata.contiguous:  # noqa: SLF001
                 raise ValueError("Setting from a non-contiguous device array is not supported")
             array_data = array.data
         else:
@@ -155,9 +143,10 @@ class Array:
     def get(
         self,
         queue: Queue,
-        dest: Optional["numpy.ndarray[Any, numpy.dtype[Any]]"] = None,
+        dest: numpy.ndarray[Any, numpy.dtype[Any]] | None = None,
+        *,
         async_: bool = False,
-    ) -> "numpy.ndarray[Any, numpy.dtype[Any]]":
+    ) -> numpy.ndarray[Any, numpy.dtype[Any]]:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -170,10 +159,8 @@ class Array:
         self.data.get(queue, dest, async_=async_)
         return dest
 
-    def __getitem__(self, slices: Union[slice, Tuple[slice, ...]]) -> "Array":
-        """
-        Returns a view of this array.
-        """
+    def __getitem__(self, slices: slice | tuple[slice, ...]) -> Array:
+        """Returns a view of this array."""
         return self._view(slices)
 
 
@@ -185,11 +172,9 @@ class ArrayLike(ArrayMetadataLike, Protocol):
     """
 
     def __getitem__(
-        self: "_ArrayLike", slices: Union[slice, Tuple[slice, ...]]
-    ) -> "_ArrayLike":  # pragma: no cover
-        """
-        Returns a view of this array.
-        """
+        self: _ArrayLike, slices: slice | tuple[slice, ...]
+    ) -> _ArrayLike:  # pragma: no cover
+        """Returns a view of this array."""
         ...
 
 
@@ -198,21 +183,18 @@ _ArrayLike = TypeVar("_ArrayLike", bound=ArrayLike)
 
 
 class BaseSplay(ABC):
-    """
-    Base class for splay strategies for :py:class:`~grunnur.MultiArray`.
-    """
+    """Base class for splay strategies for :py:class:`~grunnur.MultiArray`."""
 
     @abstractmethod
     def __call__(
         self, arr: _ArrayLike, devices: Sequence[BoundDevice]
-    ) -> Dict[BoundDevice, _ArrayLike]:
+    ) -> dict[BoundDevice, _ArrayLike]:
         """
         Creates a dictionary of views of an array-like object for each of the given devices.
 
         :param arr: an array-like object.
         :param devices: a multi-device object.
         """
-        pass
 
 
 class EqualSplay(BaseSplay):
@@ -223,52 +205,52 @@ class EqualSplay(BaseSplay):
 
     def __call__(
         self, arr: _ArrayLike, devices: Sequence[BoundDevice]
-    ) -> Dict[BoundDevice, _ArrayLike]:
+    ) -> dict[BoundDevice, _ArrayLike]:
         parts = len(devices)
         outer_dim = arr.shape[0]
-        assert parts <= outer_dim
+        if parts > outer_dim:
+            raise ValueError(
+                "The number of devices to splay to "
+                "cannot be greater than the outer array dimension"
+            )
         chunk_size = min_blocks(outer_dim, parts)
         rem = outer_dim % parts
 
         subarrays = {}
         ptr = 0
         for part, device in enumerate(devices):
-            l = chunk_size if rem == 0 or part < rem else chunk_size - 1
-            subarrays[device] = arr[ptr : ptr + l]
-            ptr += l
+            length = chunk_size if rem == 0 or part < rem else chunk_size - 1
+            subarrays[device] = arr[ptr : ptr + length]
+            ptr += length
 
         return subarrays
 
 
 class CloneSplay(BaseSplay):
-    """
-    Copies the given array to each device.
-    """
+    """Copies the given array to each device."""
 
     def __call__(
         self, arr: _ArrayLike, devices: Sequence[BoundDevice]
-    ) -> Dict[BoundDevice, _ArrayLike]:
+    ) -> dict[BoundDevice, _ArrayLike]:
         return {device: arr for device in devices}
 
 
 class MultiArray:
-    """
-    An array on multiple devices.
-    """
+    """An array on multiple devices."""
 
     devices: BoundMultiDevice
     """Devices on which the sub-arrays are allocated"""
 
-    shape: Tuple[int, ...]
+    shape: tuple[int, ...]
     """Array shape."""
 
-    dtype: "numpy.dtype[Any]"
+    dtype: numpy.dtype[Any]
     """Array item data type."""
 
-    shapes: Dict[BoundDevice, Tuple[int, ...]]
+    shapes: dict[BoundDevice, tuple[int, ...]]
     """Sub-array shapes matched to device indices."""
 
-    subarrays: Dict[BoundDevice, Array]
+    subarrays: dict[BoundDevice, Array]
 
     EqualSplay = EqualSplay
     CloneSplay = CloneSplay
@@ -277,9 +259,9 @@ class MultiArray:
     def from_host(
         cls,
         mqueue: MultiQueue,
-        host_arr: "numpy.ndarray[Any, numpy.dtype[Any]]",
-        splay: Optional[BaseSplay] = None,
-    ) -> "MultiArray":
+        host_arr: numpy.ndarray[Any, numpy.dtype[Any]],
+        splay: BaseSplay | None = None,
+    ) -> MultiArray:
         """
         Creates an array object from a host array.
 
@@ -287,11 +269,11 @@ class MultiArray:
         :param host_arr: the source array.
         :param splay: the splay strategy (if ``None``, an :py:class:`EqualSplay` object is used).
         """
-
         if splay is None:
             splay = EqualSplay()
 
-        assert isinstance(host_arr, ArrayMetadataLike)
+        # This is to satisfy Mypy. Numpy arrays satisfy this protocol by default.
+        assert isinstance(host_arr, ArrayMetadataLike)  # noqa: S101
         host_subarrays = splay(host_arr, list(mqueue.queues))
 
         subarrays = {
@@ -307,9 +289,9 @@ class MultiArray:
         devices: BoundMultiDevice,
         shape: Sequence[int],
         dtype: DTypeLike,
-        allocator: Optional[Callable[[BoundDevice, int], Buffer]] = None,
-        splay: Optional[BaseSplay] = None,
-    ) -> "MultiArray":
+        allocator: Callable[[BoundDevice, int], Buffer] | None = None,
+        splay: BaseSplay | None = None,
+    ) -> MultiArray:
         """
         Creates an empty array.
 
@@ -322,7 +304,6 @@ class MultiArray:
             If ``None``, will use :py:meth:`Buffer.allocate`.
         :param splay: the splay strategy (if ``None``, an :py:class:`EqualSplay` object is used).
         """
-
         if splay is None:
             splay = EqualSplay()
 
@@ -354,9 +335,10 @@ class MultiArray:
     def get(
         self,
         mqueue: MultiQueue,
-        dest: Optional["numpy.ndarray[Any, numpy.dtype[Any]]"] = None,
+        dest: numpy.ndarray[Any, numpy.dtype[Any]] | None = None,
+        *,
         async_: bool = False,
-    ) -> "numpy.ndarray[Any, numpy.dtype[Any]]":
+    ) -> numpy.ndarray[Any, numpy.dtype[Any]]:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -364,11 +346,11 @@ class MultiArray:
         :param dest: the destination array. If ``None``, the target array is created.
         :param async_: if `True`, the transfer is performed asynchronously.
         """
-
         if dest is None:
             dest = numpy.empty(self.shape, self.dtype)
 
-        assert isinstance(dest, ArrayLike)
+        # This is to satisfy Mypy. Numpy arrays satisfy this protocol by default.
+        assert isinstance(dest, ArrayLike)  # noqa: S101
         dest_subarrays = self._splay(dest, list(self.subarrays))
 
         for device, subarray in self.subarrays.items():
@@ -379,7 +361,8 @@ class MultiArray:
     def set(
         self,
         mqueue: MultiQueue,
-        array: Union["numpy.ndarray[Any, numpy.dtype[Any]]", "MultiArray"],
+        array: numpy.ndarray[Any, numpy.dtype[Any]] | MultiArray,
+        *,
         no_async: bool = False,
     ) -> None:
         """
@@ -389,10 +372,10 @@ class MultiArray:
         :param array: the source array.
         :param no_async: if `True`, the transfer blocks until completion.
         """
-
-        subarrays: Mapping[BoundDevice, Union[Array, "numpy.ndarray[Any, numpy.dtype[Any]]"]]
+        subarrays: Mapping[BoundDevice, Array | numpy.ndarray[Any, numpy.dtype[Any]]]
         if isinstance(array, numpy.ndarray):
-            assert isinstance(array, ArrayLike)
+            # This is to satisfy Mypy. Numpy arrays satisfy this protocol by default.
+            assert isinstance(array, ArrayLike)  # noqa: S101
             subarrays = self._splay(array, self.devices)
         else:
             subarrays = array.subarrays

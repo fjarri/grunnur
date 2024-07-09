@@ -79,6 +79,7 @@ ignore = [
     "C408",
     # It's never a problem unless you mutate function arguments (which is rarely a good idea).
     "B008",
+    "B006",
     # The type of `self` is derived automatically.
     "ANN101",
     # We use `Any` quite a bit because we need to accept a lot of third-party unnormalized input.
@@ -121,6 +122,32 @@ ignore = [
     "ISC001",
     # Too many false positives, since Ruff cannot tell that the object is immutable.
     "RUF009",
+    # Complains about Sphinx docs, examples etc
+    "INP001",
+    # How is it even a lint.
+    "ICN001",
+    # No need for module docstrings everywhere.
+    "D104",
+    "D100",
+    # Temporarily disabled, too inconvenient to update __all__.
+    "F401",
+    # Temporarily disabled - `__init__` is documented in the class docstring.
+    "D107",
+    # Too many spurious failures.
+    "D105",
+    # Temporarily disabled - will document later.
+    "D102",
+    "D101",
+    "D103",
+    "D106",
+    # Stylistic choice. Nothing wrong with it.
+    "TID252",
+    # You're going to tell me which packages to use now?
+    "S702",
+    # Triggers on code-like formulas in comments
+    "ERA001",
+    # Self was only introduced in 3.11
+    "PYI019",
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.

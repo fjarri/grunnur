@@ -1,15 +1,16 @@
 import numpy
 
-from grunnur import API
+from grunnur import API, dtypes
 from grunnur.device_discovery import select_devices
-import grunnur.dtypes as dtypes
 
 
-def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=None):
+def get_test_array(shape, dtype, *, strides=None, offset=0, no_zeros=False, high=None):
     dtype = numpy.dtype(dtype)  # normalize to access the fields
 
+    rng = numpy.random.default_rng()
+
     if offset != 0:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     if dtype.names is not None:
         result = numpy.empty(shape, dtype)
@@ -20,20 +21,17 @@ def get_test_array(shape, dtype, strides=None, offset=0, no_zeros=False, high=No
             low = 1 if no_zeros else 0
             if high is None:
                 high = 100  # will work even with signed chars
-            get_arr = lambda: numpy.random.randint(low, high, shape).astype(dtype)
+            get_arr = lambda: rng.integers(low, high, shape, dtype)  # noqa: E731
         else:
             low = 0.01 if no_zeros else 0
             if high is None:
                 high = 1.0
-            get_arr = lambda: numpy.random.uniform(low, high, shape).astype(dtype)
+            get_arr = lambda: rng.uniform(low, high, shape).astype(dtype)  # noqa: E731
 
-        if dtypes.is_complex(dtype):
-            result = get_arr() + 1j * get_arr()
-        else:
-            result = get_arr()
+        result = (get_arr() + 1j * get_arr()) if dtypes.is_complex(dtype) else get_arr()
 
     if strides is not None:
-        result = as_strided(result, result.shape, strides)
+        result = numpy.lib.stride_tricks.as_strided(result, result.shape, strides)
 
     return result
 
@@ -43,6 +41,7 @@ def check_select_devices(
     mock_backend_factory,
     capsys,
     platforms_devices,
+    *,
     inputs=None,
     interactive=False,
     quantity=1,
@@ -53,7 +52,7 @@ def check_select_devices(
     backend = mock_backend_factory.mock_pyopencl()
 
     for platform_name, device_infos in platforms_devices:
-        platform = backend.add_platform_with_devices(platform_name, device_infos)
+        backend.add_platform_with_devices(platform_name, device_infos)
 
     if inputs is not None:
         for line in inputs:
@@ -72,6 +71,6 @@ def check_select_devices(
         assert mock_stdin.empty()
     finally:
         # Otherwise the output will be shown in the console
-        captured = capsys.readouterr()
+        capsys.readouterr()
 
     return devices

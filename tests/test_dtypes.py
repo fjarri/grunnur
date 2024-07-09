@@ -1,3 +1,5 @@
+import re
+
 import numpy
 import pytest
 
@@ -55,18 +57,18 @@ def test_min_scalar_type():
 def test_complex_for():
     assert dtypes.complex_for(numpy.float32) == numpy.complex64
     assert dtypes.complex_for(numpy.float64) == numpy.complex128
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="complex64 does not have a corresponding complex type"):
         assert dtypes.complex_for(numpy.complex64)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="int32 does not have a corresponding complex type"):
         assert dtypes.complex_for(numpy.int32)
 
 
 def test_real_for():
     assert dtypes.real_for(numpy.complex64) == numpy.float32
     assert dtypes.real_for(numpy.complex128) == numpy.float64
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="float32 does not have a corresponding real type"):
         assert dtypes.real_for(numpy.float32)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="int32 does not have a corresponding real type"):
         assert dtypes.real_for(numpy.int32)
 
 
@@ -197,15 +199,6 @@ def test__align_aligned_struct_custom_itemsize():
 
 
 def test__align_custom_field_offsets():
-    dtype = numpy.dtype(
-        dict(
-            names=["x", "y", "z"],
-            formats=[numpy.int8, numpy.int16, numpy.int32],
-            offsets=[0, 4, 16],
-            itemsize=32,
-        )
-    )
-
     dtype_aligned = numpy.dtype(
         dict(
             names=["x", "y", "z"],
@@ -242,7 +235,7 @@ def test__align_aligned_struct_invalid_itemsize():
         )
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Invalid non-default itemsize for dtype"):
         dtypes._align(dtype_aligned)
 
 
@@ -308,35 +301,18 @@ def test_find_minimum_alignment():
     assert dtypes._find_minimum_alignment(16, 4, 9) == 8
 
     # incorrect offset (not a multiple of the base alignment)
-    with pytest.raises(ValueError):
+    message = re.escape("Field offset (13) must be a multiple of the base alignment (4)")
+    with pytest.raises(ValueError, match=message):
         dtypes._find_minimum_alignment(13, 4, 9)
 
     # offset too large and not a power of 2 - cannot achieve that with alignment only,
     # will need explicit padding
-    with pytest.raises(ValueError):
+    message = (
+        "Could not find a suitable alignment for the field at offset 24; "
+        "consider adding explicit padding"
+    )
+    with pytest.raises(ValueError, match=message):
         dtypes._find_minimum_alignment(24, 4, 9)
-
-
-def test_wrapped_type_repr():
-    dtype_aligned = numpy.dtype(
-        dict(
-            names=["x", "y", "z"],
-            formats=[numpy.int8, numpy.int16, numpy.int32],
-            offsets=[0, 4, 16],
-            itemsize=32,
-            aligned=True,
-        )
-    )
-    wt_x = dtypes.WrappedType.non_struct(numpy.dtype("int8"), 1)
-    wt_y = dtypes.WrappedType.non_struct(numpy.dtype("int16"), 2)
-    wt_z = dtypes.WrappedType.non_struct(numpy.dtype("int32"), 4)
-    wt = dtypes.WrappedType(
-        dtype_aligned,
-        16,
-        explicit_alignment=None,
-        wrapped_fields=dict(x=wt_x, y=wt_y, z=wt_z),
-        field_alignments=dict(x=None, y=4, z=16),
-    )
 
 
 def test_ctype_struct():
@@ -396,7 +372,7 @@ def test_ctype_to_ctype_struct():
     )
 
 
-def test_ctype_struct():
+def test_ctype_struct_aligned():
     dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],
@@ -442,17 +418,17 @@ def test_ctype_struct_ignore_alignment():
 
 def test_ctype_struct_checks_alignment():
     dtype = numpy.dtype(dict(names=["x", "y", "z"], formats=[numpy.int8, numpy.int16, numpy.int32]))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="The data type must be an aligned struct"):
         dtypes.ctype_struct(dtype)
 
 
 def test_ctype_struct_for_non_struct():
     dtype = numpy.dtype((numpy.int32, 3))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="The data type cannot be an array"):
         dtypes.ctype_struct(dtype)
 
     # ctype_struct() is not applicable for simple types
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="The data type must be a structure"):
         dtypes.ctype_struct(numpy.int32)
 
 
@@ -478,7 +454,7 @@ def test_flatten_dtype():
         (["regular_arr", 2], numpy.dtype("int16")),
     ]
 
-    assert dtypes.flatten_dtype(dtype) == ref
+    assert res == ref
 
 
 def test_c_path():

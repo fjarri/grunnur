@@ -23,7 +23,7 @@ FUNCTION ${dtypes.ctype(out_dtype)} ${prefix}(${dtypes.ctype(in_dtype)} x)
     argnames = ["a" + str(i + 1) for i in range(len(in_dtypes))]
 %>
 FUNCTION ${dtypes.ctype(out_dtype)} ${prefix}(
-    ${", ".join(dtypes.ctype(dt) + " " + name for name, dt in zip(argnames, in_dtypes))})
+    ${", ".join(dtypes.ctype(dt) + " " + name for name, dt in zip(argnames, in_dtypes, strict=True))})
 {
 <%
     last_result = argnames[-1]

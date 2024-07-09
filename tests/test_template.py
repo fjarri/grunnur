@@ -1,8 +1,11 @@
+# Arguments are actually used in templates, but Ruff cannot parse it.
+# ruff: noqa: ARG005
+
+import numpy
 import pytest
 from mako.template import Template as MakoTemplate
-import numpy
 
-from grunnur.template import Template, DefTemplate, RenderError, _extract_def_source
+from grunnur.template import DefTemplate, RenderError, Template, _extract_def_source
 
 
 def test_extract_def_source():
@@ -101,7 +104,7 @@ def test_render_error():
     assert e.value.args == (1, 2)
     assert e.value.globals == dict(kwd=3)
     assert e.value.source == template.source
-    assert type(e.value.exception) == NameError
+    assert type(e.value.exception) is NameError
     assert str(e.value.exception) in str(e.value)
 
 
@@ -114,7 +117,7 @@ def test_render_error_pass_through():
     assert e.value.args == (10, 1)
     assert e.value.globals == dict()
     assert e.value.source == template1.source
-    assert type(e.value.exception) == NameError
+    assert type(e.value.exception) is NameError
     assert str(e.value.exception) in str(e.value)
 
 

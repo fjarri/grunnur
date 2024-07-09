@@ -1,31 +1,18 @@
 from __future__ import annotations
 
 import itertools
-from math import gcd
 import platform
-from typing import (
-    NamedTuple,
-    Callable,
-    Any,
-    Sequence,
-    Optional,
-    Tuple,
-    Dict,
-    Iterable,
-    Union,
-    List,
-    Type,
-    TypeVar,
-    Mapping,
-    overload,
-    cast,
-)
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from math import gcd
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 
 import numpy
-from numpy.typing import DTypeLike
 
-from .utils import bounding_power_of_2, log2, min_blocks
 from .modules import Module
+from .utils import bounding_power_of_2, log2, min_blocks
+
+if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import DTypeLike
 
 
 _DTYPE_TO_BUILTIN_CTYPE = {
@@ -53,7 +40,7 @@ def _ctype_builtin(dtype: DTypeLike) -> str:
     raise ValueError(f"{dtype} is not a built-in data type")
 
 
-def ctype(dtype: DTypeLike) -> Union[str, Module]:
+def ctype(dtype: DTypeLike) -> str | Module:
     """
     Returns an object that can be passed as a global to :py:meth:`~grunnur.Program`
     and used to render a C equivalent of the given ``numpy`` dtype.
@@ -73,7 +60,7 @@ def ctype(dtype: DTypeLike) -> Union[str, Module]:
         return ctype_struct(dtype)
 
 
-def _normalize_type(dtype: DTypeLike) -> "numpy.dtype[Any]":
+def _normalize_type(dtype: DTypeLike) -> numpy.dtype[Any]:
     """
     Numpy's dtype shortcuts (e.g. ``numpy.int32``) are ``type`` objects
     and have slightly different properties from actual ``numpy.dtype`` objects.
@@ -83,50 +70,42 @@ def _normalize_type(dtype: DTypeLike) -> "numpy.dtype[Any]":
 
 
 def is_complex(dtype: DTypeLike) -> bool:
-    """
-    Returns ``True`` if ``dtype`` is complex.
-    """
+    """Returns ``True`` if ``dtype`` is complex."""
     dtype = _normalize_type(dtype)
     return numpy.issubdtype(dtype, numpy.complexfloating)
 
 
 def is_double(dtype: DTypeLike) -> bool:
-    """
-    Returns ``True`` if ``dtype`` is double precision floating point.
-    """
+    """Returns ``True`` if ``dtype`` is double precision floating point."""
     dtype = _normalize_type(dtype)
     return numpy.issubdtype(dtype, numpy.float64) or numpy.issubdtype(dtype, numpy.complex128)
 
 
 def is_integer(dtype: DTypeLike) -> bool:
-    """
-    Returns ``True`` if ``dtype`` is an integer.
-    """
+    """Returns ``True`` if ``dtype`` is an integer."""
     dtype = _normalize_type(dtype)
     return numpy.issubdtype(dtype, numpy.integer)
 
 
 def is_real(dtype: DTypeLike) -> bool:
-    """
-    Returns ``True`` if ``dtype`` is a real number (but not complex).
-    """
+    """Returns ``True`` if ``dtype`` is a real number (but not complex)."""
     dtype = _normalize_type(dtype)
     return numpy.issubdtype(dtype, numpy.floating)
 
 
-def _promote_type(dtype: "numpy.dtype[Any]") -> "numpy.dtype[Any]":
+def _promote_type(dtype: numpy.dtype[Any]) -> numpy.dtype[Any]:
     # not all numpy datatypes are supported by GPU, so we may need to promote
-    if issubclass(dtype.type, numpy.signedinteger) and dtype.itemsize < 4:
+    if issubclass(dtype.type, numpy.signedinteger) and dtype.itemsize < 4:  # noqa: PLR2004
         return numpy.dtype("int32")
-    elif issubclass(dtype.type, numpy.unsignedinteger) and dtype.itemsize < 4:
+    if issubclass(dtype.type, numpy.unsignedinteger) and dtype.itemsize < 4:  # noqa: PLR2004
         return numpy.dtype("uint32")
-    elif issubclass(dtype.type, numpy.floating) and dtype.itemsize < 4:
+    if issubclass(dtype.type, numpy.floating) and dtype.itemsize < 4:  # noqa: PLR2004
         return numpy.dtype("float32")
     # Not checking complex dtypes since there is nothing smaller than complex32, which is supported
     return dtype
 
 
-def result_type(*dtypes: DTypeLike) -> "numpy.dtype[Any]":
+def result_type(*dtypes: DTypeLike) -> numpy.dtype[Any]:
     """
     Wrapper for :py:func:`numpy.result_type`
     which takes into account types supported by GPUs.
@@ -134,24 +113,17 @@ def result_type(*dtypes: DTypeLike) -> "numpy.dtype[Any]":
     return _promote_type(numpy.result_type(*dtypes))
 
 
-def min_scalar_type(
-    val: Union[int, float, complex, "numpy.number[Any]"], force_signed: bool = False
-) -> "numpy.dtype[Any]":
+def min_scalar_type(val: complex | numpy.number[Any]) -> numpy.dtype[Any]:
     """
     Wrapper for :py:func:`numpy.min_scalar_type`
     which takes into account types supported by GPUs.
     """
-    if isinstance(val, numpy.number):
-        dtype = val.dtype
-    else:
-        dtype = numpy.min_scalar_type(val)
+    dtype = val.dtype if isinstance(val, numpy.number) else numpy.min_scalar_type(val)
     return _promote_type(dtype)
 
 
-def complex_for(dtype: DTypeLike) -> "numpy.dtype[Any]":
-    """
-    Returns complex dtype corresponding to given floating point ``dtype``.
-    """
+def complex_for(dtype: DTypeLike) -> numpy.dtype[Any]:
+    """Returns complex dtype corresponding to given floating point ``dtype``."""
     dtype = _normalize_type(dtype)
     if dtype == numpy.float32:
         return numpy.dtype("complex64")
@@ -160,10 +132,8 @@ def complex_for(dtype: DTypeLike) -> "numpy.dtype[Any]":
     raise ValueError(f"{dtype} does not have a corresponding complex type")
 
 
-def real_for(dtype: DTypeLike) -> "numpy.dtype[Any]":
-    """
-    Returns floating point dtype corresponding to given complex ``dtype``.
-    """
+def real_for(dtype: DTypeLike) -> numpy.dtype[Any]:
+    """Returns floating point dtype corresponding to given complex ``dtype``."""
     dtype = _normalize_type(dtype)
     if dtype == numpy.complex64:
         return numpy.dtype("float32")
@@ -173,9 +143,7 @@ def real_for(dtype: DTypeLike) -> "numpy.dtype[Any]":
 
 
 def complex_ctr(dtype: DTypeLike) -> str:
-    """
-    Returns name of the constructor for the given ``dtype``.
-    """
+    """Returns name of the constructor for the given ``dtype``."""
     return "COMPLEX_CTR(" + _ctype_builtin(dtype) + ")"
 
 
@@ -186,8 +154,8 @@ def _c_constant_arr(val: Any, shape: Sequence[int]) -> str:
 
 
 def c_constant(
-    val: Union[int, float, complex, numpy.generic, "numpy.ndarray[Any, numpy.dtype[Any]]"],
-    dtype: Optional[DTypeLike] = None,
+    val: complex | numpy.generic | numpy.ndarray[Any, numpy.dtype[Any]],
+    dtype: DTypeLike | None = None,
 ) -> str:
     """
     Returns a C-style numerical constant.
@@ -196,12 +164,12 @@ def c_constant(
     """
     if dtype is not None:
         dtype = _promote_type(_normalize_type(dtype))
-    elif isinstance(val, (int, float, complex)):
+    elif isinstance(val, int | float | complex):
         dtype = min_scalar_type(val)
     else:
         dtype = _promote_type(val.dtype)
 
-    numpy_val: Union[numpy.generic, "numpy.ndarray[Any, numpy.dtype[Any]]"]
+    numpy_val: numpy.generic | numpy.ndarray[Any, numpy.dtype[Any]]
     if isinstance(val, numpy.ndarray):
         numpy_val = numpy.asarray(val, dtype)
     else:
@@ -211,10 +179,7 @@ def c_constant(
         return _c_constant_arr(numpy_val, numpy_val.shape)
 
     scalar_val: numpy.generic
-    if isinstance(numpy_val, numpy.ndarray):
-        scalar_val = numpy_val.flat[0]
-    else:
-        scalar_val = numpy_val
+    scalar_val = numpy_val.flat[0] if isinstance(numpy_val, numpy.ndarray) else numpy_val
 
     if isinstance(scalar_val, numpy.void) and scalar_val.dtype.names is not None:
         return (
@@ -224,18 +189,18 @@ def c_constant(
     if isinstance(scalar_val, numpy.complexfloating):
         return (
             f"COMPLEX_CTR({_ctype_builtin(dtype)})"
-            + f"({c_constant(scalar_val.real)}, {c_constant(scalar_val.imag)})"
+            f"({c_constant(scalar_val.real)}, {c_constant(scalar_val.imag)})"
         )
 
     if isinstance(scalar_val, numpy.integer):
-        if dtype.itemsize > 4:
+        if dtype.itemsize > 4:  # noqa: PLR2004
             postfix = "L" if numpy.issubdtype(scalar_val.dtype, numpy.signedinteger) else "UL"
         else:
             postfix = ""
         return str(scalar_val) + postfix
 
     if isinstance(scalar_val, numpy.floating):
-        return repr(float(scalar_val)) + ("f" if scalar_val.dtype.itemsize <= 4 else "")
+        return repr(float(scalar_val)) + ("f" if scalar_val.dtype.itemsize <= 4 else "")  # noqa: PLR2004
 
     raise TypeError(f"Cannot render a value of type {type(val)} as a C constant")
 
@@ -280,11 +245,9 @@ def _find_minimum_alignment(offset: int, base_alignment: int, prev_end: int) -> 
 
 
 class WrappedType(NamedTuple):
-    """
-    Contains an accompanying information for an aligned dtype.
-    """
+    """Contains an accompanying information for an aligned dtype."""
 
-    dtype: "numpy.dtype[Any]"
+    dtype: numpy.dtype[Any]
 
     # This type's alignment
     alignment: int
@@ -292,27 +255,26 @@ class WrappedType(NamedTuple):
     # An in integer if the type's alignment requires
     # an explicit specification in the C definition,
     # None otherwise.
-    explicit_alignment: Optional[int]
+    explicit_alignment: int | None
 
     # A dictionary of `WrappedType` object for this dtype's fields.
-    wrapped_fields: Dict[str, "WrappedType"]
+    wrapped_fields: dict[str, WrappedType]
 
     # A dictionary of alignments for this dtype's fields;
     # similarly to `explicit_alignment`, a value is an integer if the alignment
     # has to be set explicitly, None otherwise.
-    field_alignments: Dict[str, Optional[int]]
+    field_alignments: dict[str, int | None]
 
     @classmethod
-    def non_struct(cls, dtype: "numpy.dtype[Any]", alignment: int) -> "WrappedType":
+    def non_struct(cls, dtype: numpy.dtype[Any], alignment: int) -> WrappedType:
         return cls(dtype, alignment, None, {}, {})
 
 
-def _align(dtype: "numpy.dtype[Any]") -> WrappedType:
+def _align(dtype: numpy.dtype[Any]) -> WrappedType:
     """
     Builds a `WrappedType` object with the alignment information for a dtype,
     aligning it if it is not aligned, and checking the consistency of metadata if it is.
     """
-
     if len(dtype.shape) > 0:
         wt = _align(dtype.base)
         return WrappedType(
@@ -327,7 +289,7 @@ def _align(dtype: "numpy.dtype[Any]") -> WrappedType:
         return WrappedType.non_struct(dtype, dtype.itemsize)
 
     # Since `.names` is not `None` at this point, we can restrict the type to help the inference
-    dtype_fields = cast(Mapping[str, Tuple["numpy.dtype[Any]", int]], dtype.fields)
+    dtype_fields = cast(Mapping[str, tuple["numpy.dtype[Any]", int]], dtype.fields)
 
     wrapped_fields = {name: _align(dtype_fields[name][0]) for name in dtype.names}
 
@@ -379,13 +341,10 @@ def _align(dtype: "numpy.dtype[Any]") -> WrappedType:
 
         # Should be already checked by `numpy.dtype` when an aligned struct was created.
         # Checking it just in case the behavior changes.
-        assert dtype.itemsize >= itemsize
+        assert dtype.itemsize >= itemsize  # noqa: S101
 
         aligned_dtype = dtype
-        if dtype.itemsize > itemsize:
-            struct_alignment = dtype.itemsize
-        else:
-            struct_alignment = base_struct_alignment
+        struct_alignment = dtype.itemsize if dtype.itemsize > itemsize else base_struct_alignment
     else:
         # Must be some problems with numpy stubs - the type is too restrictive here.
         aligned_dtype = numpy.dtype(
@@ -416,7 +375,7 @@ def _align(dtype: "numpy.dtype[Any]") -> WrappedType:
     )
 
 
-def align(dtype: DTypeLike) -> "numpy.dtype[Any]":
+def align(dtype: DTypeLike) -> numpy.dtype[Any]:
     """
     Returns a new struct dtype with the field offsets changed to the ones a compiler would use
     (without being given any explicit alignment qualifiers).
@@ -428,33 +387,30 @@ def align(dtype: DTypeLike) -> "numpy.dtype[Any]":
 
 
 def _lcm(*nums: int) -> int:
-    """
-    Returns the least common multiple of ``nums``.
-    """
+    """Returns the least common multiple of ``nums``."""
     if len(nums) == 1:
         return nums[0]
-    if len(nums) == 2:
+    if len(nums) == 2:  # noqa: PLR2004
         return nums[0] * nums[1] // gcd(nums[0], nums[1])
     return _lcm(nums[0], _lcm(*nums[1:]))
 
 
-def _alignment_str(alignment: Optional[int]) -> str:
+def _alignment_str(alignment: int | None) -> str:
     if alignment is not None:
         return "ALIGN(" + str(alignment) + ")"
     return ""
 
 
-def _get_struct_module(dtype: "numpy.dtype[Any]", ignore_alignment: bool = False) -> Module:
+def _get_struct_module(dtype: numpy.dtype[Any], *, ignore_alignment: bool = False) -> Module:
     """
     Builds and returns a module with the C type definition for a given ``dtype``,
     possibly using modules for nested structures.
     """
-
     # `dtype.names` is not `None` at this point, restricting types
     dtype_names = cast(Iterable[str], dtype.names)
-    dtype_fields = cast(Mapping[str, Tuple["numpy.dtype[Any]", int]], dtype.fields)
+    dtype_fields = cast(Mapping[str, tuple[numpy.dtype[Any], int]], dtype.fields)
 
-    field_alignments: Dict[str, Optional[int]]
+    field_alignments: dict[str, int | None]
     if ignore_alignment:
         struct_alignment = None
         field_alignments = {name: None for name in dtype_names}
@@ -467,7 +423,7 @@ def _get_struct_module(dtype: "numpy.dtype[Any]", ignore_alignment: bool = False
     # CUDA bug #1409907 (nested struct initialization like
     # "mystruct x = {0, {0, 0}, 0};" fails to compile)
     lines = ["typedef struct ${prefix}_ {"]
-    kwds: Dict[str, Union[str, Module]] = {}
+    kwds: dict[str, str | Module] = {}
     for name in dtype_names:
         elem_dtype, _ = dtype_fields[name]
 
@@ -492,7 +448,7 @@ def _get_struct_module(dtype: "numpy.dtype[Any]", ignore_alignment: bool = False
     return Module.from_string("\n".join(lines), render_globals=kwds)
 
 
-def ctype_struct(dtype: DTypeLike, ignore_alignment: bool = False) -> Module:
+def ctype_struct(dtype: DTypeLike, *, ignore_alignment: bool = False) -> Module:
     """
     For a struct type, returns a :py:class:`~grunnur.Module` object
     with the ``typedef`` of a struct corresponding to the given ``dtype``
@@ -543,19 +499,19 @@ def ctype_struct(dtype: DTypeLike, ignore_alignment: bool = False) -> Module:
 
 
 def _flatten_dtype(
-    dtype: "numpy.dtype[Any]", prefix: List[Union[str, int]] = []
-) -> List[Tuple[List[Union[str, int]], numpy.dtype[Any]]]:
+    dtype: numpy.dtype[Any], prefix: list[str | int] = []
+) -> list[tuple[list[str | int], numpy.dtype[Any]]]:
     if dtype.names is None:
         return [(prefix, dtype)]
 
     # `dtype.names` is not `None` at this point, restricting types
-    dtype_fields = cast(Mapping[str, Tuple["numpy.dtype[Any]", int]], dtype.fields)
+    dtype_fields = cast(Mapping[str, tuple[numpy.dtype[Any], int]], dtype.fields)
 
-    result: List[Tuple[List[Union[str, int]], numpy.dtype[Any]]] = []
+    result: list[tuple[list[str | int], numpy.dtype[Any]]] = []
     for name in dtype.names:
         elem_dtype, _ = dtype_fields[name]
 
-        elem_dtype_shape: Tuple[int, ...]
+        elem_dtype_shape: tuple[int, ...]
         if len(elem_dtype.shape) == 0:
             base_elem_dtype = elem_dtype
             elem_dtype_shape = tuple()
@@ -564,16 +520,16 @@ def _flatten_dtype(
             elem_dtype_shape = elem_dtype.shape
 
         if len(elem_dtype_shape) == 0:
-            result += _flatten_dtype(base_elem_dtype, prefix=prefix + [name])
+            result += _flatten_dtype(base_elem_dtype, prefix=[*prefix, name])
         else:
             for idxs in itertools.product(*[range(dim) for dim in elem_dtype_shape]):
-                result += _flatten_dtype(base_elem_dtype, prefix=prefix + [name] + list(idxs))
+                result += _flatten_dtype(base_elem_dtype, prefix=[*prefix, name, *idxs])
     return result
 
 
 def flatten_dtype(
     dtype: DTypeLike,
-) -> List[Tuple[List[Union[str, int]], numpy.dtype[Any]]]:
+) -> list[tuple[list[str | int], numpy.dtype[Any]]]:
     """
     Returns a list of tuples ``(path, dtype)`` for each of the basic dtypes in
     a (possibly nested) ``dtype``.
@@ -583,7 +539,7 @@ def flatten_dtype(
     return _flatten_dtype(dtype)
 
 
-def c_path(path: List[Union[str, int]]) -> str:
+def c_path(path: list[str | int]) -> str:
     """
     Returns a string corresponding to the ``path`` to a struct element in C.
     The ``path`` is the sequence of field names/array indices returned from
@@ -596,8 +552,8 @@ def c_path(path: List[Union[str, int]]) -> str:
 
 
 def _extract_field(
-    arr: "numpy.ndarray[Any, numpy.dtype[Any]]", path: List[Union[str, int]], array_idxs: List[int]
-) -> Union[numpy.generic, "numpy.ndarray[Any, numpy.dtype[Any]]"]:
+    arr: numpy.ndarray[Any, numpy.dtype[Any]], path: list[str | int], array_idxs: list[int]
+) -> numpy.generic | numpy.ndarray[Any, numpy.dtype[Any]]:
     """
     A helper function for ``extract_field``.
     Need to collect array indices for dtype sub-array fields since they are attached to the end
@@ -606,22 +562,22 @@ def _extract_field(
     if len(path) == 0:
         if len(array_idxs) == 0:
             return arr
-        numpy_array_indices: List[Union[slice, int]] = [slice(None, None, None)] * (
+        numpy_array_indices: list[slice | int] = [slice(None, None, None)] * (
             len(arr.shape) - len(array_idxs)
         )
-        struct_array_indices: List[Union[slice, int]] = list(array_idxs)
+        struct_array_indices: list[slice | int] = list(array_idxs)
         slices = tuple(numpy_array_indices + struct_array_indices)
         return arr[slices]
 
     if isinstance(path[0], str):
         return _extract_field(arr[path[0]], path[1:], array_idxs)
 
-    return _extract_field(arr, path[1:], array_idxs + [path[0]])
+    return _extract_field(arr, path[1:], [*array_idxs, path[0]])
 
 
 def extract_field(
-    arr: "numpy.ndarray[Any, numpy.dtype[Any]]", path: List[Union[str, int]]
-) -> Union[numpy.generic, "numpy.ndarray[Any, numpy.dtype[Any]]"]:
+    arr: numpy.ndarray[Any, numpy.dtype[Any]], path: list[str | int]
+) -> numpy.generic | numpy.ndarray[Any, numpy.dtype[Any]]:
     """
     Extracts an element from an array of struct dtype.
     The ``path`` is the sequence of field names/array indices returned from

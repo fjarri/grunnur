@@ -1,8 +1,7 @@
 import pytest
 
-from grunnur import PlatformFilter, DeviceFilter
+from grunnur import DeviceFilter, PlatformFilter
 from grunnur.testing import PyOpenCLDeviceInfo
-
 from utils import check_select_devices
 
 
@@ -128,8 +127,8 @@ def test_device_choose_multiple_wrong_quantity(mock_stdin, mock_backend_factory,
     ]
     inputs = ["1", "0, 1, 2"]
 
-    with pytest.raises(ValueError):
-        devices = check_select_devices(
+    with pytest.raises(ValueError, match="Exactly 2 devices must be selected"):
+        check_select_devices(
             mock_stdin,
             mock_backend_factory,
             capsys,
@@ -279,8 +278,11 @@ def test_filter_exclude_all_devices(mock_stdin, mock_backend_factory, capsys):
         ("PlatformBar", ["DeviceFoo", "DeviceBar", "DeviceBaz"]),
     ]
 
-    with pytest.raises(ValueError):
-        devices = check_select_devices(
+    with pytest.raises(
+        ValueError,
+        match="Could not find 1 devices on a single platform matching the given criteria",
+    ):
+        check_select_devices(
             mock_stdin,
             mock_backend_factory,
             capsys,

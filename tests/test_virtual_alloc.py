@@ -1,13 +1,12 @@
-from collections import Counter
 import weakref
+from collections import Counter
 
 import numpy
 import pytest
 
+from grunnur import Array, Buffer, Context, MultiQueue, Program, Queue, dtypes
 from grunnur.adapter_base import APIID
-from grunnur import Queue, MultiQueue, Program, Array, Context, Buffer
-import grunnur.dtypes as dtypes
-from grunnur.virtual_alloc import extract_dependencies, TrivialManager, ZeroOffsetManager
+from grunnur.virtual_alloc import TrivialManager, ZeroOffsetManager, extract_dependencies
 
 
 def allocate_test_set(virtual_alloc, allocate_callable):
@@ -92,7 +91,7 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
         virtual_alloc, lambda allocator, size: allocator(context.device, size)
     )
 
-    for name, size, deps in buffers_metadata:
+    for name, size, _deps in buffers_metadata:
         # Virtual buffer size should be exactly as requested
         assert buffers[name].size == size
         # The real buffer behind the virtual buffer may be larger
@@ -118,7 +117,6 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
 
 
 def test_extract_dependencies(mock_context):
-    queue = Queue(mock_context.device)
     virtual_alloc = TrivialManager(mock_context.device).allocator()
 
     vbuf = virtual_alloc(mock_context.device, 100)
@@ -132,7 +130,7 @@ def test_extract_dependencies(mock_context):
     }
 
     class DependencyHolder:
-        __virtual_allocations__ = [vbuf, varr]
+        __virtual_allocations__ = (vbuf, varr)
 
     assert extract_dependencies(DependencyHolder()) == {
         vbuf._buffer_adapter._id,
