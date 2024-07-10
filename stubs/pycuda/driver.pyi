@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from enum import Enum
-from typing import Any, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Any, TypeVar
 
 import numpy
 
@@ -39,10 +40,11 @@ class Stream:
 class DeviceAllocation:
     def __int__(self) -> int: ...
 
-class function_attribute(Enum):
+# That's the name it has in PyCUDA
+class function_attribute(Enum):  # noqa: N801
     MAX_THREADS_PER_BLOCK = ...
 
-def mem_alloc(bytes: int) -> DeviceAllocation: ...
+def mem_alloc(bytes_: int) -> DeviceAllocation: ...
 def memcpy_htod(dest: int | DeviceAllocation, src: Any) -> None: ...
 def memcpy_htod_async(
     dest: int | DeviceAllocation, src: Any, stream: Stream | None = None
@@ -59,6 +61,6 @@ def memcpy_dtod_async(
     stream: Stream | None = None,
 ) -> None: ...
 
-_T = TypeVar("_T", bound="numpy.dtype[Any]")
+_T = TypeVar("_T", bound=numpy.dtype[Any])
 
 def pagelocked_empty(shape: Sequence[int], dtype: _T) -> numpy.ndarray[Any, _T]: ...

@@ -80,7 +80,7 @@ class MockSource:
 
 class MockDefTemplate(DefTemplate):
     def __init__(self, *args: Any, **kwds: Any):
-        dummy_template = mako.template.Template(r"""<%def name="mock_source()"></%def>""")
+        dummy_template = mako.template.Template(text=r"""<%def name="mock_source()"></%def>""")
         super().__init__(
             name="mock_source", mako_def_template=dummy_template.get_def("mock_source"), source=""
         )

@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from enum import Enum, Flag
-from typing import Any, List, Optional, Sequence, Union
+from typing import Any
 
 import numpy
 
@@ -10,7 +11,7 @@ class Platform:
 
     def get_devices(self) -> list[Device]: ...
 
-class device_type(Enum):
+class device_type(Enum):  # noqa: N801
     CPU = ...
     GPU = ...
 
@@ -42,7 +43,7 @@ class Program:
         cache_dir: str | None = None,
     ) -> None: ...
 
-class kernel_work_group_info:
+class kernel_work_group_info:  # noqa: N801
     WORK_GROUP_SIZE: Any
 
 class Kernel:
@@ -59,9 +60,10 @@ class Event: ...
 
 def get_platforms() -> list[Platform]: ...
 
-class RuntimeError(Exception): ...
+# That's what it's called in PyOpenCL, can't help it.
+class RuntimeError(Exception): ...  # noqa: A001
 
-class mem_flags(Flag):
+class mem_flags(Flag):  # noqa: N801
     _NONE = ...
     READ_WRITE = ...
     ALLOC_HOST_PTR = ...
@@ -69,9 +71,12 @@ class mem_flags(Flag):
 class Buffer:
     size: int
     offset: int
-    def __init__(self, context: Context, flags: mem_flags = mem_flags._NONE, size: int = 0): ...
+    def __init__(self, context: Context, flags: mem_flags = mem_flags._NONE, size: int = 0): ...  # noqa: PYI011, SLF001
     def get_sub_region(
-        self, origin: int, size: int, flags: mem_flags = mem_flags._NONE
+        self,
+        origin: int,
+        size: int,
+        flags: mem_flags = mem_flags._NONE,  # noqa: PYI011, SLF001
     ) -> Buffer: ...
 
 class CommandQueue:
@@ -80,7 +85,8 @@ class CommandQueue:
 
 def enqueue_copy(
     queue: CommandQueue,
-    dest: "Buffer | numpy.ndarray[Any, numpy.dtype[Any]]",
-    src: "Buffer | numpy.ndarray[Any, numpy.dtype[Any]]",
+    dest: Buffer | numpy.ndarray[Any, numpy.dtype[Any]],
+    src: Buffer | numpy.ndarray[Any, numpy.dtype[Any]],
+    *,
     is_blocking: bool = True,
 ) -> None: ...

@@ -1,9 +1,11 @@
-from typing import Any, List, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 class Template:
     source: str
     def __init__(
         self,
+        *,
         text: str | None = None,
         filename: str | None = None,
         strict_undefined: bool = False,

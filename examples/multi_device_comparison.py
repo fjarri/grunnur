@@ -3,6 +3,8 @@ An example comparing performance of executing a kernel on one device
 versus multiple devices simultaneously.
 """
 
+# ruff: noqa: T201, S101
+
 import time
 from collections.abc import Sequence
 from typing import Any
@@ -73,7 +75,6 @@ def test_multi_device(
     device_idxs: Sequence[int], full_len: int, *, benchmark: bool = False
 ) -> None:
     """Runs the kernel on a multiple devices."""
-
     pwr = 50
 
     a = numpy.arange(full_len).astype(numpy.uint64)

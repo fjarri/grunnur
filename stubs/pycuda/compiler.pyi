@@ -1,4 +1,5 @@
-from typing import Any, Literal, Optional, Sequence, Tuple, Union, overload
+from collections.abc import Sequence
+from typing import Any, Literal, Optional, overload
 
 import numpy
 
@@ -8,6 +9,7 @@ class SourceModule:
     def __init__(
         self,
         source: str,
+        *,
         options: Sequence[str] | None = None,
         keep: bool = False,
         no_extern_c: bool = False,

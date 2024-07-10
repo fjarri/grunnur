@@ -21,12 +21,12 @@ def get_test_array(shape, dtype, *, strides=None, offset=0, no_zeros=False, high
             low = 1 if no_zeros else 0
             if high is None:
                 high = 100  # will work even with signed chars
-            get_arr = lambda: rng.integers(low, high, shape, dtype)  # noqa: E731
+            get_arr = lambda: rng.integers(low, high, shape, dtype)
         else:
             low = 0.01 if no_zeros else 0
             if high is None:
                 high = 1.0
-            get_arr = lambda: rng.uniform(low, high, shape).astype(dtype)  # noqa: E731
+            get_arr = lambda: rng.uniform(low, high, shape).astype(dtype)
 
         result = (get_arr() + 1j * get_arr()) if dtypes.is_complex(dtype) else get_arr()
 
