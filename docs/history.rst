@@ -5,7 +5,13 @@ Version history
 0.3.1 (Unreleased)
 ------------------
 
-Under construction.
+Changed
+^^^^^^^
+
+* Minimal Python version bumped to 3.10, and ``numpy`` to 2.0. (PR_12_)
+
+
+.. _PR_12: https://github.com/fjarri/grunnur/pull/12
 
 
 0.3.0 (29 Jan 2023)
@@ -14,7 +20,7 @@ Under construction.
 Changed
 ^^^^^^^
 
-* (CHANGED) ``device_idx`` parameters are gone; now high level functions take ``BoundDevice`` or ``BoundMultiDevice`` arguments to indicate which devices to use; these objects include the corresponding contexts as well, so they don't have to be passed separately.
+* ``device_idx`` parameters are gone; now high level functions take ``BoundDevice`` or ``BoundMultiDevice`` arguments to indicate which devices to use; these objects include the corresponding contexts as well, so they don't have to be passed separately.
 * Now API adapters only use device indices in a sense of "device index in the platform"; context adapters keep internal objects in dictionaries indexed by these indices, instead of in lists.
 * ``py.test`` plugin extracted into a separate package (``pytest-grunnur``).
 

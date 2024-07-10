@@ -1,38 +1,38 @@
 """
-This module contains :py:class:`~grunnur.Module` factories
+:py:class:`~grunnur.Module` factories
 which are used to compensate for the lack of complex number operations in OpenCL,
 and the lack of C++ synthax which would allow one to write them.
 """
 
-from typing import Optional, Any
+from __future__ import annotations
+
+from typing import Any
 from warnings import warn
 
 import numpy
 
-from .template import Template
 from . import dtypes
 from .modules import Module
-
+from .template import Template
 
 TEMPLATE = Template.from_associated_file(__file__)
 
 
-def check_information_loss(
-    out_dtype: "numpy.dtype[Any]", expected_dtype: "numpy.dtype[Any]"
-) -> None:
+def check_information_loss(out_dtype: numpy.dtype[Any], expected_dtype: numpy.dtype[Any]) -> None:
     if dtypes.is_complex(expected_dtype) and not dtypes.is_complex(out_dtype):
         warn(
             "Imaginary part ignored during the downcast from "
             + str(expected_dtype)
             + " to "
             + str(out_dtype),
-            numpy.ComplexWarning,
+            numpy.exceptions.ComplexWarning,
+            stacklevel=2,
         )
 
 
 def derive_out_dtype(
-    *in_dtypes: "numpy.dtype[Any]", out_dtype: Optional["numpy.dtype[Any]"] = None
-) -> "numpy.dtype[Any]":
+    *in_dtypes: numpy.dtype[Any], out_dtype: numpy.dtype[Any] | None = None
+) -> numpy.dtype[Any]:
     expected_dtype = dtypes.result_type(*in_dtypes)
     if out_dtype is None:
         out_dtype = expected_dtype
@@ -41,7 +41,7 @@ def derive_out_dtype(
     return out_dtype
 
 
-def cast(in_dtype: "numpy.dtype[Any]", out_dtype: "numpy.dtype[Any]") -> Module:
+def cast(in_dtype: numpy.dtype[Any], out_dtype: numpy.dtype[Any]) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that casts values of ``in_dtype`` to ``out_dtype``.
@@ -52,7 +52,7 @@ def cast(in_dtype: "numpy.dtype[Any]", out_dtype: "numpy.dtype[Any]") -> Module:
     )
 
 
-def add(*in_dtypes: "numpy.dtype[Any]", out_dtype: Optional["numpy.dtype[Any]"] = None) -> Module:
+def add(*in_dtypes: numpy.dtype[Any], out_dtype: numpy.dtype[Any] | None = None) -> Module:
     """
     Returns a :py:class:`~grunnur.Module`  with a function of
     ``len(in_dtypes)`` arguments that adds values of types ``in_dtypes``.
@@ -69,7 +69,7 @@ def add(*in_dtypes: "numpy.dtype[Any]", out_dtype: Optional["numpy.dtype[Any]"] 
     )
 
 
-def mul(*in_dtypes: "numpy.dtype[Any]", out_dtype: Optional["numpy.dtype[Any]"] = None) -> Module:
+def mul(*in_dtypes: numpy.dtype[Any], out_dtype: numpy.dtype[Any] | None = None) -> Module:
     """
     Returns a :py:class:`~grunnur.Module`  with a function of
     ``len(in_dtypes)`` arguments that multiplies values of types ``in_dtypes``.
@@ -83,9 +83,9 @@ def mul(*in_dtypes: "numpy.dtype[Any]", out_dtype: Optional["numpy.dtype[Any]"] 
 
 
 def div(
-    dividend_dtype: "numpy.dtype[Any]",
-    divisor_dtype: "numpy.dtype[Any]",
-    out_dtype: Optional["numpy.dtype[Any]"] = None,
+    dividend_dtype: numpy.dtype[Any],
+    divisor_dtype: numpy.dtype[Any],
+    out_dtype: numpy.dtype[Any] | None = None,
 ) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
@@ -104,7 +104,7 @@ def div(
     )
 
 
-def conj(dtype: "numpy.dtype[Any]") -> Module:
+def conj(dtype: numpy.dtype[Any]) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that conjugates the value of type ``dtype``
@@ -113,7 +113,7 @@ def conj(dtype: "numpy.dtype[Any]") -> Module:
     return Module(TEMPLATE.get_def("conj"), render_globals=dict(dtypes=dtypes, dtype=dtype))
 
 
-def polar_unit(dtype: "numpy.dtype[Any]") -> Module:
+def polar_unit(dtype: numpy.dtype[Any]) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that returns a complex number ``exp(i * theta) == (cos(theta), sin(theta))``
@@ -125,7 +125,7 @@ def polar_unit(dtype: "numpy.dtype[Any]") -> Module:
     return Module(TEMPLATE.get_def("polar_unit"), render_globals=dict(dtypes=dtypes, dtype=dtype))
 
 
-def norm(dtype: "numpy.dtype[Any]") -> Module:
+def norm(dtype: numpy.dtype[Any]) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that returns the 2-norm of the value of type ``dtype``
@@ -134,7 +134,7 @@ def norm(dtype: "numpy.dtype[Any]") -> Module:
     return Module(TEMPLATE.get_def("norm"), render_globals=dict(dtypes=dtypes, dtype=dtype))
 
 
-def exp(dtype: "numpy.dtype[Any]") -> Module:
+def exp(dtype: numpy.dtype[Any]) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that exponentiates the value of type ``dtype``
@@ -144,20 +144,17 @@ def exp(dtype: "numpy.dtype[Any]") -> Module:
     if dtypes.is_integer(dtype):
         raise ValueError(f"exp() of {dtype} is not supported")
 
-    if dtypes.is_real(dtype):
-        polar_unit_ = None
-    else:
-        polar_unit_ = polar_unit(dtypes.real_for(dtype))
+    polar_unit_ = None if dtypes.is_real(dtype) else polar_unit(dtypes.real_for(dtype))
     return Module(
         TEMPLATE.get_def("exp"),
         render_globals=dict(dtypes=dtypes, dtype=dtype, polar_unit_=polar_unit_),
     )
 
 
-def pow(
-    base_dtype: "numpy.dtype[Any]",
-    exponent_dtype: Optional["numpy.dtype[Any]"] = None,
-    out_dtype: Optional["numpy.dtype[Any]"] = None,
+def pow(  # noqa: A001
+    base_dtype: numpy.dtype[Any],
+    exponent_dtype: numpy.dtype[Any] | None = None,
+    out_dtype: numpy.dtype[Any] | None = None,
 ) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
@@ -209,7 +206,7 @@ def pow(
     return Module(TEMPLATE.get_def("pow"), render_globals=kwds)
 
 
-def polar(dtype: "numpy.dtype[Any]") -> Module:
+def polar(dtype: numpy.dtype[Any]) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that returns the complex-valued ``rho * exp(i * theta)``

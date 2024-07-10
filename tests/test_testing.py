@@ -10,7 +10,7 @@ def test_mock_backend_factory(monkeypatch):
 
     backend = fac.mock(opencl_api_id())
     assert isinstance(backend, MockPyOpenCL)
-    assert grunnur.adapter_opencl.pyopencl is backend.pyopencl
+    assert grunnur.adapter_opencl.pyopencl._backend is backend
 
     fac.disable(opencl_api_id())
     assert grunnur.adapter_opencl.pyopencl is None

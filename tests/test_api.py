@@ -1,7 +1,7 @@
 import pytest
 
-from grunnur.api import all_api_ids
 from grunnur import API
+from grunnur.api import all_api_ids
 
 
 def test_all(mock_backend_factory):
@@ -30,17 +30,18 @@ def test_all_by_shortcut_none(mock_backend_factory):
 
     apis = API.all_by_shortcut()
     assert len(apis) == len(api_ids)
-    assert set(api.id for api in apis) == set(api_ids)
+    assert {api.id for api in apis} == set(api_ids)
 
 
-def test_all_by_shortcut_not_available(mock_backend_factory):
+@pytest.mark.usefixtures("mock_backend_factory")
+def test_all_by_shortcut_not_available():
     api_id = all_api_ids()[0]
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="cuda API is not available"):
         API.all_by_shortcut(api_id.shortcut)
 
 
 def test_all_by_shortcut_not_found():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Invalid API shortcut: something non-existent"):
         API.all_by_shortcut("something non-existent")
 
 
@@ -65,7 +66,8 @@ def test_eq(mock_backend_factory):
     api0_v2 = API.from_api_id(api_id0)
     api1 = API.from_api_id(api_id1)
 
-    assert api0_v1 is not api0_v2 and api0_v1 == api0_v2
+    assert api0_v1 is not api0_v2
+    assert api0_v1 == api0_v2
     assert api0_v1 != api1
 
 

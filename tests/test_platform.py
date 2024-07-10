@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import API, Platform, PlatformFilter, opencl_api_id, cuda_api_id
+from grunnur import API, Platform, PlatformFilter, cuda_api_id, opencl_api_id
 
 
 def test_all(mock_backend_pyopencl):
@@ -61,7 +61,8 @@ def test_eq(mock_backend):
         p0_v1 = Platform.from_index(api, 0)
         p0_v2 = Platform.from_index(api, 0)
 
-        assert p0_v1 is not p0_v2 and p0_v1 == p0_v2
+        assert p0_v1 is not p0_v2
+        assert p0_v1 == p0_v2
 
     else:
         mock_backend.add_platform_with_devices("Platform0", ["Device0"])
@@ -72,7 +73,8 @@ def test_eq(mock_backend):
         p0_v2 = Platform.from_index(api, 0)
         p1 = Platform.from_index(api, 1)
 
-        assert p0_v1 is not p0_v2 and p0_v1 == p0_v2
+        assert p0_v1 is not p0_v2
+        assert p0_v1 == p0_v2
         assert p0_v1 != p1
 
 

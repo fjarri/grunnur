@@ -1,7 +1,7 @@
 import pytest
 
 import grunnur
-from grunnur.api import cuda_api_id, opencl_api_id, all_api_ids
+from grunnur.api import all_api_ids, cuda_api_id, opencl_api_id
 
 
 def test_import_cuda_api(mock_backend_pycuda):
@@ -26,7 +26,9 @@ def test_import_any_api(mock_backend_factory):
     assert any_api.id == opencl_api_id() or any_api.id == cuda_api_id()
 
 
-def test_any_api_none_available(mock_backend_factory):
+# `mock_backend_factory` disables all existing backends by default
+@pytest.mark.usefixtures("mock_backend_factory")
+def test_any_api_none_available():
     with pytest.raises(ImportError):
         from grunnur import any_api
 

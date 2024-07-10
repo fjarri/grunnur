@@ -1,21 +1,29 @@
-from typing import Optional, Tuple, List, Sequence
+# This is supposed to be used in CLI, so the functions contain printing.
+# ruff: noqa: T201
 
-from .api import API
-from .platform import Platform, PlatformFilter
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from .device import Device, DeviceFilter
+from .platform import Platform, PlatformFilter
+
+if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Sequence
+
+    from .api import API
 
 
 def platforms_and_devices_by_mask(
     api: API,
-    quantity: Optional[int] = 1,
-    device_filter: Optional[DeviceFilter] = None,
-    platform_filter: Optional[PlatformFilter] = None,
-) -> List[Tuple["Platform", List["Device"]]]:
+    quantity: int | None = 1,
+    device_filter: DeviceFilter | None = None,
+    platform_filter: PlatformFilter | None = None,
+) -> list[tuple[Platform, list[Device]]]:
     """
     Returns all tuples (platform, list of devices) where the platform name and device names
     satisfy the given criteria, and there are at least ``quantity`` devices in the list.
     """
-
     results = []
 
     suitable_platforms = Platform.all_filtered(api, platform_filter)
@@ -32,8 +40,8 @@ def platforms_and_devices_by_mask(
 
 
 def _select_devices_interactive(
-    suitable_pds: Sequence[Tuple[Platform, Sequence[Device]]], quantity: Optional[int] = 1
-) -> List[Device]:
+    suitable_pds: Sequence[tuple[Platform, Sequence[Device]]], quantity: int | None = 1
+) -> list[Device]:
     if len(suitable_pds) == 1:
         platform, devices = suitable_pds[0]
         print(f"Platform: {platform.name}")
@@ -76,11 +84,12 @@ def _select_devices_interactive(
 
 def select_devices(
     api: API,
+    *,
     interactive: bool = False,
-    quantity: Optional[int] = 1,
-    device_filter: Optional[DeviceFilter] = None,
-    platform_filter: Optional[PlatformFilter] = None,
-) -> List["Device"]:
+    quantity: int | None = 1,
+    device_filter: DeviceFilter | None = None,
+    platform_filter: PlatformFilter | None = None,
+) -> list[Device]:
     """
     Using the results from :py:func:`platforms_and_devices_by_mask`, either lets the user
     select the devices (from the ones matching the criteria) interactively,

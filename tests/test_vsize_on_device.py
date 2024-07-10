@@ -2,9 +2,9 @@ import itertools
 
 import numpy
 
-from grunnur import Queue, Program, Array
+from grunnur import Array, Program, Queue
+from grunnur.utils import min_blocks, prod
 from grunnur.vsize import VirtualSizes
-from grunnur.utils import prod, min_blocks
 
 
 class VirtualSizesTest:
@@ -12,18 +12,18 @@ class VirtualSizesTest:
         self.global_size = global_size
         self.local_size = local_size
         if local_size is not None:
-            self.grid_size = tuple(min_blocks(gs, ls) for gs, ls in zip(global_size, local_size))
+            self.grid_size = tuple(
+                min_blocks(gs, ls) for gs, ls in zip(global_size, local_size, strict=True)
+            )
 
         self.max_num_groups = max_num_groups
         self.max_local_sizes = max_local_sizes
         self.max_total_local_size = prod(max_local_sizes)
 
     def __str__(self):
-        return "{gs}-{ls}-limited-by-{mng}-{mlss}".format(
-            gs=self.global_size,
-            ls=self.local_size,
-            mng=self.max_num_groups,
-            mlss=self.max_local_sizes,
+        return (
+            f"{self.global_size}-{self.local_size}-"
+            f"limited-by-{self.max_num_groups}-{self.max_local_sizes}"
         )
 
 
@@ -55,7 +55,9 @@ class ReferenceIds:
         self.global_size = global_size
         if local_size is not None:
             self.local_size = local_size
-            self.grid_size = tuple(min_blocks(gs, ls) for gs, ls in zip(global_size, local_size))
+            self.grid_size = tuple(
+                min_blocks(gs, ls) for gs, ls in zip(global_size, local_size, strict=True)
+            )
 
     def _tile_pattern(self, pattern, axis, full_shape):
         pattern_shape = [x if i == axis else 1 for i, x in enumerate(full_shape)]
@@ -90,9 +92,7 @@ class ReferenceIds:
 
 
 def test_ids(context, vstest):
-    """
-    Test that virtual IDs are correct for each thread.
-    """
+    """Test that virtual IDs are correct for each thread."""
     ref = ReferenceIds(vstest.global_size, vstest.local_size)
 
     vs = VirtualSizes(
@@ -148,11 +148,7 @@ def test_ids(context, vstest):
 
 
 def test_sizes(context, vstest):
-    """
-    Test that virtual sizes are correct.
-    """
-    ref = ReferenceIds(vstest.global_size, vstest.local_size)
-
+    """Test that virtual sizes are correct."""
     vs = VirtualSizes(
         max_total_local_size=vstest.max_total_local_size,
         max_local_sizes=vstest.max_local_sizes,

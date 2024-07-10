@@ -1,31 +1,34 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Optional, Union, Dict, Mapping, Tuple, Sequence
+from typing import TYPE_CHECKING, Any
 
-import numpy
-
-from .array import Array
-from .array_metadata import ArrayMetadataLike
-from .device import Device
 from .api import cuda_api_id
-from .template import DefTemplate
-from .modules import Snippet
-from .context import Context, BoundDevice, BoundMultiDevice
-from .queue import Queue
-from .array import Array
-from .utils import prod, update_dict
-from .vsize import VirtualSizes, VirtualSizeError
+from .context import Context
+from .device import Device
 from .program import (
-    SingleDeviceProgram,
     PreparedKernel,
-    normalize_sizes,
+    SingleDeviceProgram,
     _check_set_constant_array,
     _set_constant_array,
+    normalize_sizes,
 )
-
+from .utils import prod, update_dict
+from .vsize import VirtualSizeError, VirtualSizes
 
 # the name of the global in the template containing static kernel modules
 _STATIC_MODULES_GLOBAL = "static"
+
+if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable, Mapping, Sequence
+
+    import numpy
+
+    from .array import Array
+    from .array_metadata import ArrayMetadataLike
+    from .context import BoundDevice, BoundMultiDevice
+    from .modules import Snippet
+    from .queue import Queue
+    from .template import DefTemplate
 
 
 class StaticKernel:
@@ -43,24 +46,23 @@ class StaticKernel:
     queue: Queue
     """The queue this static kernel was compiled and prepared for."""
 
-    sources: Dict[BoundDevice, str]
+    sources: dict[BoundDevice, str]
     """Source files used for each device."""
 
     def __init__(
         self,
         devices: Sequence[BoundDevice],
-        template_src: Union[str, Callable[..., str], DefTemplate, Snippet],
+        template_src: str | Callable[..., str] | DefTemplate | Snippet,
         name: str,
-        global_size: Union[Sequence[int], Mapping[BoundDevice, Sequence[int]]],
-        local_size: Union[
-            Sequence[int], None, Mapping[BoundDevice, Optional[Sequence[int]]]
-        ] = None,
+        global_size: Sequence[int] | Mapping[BoundDevice, Sequence[int]],
+        *,
+        local_size: Sequence[int] | None | Mapping[BoundDevice, Sequence[int] | None] = None,
         render_args: Sequence[Any] = (),
         render_globals: Mapping[str, Any] = {},
-        constant_arrays: Optional[Mapping[str, ArrayMetadataLike]] = None,
+        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
         keep: bool = False,
         fast_math: bool = False,
-        compiler_options: Optional[Sequence[str]] = None,
+        compiler_options: Sequence[str] | None = None,
     ):
         """
         :param devices: a single- or a multi-device object on which to compile this program.
@@ -110,7 +112,10 @@ class StaticKernel:
                 new_render_globals = update_dict(
                     render_globals,
                     {_STATIC_MODULES_GLOBAL: vs.vsize_modules},
-                    error_msg=f"The global name '{_STATIC_MODULES_GLOBAL}' is reserved in static kernels",
+                    error_msg=(
+                        f"The global name '{_STATIC_MODULES_GLOBAL}' "
+                        "is reserved in static kernels"
+                    ),
                 )
 
                 # Try to compile the kernel with the corresponding virtual size functions
@@ -130,8 +135,7 @@ class StaticKernel:
                     # Kernel will execute with this local size, use it
                     break
 
-                # By the contract of VirtualSizes,
-                # prod(vs.real_local_size) <= max_total_local_size
+                # By the contract of VirtualSizes, prod(vs.real_local_size) <= max_total_local_size
                 # Also, since we're still in this loop,
                 # kernel_adapter.max_total_local_size < prod(vs.real_local_size).
                 # Therefore the new max_total_local_size value is guaranteed
@@ -164,7 +168,7 @@ class StaticKernel:
             multi_device, kernel_adapters, global_sizes, local_sizes
         )
 
-    def __call__(self, queue: Queue, *args: Union[Array, numpy.generic]) -> Any:
+    def __call__(self, queue: Queue, *args: Array | numpy.generic) -> Any:
         """
         Execute the kernel.
         In case of the OpenCL backend, returns a ``pyopencl.Event`` object.
@@ -175,7 +179,7 @@ class StaticKernel:
         return self._prepared_kernel(queue, *args)
 
     def set_constant_array(
-        self, queue: Queue, name: str, arr: Union[Array, "numpy.ndarray[Any, numpy.dtype[Any]]"]
+        self, queue: Queue, name: str, arr: Array | numpy.ndarray[Any, numpy.dtype[Any]]
     ) -> None:
         """
         Uploads a constant array to the context's devices (**CUDA only**).

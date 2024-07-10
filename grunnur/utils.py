@@ -1,8 +1,8 @@
 import collections
-from functools import reduce
-from typing import Any, Iterable, Optional, Tuple, TypeVar, Type, Sequence, Mapping, Dict, overload
 import re
-
+from collections.abc import Iterable, Mapping, Sequence
+from functools import reduce
+from typing import Any, TypeVar, overload
 
 _T = TypeVar("_T")
 
@@ -37,7 +37,8 @@ def log2(num: int) -> int:
 
 def bounding_power_of_2(num: int) -> int:
     """
-    Returns the minimal number of the form ``2**m`` such that it is greater or equal to ``n``.
+    Returns the minimal number of the form ``2**m``
+    such that it is greater or equal to ``n``.
     """
     if num == 1:
         return 1
@@ -51,15 +52,14 @@ def prod(seq: Iterable[int]) -> int:
 
 def string_matches_masks(
     s: str,
-    include_masks: Optional[Sequence[str]] = None,
-    exclude_masks: Optional[Sequence[str]] = None,
+    include_masks: Sequence[str] | None = None,
+    exclude_masks: Sequence[str] | None = None,
 ) -> bool:
     """
     Returns ``True`` if:
     1) ``s`` matches with at least one of regexps from ``include_masks`` (if there are any), and
     2) ``s`` doesn't match any regexp from ``exclude_masks``.
     """
-
     if include_masks is None:
         include_masks = []
     if exclude_masks is None:
@@ -80,7 +80,7 @@ def string_matches_masks(
     return True
 
 
-def normalize_object_sequence(objs: Sequence[Any], expected_cls: Type[_T]) -> Tuple[_T, ...]:
+def normalize_object_sequence(objs: Sequence[Any], expected_cls: type[_T]) -> tuple[_T, ...]:
     """
     For a sequence of objects, or a single object, checks that:
     1) the sequence is non-empty;
@@ -103,9 +103,7 @@ def normalize_object_sequence(objs: Sequence[Any], expected_cls: Type[_T]) -> Tu
 
 
 def max_factor(x: int, y: int) -> int:
-    """
-    Find the maximum `d` such that `x % d == 0` and `d <= y`.
-    """
+    """Find the maximum `d` such that `x % d == 0` and `d <= y`."""
     if x <= y:
         return x
 
@@ -122,7 +120,7 @@ def max_factor(x: int, y: int) -> int:
 
 def find_local_size(
     global_size: Sequence[int], max_local_sizes: Sequence[int], max_total_local_size: int
-) -> Tuple[int, ...]:
+) -> tuple[int, ...]:
     """
     Mimics the OpenCL local size finding algorithm.
     Returns the tuple of the same length as ``global_size``, with every element
@@ -131,7 +129,7 @@ def find_local_size(
     of ``max_local_sizes``, and their product is not greater than ``max_total_local_size``.
     """
     local_size = []
-    for gs, mls in zip(global_size, max_local_sizes):
+    for gs, mls in zip(global_size, max_local_sizes, strict=False):
         d = max_factor(gs, min(mls, max_total_local_size))
         max_total_local_size //= d
         local_size.append(d)
@@ -140,30 +138,29 @@ def find_local_size(
 
 
 def get_launch_size(
-    max_local_sizes: Tuple[int, ...],
+    max_local_sizes: tuple[int, ...],
     max_total_local_size: int,
     global_size: Sequence[int],
-    local_size: Optional[Sequence[int]] = None,
-) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+    local_size: Sequence[int] | None = None,
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
     """
     Constructs the grid and block tuples to launch a CUDA kernel
     based on the provided global and local sizes.
     """
-
     if len(global_size) > len(max_local_sizes):
         raise ValueError("Global size has too many dimensions")
 
     if local_size is not None:
         if len(local_size) != len(global_size):
             raise ValueError("Global/local work sizes have differing dimensions")
-        for gs, ls in zip(global_size, local_size):
+        for gs, ls in zip(global_size, local_size, strict=True):
             if gs % ls != 0:
                 raise ValueError("Global sizes must be multiples of corresponding local sizes")
         local_size_tuple = tuple(local_size)
     else:
         local_size_tuple = find_local_size(global_size, max_local_sizes, max_total_local_size)
 
-    grid_size = tuple(gs // ls for gs, ls in zip(global_size, local_size_tuple))
+    grid_size = tuple(gs // ls for gs, ls in zip(global_size, local_size_tuple, strict=True))
     return grid_size, local_size_tuple
 
 
@@ -172,7 +169,7 @@ _UPDATE_ERROR_TEMPLATE = "Cannot add an item '{name}' - it already exists in the
 
 def update_dict(
     d: Mapping[str, _T], new_d: Mapping[str, _T], error_msg: str = _UPDATE_ERROR_TEMPLATE
-) -> Dict[str, _T]:
+) -> dict[str, _T]:
     res = dict(d)
     for name, value in new_d.items():
         if name in d:

@@ -3,21 +3,10 @@ A class for a list that keeps itself sorted.
 Allows for fast element-based insertions/removals and element finding.
 """
 
-from bisect import bisect_left, bisect_right
-from typing import (
-    Union,
-    Generic,
-    Iterable,
-    Callable,
-    Any,
-    Optional,
-    Sequence,
-    TypeVar,
-    Iterator,
-    overload,
-)
 import sys
-
+from bisect import bisect_left, bisect_right
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from typing import Any, Generic, TypeVar, overload
 
 _T = TypeVar("_T")
 
@@ -33,14 +22,12 @@ class SortedList(Sequence[_T]):
         return len(self._items)
 
     @overload
-    def __getitem__(self, idx: int) -> _T:
-        ...
+    def __getitem__(self, idx: int) -> _T: ...
 
     @overload
-    def __getitem__(self, idx: slice) -> Sequence[_T]:
-        ...
+    def __getitem__(self, idx: slice) -> Sequence[_T]: ...
 
-    def __getitem__(self, idx: Union[int, slice]) -> Union[_T, Sequence[_T]]:
+    def __getitem__(self, idx: int | slice) -> _T | Sequence[_T]:
         return self._items[idx]
 
     def __iter__(self) -> Iterator[_T]:

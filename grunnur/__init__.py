@@ -1,26 +1,27 @@
+from . import dtypes, functions
 from .api import (
     API,
+    all_api_ids,
     cuda_api_id,
     opencl_api_id,
-    all_api_ids,
 )
-from .program import Program, CompilationError
-from .platform import Platform, PlatformFilter
+from .array import Array, ArrayLike, MultiArray
+from .array_metadata import ArrayMetadataLike
+from .buffer import Buffer
+from .context import Context
 from .device import Device, DeviceFilter
 from .device_discovery import (
     platforms_and_devices_by_mask,
     select_devices,
 )
-from .queue import Queue, MultiQueue
-from .array_metadata import ArrayMetadataLike
-from .array import Array, ArrayLike, MultiArray
-from .context import Context
-from .buffer import Buffer
-from .static import StaticKernel
-from .template import Template, DefTemplate, RenderError
 from .modules import Module, Snippet
-from .vsize import VirtualSizeError
+from .platform import Platform, PlatformFilter
+from .program import CompilationError, Program
+from .queue import MultiQueue, Queue
+from .static import StaticKernel
+from .template import DefTemplate, RenderError, Template
 from .virtual_alloc import VirtualManager
+from .vsize import VirtualSizeError
 
 
 def __getattr__(name: str) -> API:

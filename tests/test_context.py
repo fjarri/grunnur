@@ -2,13 +2,13 @@ import pytest
 
 from grunnur import (
     API,
-    Platform,
-    Device,
     Context,
+    Device,
+    DeviceFilter,
+    Platform,
+    PlatformFilter,
     Queue,
     opencl_api_id,
-    DeviceFilter,
-    PlatformFilter,
 )
 from grunnur.context import BoundMultiDevice
 
@@ -74,7 +74,8 @@ def test_from_backend_contexts_opencl(mock_backend_pyopencl):
         Context.from_backend_contexts([1])
 
 
-def test_from_backend_contexts_several_apis(mock_backend_pycuda, mock_backend_pyopencl):
+@pytest.mark.usefixtures("mock_backend_pycuda")
+def test_from_backend_contexts_several_apis(mock_backend_pyopencl):
     backend = mock_backend_pyopencl
     backend.add_platform_with_devices("Platform1", ["Device1"])
 
@@ -254,7 +255,7 @@ def test_device_shortcut(mock_backend_pyopencl):
     with pytest.raises(
         RuntimeError, match="The `device` shortcut only works for single-device contexts"
     ):
-        context.device
+        _ = context.device
 
     context = Context.from_devices([api.platforms[0].devices[2]])
     assert context.device.name == "Device3"

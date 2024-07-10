@@ -1,10 +1,18 @@
+"""
+An example comparing performance of executing a kernel on one device
+versus multiple devices simultaneously.
+"""
+
+# ruff: noqa: T201, S101
+
 import time
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy
-from grunnur import opencl_api as api
-from grunnur import Context, Queue, MultiQueue, Program, Array, MultiArray
 
+from grunnur import Array, Context, MultiArray, MultiQueue, Program, Queue
+from grunnur import opencl_api as api
 
 src = """
 KERNEL void sum(GLOBAL_MEM unsigned long *a, int pwr)
@@ -28,16 +36,17 @@ KERNEL void sum(GLOBAL_MEM unsigned long *a, int pwr)
 def calc_ref(
     x: "numpy.ndarray[Any, numpy.dtype[Any]]", pwr: int
 ) -> "numpy.ndarray[Any, numpy.dtype[Any]]":
+    """Reference function for the kernel."""
     m = numpy.uint64(2**32 - 65)
     res = x.copy()
-    for i in range(1, pwr):
+    for _ in range(1, pwr):
         res *= x
         res %= m
-        # res += 1
     return res
 
 
-def test_single_device(device_idx: int, full_len: int, benchmark: bool = False) -> None:
+def test_single_device(device_idx: int, full_len: int, *, benchmark: bool = False) -> None:
+    """Runs the kernel on a single device."""
     pwr = 50
 
     a = numpy.arange(full_len).astype(numpy.uint64)
@@ -62,7 +71,10 @@ def test_single_device(device_idx: int, full_len: int, benchmark: bool = False) 
         assert (a_ref == a_res).all()
 
 
-def test_multi_device(device_idxs: Sequence[int], full_len: int, benchmark: bool = False) -> None:
+def test_multi_device(
+    device_idxs: Sequence[int], full_len: int, *, benchmark: bool = False
+) -> None:
+    """Runs the kernel on a multiple devices."""
     pwr = 50
 
     a = numpy.arange(full_len).astype(numpy.uint64)

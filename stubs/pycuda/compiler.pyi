@@ -1,20 +1,23 @@
-from typing import Optional, Sequence, Tuple, Any, Union, Literal, overload
+from collections.abc import Sequence
+from typing import Any, Literal, Optional, overload
 
 import numpy
+
 from . import driver
 
 class SourceModule:
     def __init__(
         self,
         source: str,
-        options: Optional[Sequence[str]] = None,
+        *,
+        options: Sequence[str] | None = None,
         keep: bool = False,
         no_extern_c: bool = False,
-        cache_dir: Optional[str] = None,
+        cache_dir: str | None = None,
         include_dirs: Sequence[str] = [],
     ): ...
     def get_function(self, name: str) -> Function: ...
-    def get_global(self, name: str) -> Tuple[int, int]: ...
+    def get_global(self, name: str) -> tuple[int, int]: ...
 
 class Function:
     @overload
@@ -25,9 +28,9 @@ class Function:
     def get_attribute(self, attr: driver.function_attribute) -> Any: ...
     def __call__(
         self,
-        *args: Union[driver.DeviceAllocation, numpy.generic],
-        block: Tuple[int, ...],
-        grid: Tuple[int, ...],
-        stream: Optional[driver.Stream] = None,
+        *args: driver.DeviceAllocation | numpy.generic,
+        block: tuple[int, ...],
+        grid: tuple[int, ...],
+        stream: driver.Stream | None = None,
         shared: int = 0,
     ) -> None: ...

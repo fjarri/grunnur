@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from enum import Enum, Flag
-from typing import List, Any, Sequence, Optional, Union
+from typing import Any
 
 import numpy
 
@@ -8,9 +9,9 @@ class Platform:
     vendor: str
     version: str
 
-    def get_devices(self) -> List[Device]: ...
+    def get_devices(self) -> list[Device]: ...
 
-class device_type(Enum):
+class device_type(Enum):  # noqa: N801
     CPU = ...
     GPU = ...
 
@@ -19,7 +20,7 @@ class Device:
     name: str
     type: device_type
     max_work_group_size: int
-    max_work_item_sizes: List[int]
+    max_work_item_sizes: list[int]
     address_bits: int
     extensions: str
     compute_capability_major_nv: int
@@ -29,7 +30,7 @@ class Device:
     max_compute_units: int
 
 class Context:
-    devices: List[Device]
+    devices: list[Device]
 
     def __init__(self, devices: Sequence[Device]): ...
 
@@ -38,11 +39,11 @@ class Program:
     def build(
         self,
         options: Sequence[str] = [],
-        devices: Optional[Sequence[Device]] = None,
-        cache_dir: Optional[str] = None,
+        devices: Sequence[Device] | None = None,
+        cache_dir: str | None = None,
     ) -> None: ...
 
-class kernel_work_group_info:
+class kernel_work_group_info:  # noqa: N801
     WORK_GROUP_SIZE: Any
 
 class Kernel:
@@ -50,18 +51,19 @@ class Kernel:
         self,
         queue: CommandQueue,
         global_size: Sequence[int],
-        local_size: Optional[Sequence[int]],
-        *args: Union[Buffer, numpy.generic],
+        local_size: Sequence[int] | None,
+        *args: Buffer | numpy.generic,
     ) -> Event: ...
     def get_work_group_info(self, param: kernel_work_group_info, device: Device) -> Any: ...
 
 class Event: ...
 
-def get_platforms() -> List[Platform]: ...
+def get_platforms() -> list[Platform]: ...
 
-class RuntimeError(Exception): ...
+# That's what it's called in PyOpenCL, can't help it.
+class RuntimeError(Exception): ...  # noqa: A001
 
-class mem_flags(Flag):
+class mem_flags(Flag):  # noqa: N801
     _NONE = ...
     READ_WRITE = ...
     ALLOC_HOST_PTR = ...
@@ -69,18 +71,22 @@ class mem_flags(Flag):
 class Buffer:
     size: int
     offset: int
-    def __init__(self, context: Context, flags: mem_flags = mem_flags._NONE, size: int = 0): ...
+    def __init__(self, context: Context, flags: mem_flags = mem_flags._NONE, size: int = 0): ...  # noqa: PYI011, SLF001
     def get_sub_region(
-        self, origin: int, size: int, flags: mem_flags = mem_flags._NONE
+        self,
+        origin: int,
+        size: int,
+        flags: mem_flags = mem_flags._NONE,  # noqa: PYI011, SLF001
     ) -> Buffer: ...
 
 class CommandQueue:
-    def __init__(self, context: Context, device: Optional[Device] = None): ...
+    def __init__(self, context: Context, device: Device | None = None): ...
     def finish(self) -> None: ...
 
 def enqueue_copy(
     queue: CommandQueue,
-    dest: Union[Buffer, "numpy.ndarray[Any, numpy.dtype[Any]]"],
-    src: Union[Buffer, "numpy.ndarray[Any, numpy.dtype[Any]]"],
+    dest: Buffer | numpy.ndarray[Any, numpy.dtype[Any]],
+    src: Buffer | numpy.ndarray[Any, numpy.dtype[Any]],
+    *,
     is_blocking: bool = True,
 ) -> None: ...

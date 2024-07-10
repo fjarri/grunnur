@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import API, Platform, Device, DeviceFilter, opencl_api_id, cuda_api_id
+from grunnur import API, Device, DeviceFilter, Platform, cuda_api_id, opencl_api_id
 from grunnur.adapter_base import DeviceType
 from grunnur.testing import PyCUDADeviceInfo, PyOpenCLDeviceInfo
 
@@ -83,7 +83,8 @@ def test_eq(mock_backend):
     d0_v2 = Device.from_index(platform, 0)
     d1 = Device.from_index(platform, 1)
 
-    assert d0_v1 is not d0_v2 and d0_v1 == d0_v2
+    assert d0_v1 is not d0_v2
+    assert d0_v1 == d0_v2
     assert d0_v1 != d1
 
 
@@ -114,7 +115,7 @@ def test_attributes(mock_backend):
 
 def test_device_parameters_opencl(mock_backend_pyopencl):
     device_info = PyOpenCLDeviceInfo(
-        type=DeviceType.GPU,
+        type_=DeviceType.GPU,
         max_work_group_size=512,
         max_work_item_sizes=[512, 512, 512],
         local_mem_size=32 * 1024,
@@ -138,7 +139,7 @@ def test_device_parameters_opencl(mock_backend_pyopencl):
 
 
 def test_device_parameters_opencl_apple_cpu(mock_backend_pyopencl):
-    device_info = PyOpenCLDeviceInfo(type=DeviceType.CPU, max_work_group_size=512)
+    device_info = PyOpenCLDeviceInfo(type_=DeviceType.CPU, max_work_group_size=512)
 
     mock_backend_pyopencl.add_platform_with_devices("Apple", [device_info])
     api = API.from_api_id(mock_backend_pyopencl.api_id)
@@ -149,7 +150,7 @@ def test_device_parameters_opencl_apple_cpu(mock_backend_pyopencl):
 
 
 def test_device_parameters_opencl_cpu(mock_backend_pyopencl):
-    device_info = PyOpenCLDeviceInfo(type=DeviceType.CPU)
+    device_info = PyOpenCLDeviceInfo(type_=DeviceType.CPU)
 
     mock_backend_pyopencl.add_devices([device_info])
     api = API.from_api_id(mock_backend_pyopencl.api_id)

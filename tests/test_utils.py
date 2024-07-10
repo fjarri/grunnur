@@ -1,36 +1,38 @@
+import re
+
 import pytest
 
 from grunnur.utils import (
-    all_same,
     all_different,
-    min_blocks,
-    log2,
+    all_same,
     bounding_power_of_2,
-    prod,
-    string_matches_masks,
-    normalize_object_sequence,
-    max_factor,
     find_local_size,
     get_launch_size,
+    log2,
+    max_factor,
+    min_blocks,
+    normalize_object_sequence,
+    prod,
+    string_matches_masks,
     update_dict,
 )
 
 
 def test_all_same():
-    assert all_same([1, 1, 3]) == False
-    assert all_same([1, 1, 1]) == True
+    assert not all_same([1, 1, 3])
+    assert all_same([1, 1, 1])
 
 
 def test_all_different():
-    assert all_different([1, 1, 3]) == False
-    assert all_different([1, 2, 3]) == True
+    assert not all_different([1, 1, 3])
+    assert all_different([1, 2, 3])
 
 
 def test_min_blocls():
     assert min_blocks(19, 10) == 2
     assert min_blocks(20, 10) == 2
     assert min_blocks(21, 10) == 3
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="The length must be positive"):
         assert min_blocks(0, 10)
 
 
@@ -67,15 +69,23 @@ def test_normalize_object_sequence():
     assert normalize_object_sequence([1, 2], int) == (1, 2)
 
     # Empty sequence
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="The iterable of base objects for the context cannot be empty"
+    ):
         normalize_object_sequence([], str)
 
     # Some of the objects are equal
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="All base objects must be different"):
         normalize_object_sequence([1, 2, 1], int)
 
     # Wrong type
-    with pytest.raises(TypeError):
+    with pytest.raises(
+        TypeError,
+        match=re.escape(
+            "The iterable must contain only subclasses of <class 'str'>, "
+            "got [<class 'str'>, <class 'int'>]"
+        ),
+    ):
         normalize_object_sequence(["1", 2], str)
 
 

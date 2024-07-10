@@ -1,23 +1,21 @@
-import pytest
 import numpy
+import pytest
 
 from grunnur import (
-    cuda_api_id,
-    opencl_api_id,
+    API,
+    Array,
+    Context,
+    MultiArray,
+    MultiQueue,
+    Queue,
     StaticKernel,
     VirtualSizeError,
-    API,
-    Context,
-    Queue,
-    MultiQueue,
-    Array,
-    MultiArray,
+    cuda_api_id,
+    opencl_api_id,
 )
 from grunnur.template import DefTemplate
-from grunnur.testing import MockKernel, MockDefTemplate, PyCUDADeviceInfo, PyOpenCLDeviceInfo
-
+from grunnur.testing import MockDefTemplate, MockKernel, PyCUDADeviceInfo, PyOpenCLDeviceInfo
 from test_program import _test_constant_memory
-
 
 SRC = """
 KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b)
@@ -105,9 +103,7 @@ def test_reserved_names(mock_context):
     kernel = MockKernel("test", [None])
     src = MockDefTemplate(kernels=[kernel])
     with pytest.raises(ValueError, match="The global name 'static' is reserved in static kernels"):
-        multiply = StaticKernel(
-            [mock_context.device], src, "test", (1024,), render_globals=dict(static=1)
-        )
+        StaticKernel([mock_context.device], src, "test", (1024,), render_globals=dict(static=1))
 
 
 def test_zero_max_total_local_size(mock_context):
@@ -117,7 +113,7 @@ def test_zero_max_total_local_size(mock_context):
         VirtualSizeError,
         match="The kernel requires too much resourses to be executed with any local size",
     ):
-        multiply = StaticKernel([mock_context.device], src, "test", (1024,))
+        StaticKernel([mock_context.device], src, "test", (1024,))
 
 
 def test_virtual_sizes_error_propagated(mock_backend_pycuda):
@@ -143,18 +139,14 @@ def test_virtual_sizes_error_propagated(mock_backend_pycuda):
     src = MockDefTemplate(kernels=[kernel])
 
     # Just enough to fit in the grid limits
-    multiply = StaticKernel(
-        [context.device], src, "test", (2**14, 2**10, 2**8), (2**4, 1, 1)
-    )
+    StaticKernel([context.device], src, "test", (2**14, 2**10, 2**8), local_size=(2**4, 1, 1))
 
     # Global size is too large to fit on the device,
     # so virtual size finding fails and the error is propagated to the user.
     with pytest.raises(
         VirtualSizeError, match="Bounding global size \\[16384, 2048, 256\\] is too large"
     ):
-        multiply = StaticKernel(
-            [context.device], src, "test", (2**14, 2**11, 2**8), (2**4, 1, 1)
-        )
+        StaticKernel([context.device], src, "test", (2**14, 2**11, 2**8), local_size=(2**4, 1, 1))
 
 
 def test_builtin_globals(mock_backend_pycuda):

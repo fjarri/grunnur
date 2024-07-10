@@ -1,10 +1,10 @@
 import numpy
 import pytest
 
-from grunnur import API, Context, Buffer, Queue, cuda_api_id, opencl_api_id
+from grunnur import API, Buffer, Context, Queue, cuda_api_id, opencl_api_id
 
 
-def test_allocate_and_copy(mock_or_real_context):
+def test_allocate_and_copy(mock_or_real_context):  # noqa: PLR0915
     context, mocked = mock_or_real_context
 
     length = 100
@@ -87,6 +87,14 @@ def test_allocate_and_copy(mock_or_real_context):
     assert (res2[150:] == 1).all()
 
 
+def test_subregion_overflow(mock_context):
+    buf = Buffer.allocate(mock_context.device, 100)
+    with pytest.raises(
+        ValueError, match="The requested subregion extends beyond the buffer length"
+    ):
+        buf.get_sub_region(50, 70)
+
+
 def test_migrate_on_copy(monkeypatch, mock_4_device_context):
     context = mock_4_device_context
     size = 100
@@ -121,7 +129,8 @@ def test_flags(mock_backend_pyopencl):
     backend.add_platform_with_devices("Apple", ["GeForce", "Foo", "Bar"])
     backend.add_platform_with_devices("Baz", ["GeForce", "Foo", "Bar"])
 
-    # Multi-device on Apple platform with one of the devices being GeForce: need special Buffer flags
+    # Multi-device on Apple platform with one of the devices being GeForce:
+    # need special Buffer flags
     api = API.from_api_id(backend.api_id)
     context = Context.from_devices([api.platforms[0].devices[0], api.platforms[0].devices[1]])
     buf = Buffer.allocate(context.devices[0], 100)

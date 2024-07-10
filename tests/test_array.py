@@ -1,7 +1,7 @@
 import numpy
 import pytest
 
-from grunnur import Array, MultiArray, Buffer, Queue, MultiQueue
+from grunnur import Array, Buffer, MultiArray, MultiQueue, Queue
 from grunnur.array_metadata import ArrayMetadata
 
 
@@ -154,6 +154,12 @@ def test_equal_splay(mock_or_real_multi_device_context):
     arr_dev = MultiArray.from_host(mqueue, arr)
     assert (arr_dev.subarrays[device0].get(mqueue.queues[device0]) == arr[:51]).all()
     assert (arr_dev.subarrays[device1].get(mqueue.queues[device1]) == arr[51:]).all()
+
+    message = "The number of devices to splay to cannot be greater than the outer array dimension"
+    with pytest.raises(ValueError, match=message):
+        MultiArray.from_host(
+            mqueue, numpy.arange(101).reshape(1, 101), splay=MultiArray.EqualSplay()
+        )
 
 
 def test_clone_splay(mock_or_real_multi_device_context):

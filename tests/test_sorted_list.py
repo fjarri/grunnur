@@ -13,7 +13,7 @@ def test_basics():
 def test_index():
     s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     assert s.index(4) == 3
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="0 is not in list"):
         s.index(0)
 
 
@@ -38,5 +38,5 @@ def test_remove():
 def test_argfind_ge():
     s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     assert s.argfind_ge(8) == 5
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="No item found with key at or above: 10"):
         s.argfind_ge(10)
