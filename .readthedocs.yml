@@ -5,6 +5,14 @@ version: 2
 sphinx:
   configuration: docs/conf.py
 
+# Temporary pinning the version to make RTD use the new Docker image
+# to avoid problems with an old OpenSSL.
+# See https://github.com/readthedocs/readthedocs.org/issues/10290
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.10"
+
 # Build documentation with MkDocs
 #mkdocs:
 #  configuration: mkdocs.yml
@@ -14,7 +22,6 @@ formats: all
 
 # Optionally set the version of Python and requirements required to build your docs
 python:
-  version: 3.8
   install:
     - method: pip
       path: .
