@@ -109,11 +109,7 @@ class API:
         return Platform.all(self)
 
     def __eq__(self, other: object) -> bool:
-        return (
-            type(self) == type(other)
-            and isinstance(other, API)
-            and self._api_adapter == other._api_adapter
-        )
+        return isinstance(other, API) and self._api_adapter == other._api_adapter
 
     def __hash__(self) -> int:
         return hash((type(self), self._api_adapter))

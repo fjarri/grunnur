@@ -117,11 +117,7 @@ class Device:
         self._params = None
 
     def __eq__(self, other: object) -> bool:
-        return (
-            type(self) == type(other)
-            and isinstance(other, Device)
-            and self._device_adapter == other._device_adapter
-        )
+        return isinstance(other, Device) and self._device_adapter == other._device_adapter
 
     def __hash__(self) -> int:
         return hash((type(self), self._device_adapter))

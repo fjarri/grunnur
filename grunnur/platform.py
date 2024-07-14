@@ -109,11 +109,7 @@ class Platform:
         return Device.all(self)
 
     def __eq__(self, other: object) -> bool:
-        return (
-            type(self) == type(other)
-            and isinstance(other, Platform)
-            and self._platform_adapter == other._platform_adapter
-        )
+        return isinstance(other, Platform) and self._platform_adapter == other._platform_adapter
 
     def __hash__(self) -> int:
         return hash((type(self), self._platform_adapter))
