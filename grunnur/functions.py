@@ -46,9 +46,20 @@ def cast(in_dtype: numpy.dtype[Any], out_dtype: numpy.dtype[Any]) -> Module:
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that casts values of ``in_dtype`` to ``out_dtype``.
     """
+    upcast_to_complex = not dtypes.is_complex(in_dtype) and dtypes.is_complex(out_dtype)
+    same_space = dtypes.is_complex(out_dtype) == dtypes.is_complex(in_dtype)
+    if not upcast_to_complex and not same_space:
+        raise ValueError(f"cast from {in_dtype} to {out_dtype} is not supported")
+
     return Module(
         TEMPLATE.get_def("cast"),
-        render_globals=dict(dtypes=dtypes, out_dtype=out_dtype, in_dtype=in_dtype),
+        render_globals=dict(
+            dtypes=dtypes,
+            out_dtype=out_dtype,
+            in_dtype=in_dtype,
+            upcast_to_complex=upcast_to_complex,
+            same_space=same_space,
+        ),
     )
 
 

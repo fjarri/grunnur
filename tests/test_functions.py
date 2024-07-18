@@ -381,7 +381,10 @@ def test_cast_mocked(mock_context, out_code, in_codes):
 def test_cast_complex_to_real(context):
     out_dtype = numpy.float32
     in_dtypes = [numpy.complex64]
-    with pytest.raises(RenderError, match="ValueError"):
+    message = re.escape(
+        "cast from <class 'numpy.complex64'> " "to <class 'numpy.float32'> is not supported"
+    )
+    with pytest.raises(ValueError, match=message):
         check_func(
             context,
             functions.cast(in_dtypes[0], out_dtype),
