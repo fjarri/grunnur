@@ -42,7 +42,8 @@ class Array:
         """
         Creates an array object from a host array.
 
-        :param queue: the queue to use for the transfer.
+        :param queue_or_device: the queue to use for the transfer, or the target device.
+            In the latter case an operation will be performed synchronously.
         :param host_arr: the source array.
         """
         if isinstance(queue_or_device, BoundDevice):
@@ -51,6 +52,8 @@ class Array:
             queue = queue_or_device
         array = cls.empty(queue.device, host_arr.shape, host_arr.dtype)
         array.set(queue, host_arr)
+        if isinstance(queue_or_device, BoundDevice):
+            queue.synchronize()
         return array
 
     @classmethod
