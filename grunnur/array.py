@@ -87,6 +87,11 @@ class Array:
 
         return cls(metadata, data)
 
+    @classmethod
+    def empty_like(cls, device: BoundDevice, array_like: ArrayMetadataLike) -> Array:
+        """Creates an empty array with the same shape and dtype as ``array_like``."""
+        return cls.empty(device, array_like.shape, array_like.dtype)
+
     def __init__(self, array_metadata: ArrayMetadata, data: Buffer):
         self._metadata = array_metadata
 
