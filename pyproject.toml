@@ -62,6 +62,9 @@ source-includes = [
 requires = ["pdm-pep517"]
 build-backend = "pdm.pep517.api"
 
+[tool.pytest.ini_options]
+addopts = "-p no:pytest_grunnur"
+
 [tool.mypy]
 strict = true
 warn_unreachable = true
