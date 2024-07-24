@@ -60,6 +60,9 @@ class ArrayMetadata:
         shape = tuple(shape)
         dtype = _normalize_type(dtype)
 
+        if len(shape) == 0:
+            raise ValueError("Array shape cannot be an empty sequence")
+
         default_strides = _get_strides(shape, dtype.itemsize)
 
         if strides is None:
