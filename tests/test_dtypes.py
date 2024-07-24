@@ -4,11 +4,15 @@ import numpy
 import pytest
 
 from grunnur import dtypes
+from grunnur.dtypes import FieldInfo, _WrappedType
 from grunnur.modules import render_with_modules
 
 
 def test_ctype_builtin():
     assert dtypes.ctype(numpy.int32) == "int"
+
+    with pytest.raises(ValueError, match="object is not a built-in data type"):
+        dtypes.ctype(numpy.object_)
 
 
 def test_is_complex():
@@ -104,26 +108,54 @@ def test_c_constant():
         dtypes.c_constant(numpy.array(["a", "b"]))
 
 
-def test__align_simple():
+def test_align_builtin():
     dtype = numpy.dtype("int32")
-    res = dtypes._align(dtype)
-    ref = dtypes.WrappedType.non_struct(dtype, dtype.itemsize)
-    assert res == ref
+    assert dtypes.align(dtype) == dtype
 
 
-def test__align_array():
+def test_wrap_builtin():
+    dtype = numpy.dtype("int32")
+    ref = _WrappedType(
+        dtype=dtype,
+        alignment=4,
+        wrapped_fields={},
+        explicit_alignment=None,
+        explicit_field_alignments={},
+    )
+    assert _WrappedType.wrap(dtype) == ref
+
+
+def test_align_array():
     dtype = numpy.dtype("int32")
     dtype_arr = numpy.dtype((dtype, 3))
-    res = dtypes._align(dtype_arr)
-    ref = dtypes.WrappedType.non_struct(dtype_arr, dtype.itemsize)
-    assert res == ref
+    assert dtypes.align(dtype_arr) == dtype_arr
 
 
-def test__align_non_aligned_struct():
+def test_wrap_array():
+    dtype = numpy.dtype("int32")
+    dtype_arr = numpy.dtype((dtype, 3))
+    ref = _WrappedType(
+        dtype=dtype_arr,
+        alignment=4,
+        wrapped_fields={},
+        explicit_alignment=None,
+        explicit_field_alignments={},
+    )
+    assert _WrappedType.wrap(dtype_arr) == ref
+
+
+def test_align_sets_aligned_attribute():
     dtype = numpy.dtype(dict(names=["x", "y", "z"], formats=[numpy.int8, numpy.int16, numpy.int32]))
-    res = dtypes._align(dtype)
+    res = dtypes.align(dtype)
 
-    dtype_aligned = numpy.dtype(
+    assert res.isalignedstruct
+    assert dict(res.fields) == dict(x=(numpy.int8, 0), y=(numpy.int16, 2), z=(numpy.int32, 4))
+    assert res.itemsize == 8
+    assert res.alignment == 4
+
+
+def test_wrap_aligned_struct():
+    dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],
             formats=[numpy.int8, numpy.int16, numpy.int32],
@@ -133,73 +165,21 @@ def test__align_non_aligned_struct():
         )
     )
 
-    wt_x = dtypes.WrappedType.non_struct(numpy.dtype("int8"), 1)
-    wt_y = dtypes.WrappedType.non_struct(numpy.dtype("int16"), 2)
-    wt_z = dtypes.WrappedType.non_struct(numpy.dtype("int32"), 4)
-    ref = dtypes.WrappedType(
-        dtype_aligned,
-        4,
+    wt_x = _WrappedType.wrap(numpy.dtype("int8"))
+    wt_y = _WrappedType.wrap(numpy.dtype("int16"))
+    wt_z = _WrappedType.wrap(numpy.dtype("int32"))
+    ref = _WrappedType(
+        dtype=dtype,
+        alignment=4,
         explicit_alignment=None,
         wrapped_fields=dict(x=wt_x, y=wt_y, z=wt_z),
-        field_alignments=dict(x=None, y=None, z=None),
+        explicit_field_alignments=dict(x=None, y=None, z=None),
     )
-    assert res == ref
+    assert _WrappedType.wrap(dtype) == ref
 
 
-def test__align_aligned_struct():
-    dtype_aligned = numpy.dtype(
-        dict(
-            names=["x", "y", "z"],
-            formats=[numpy.int8, numpy.int16, numpy.int32],
-            offsets=[0, 2, 4],
-            itemsize=8,
-            aligned=True,
-        )
-    )
-
-    res = dtypes._align(dtype_aligned)
-
-    wt_x = dtypes.WrappedType.non_struct(numpy.dtype("int8"), 1)
-    wt_y = dtypes.WrappedType.non_struct(numpy.dtype("int16"), 2)
-    wt_z = dtypes.WrappedType.non_struct(numpy.dtype("int32"), 4)
-    ref = dtypes.WrappedType(
-        dtype_aligned,
-        4,
-        explicit_alignment=None,
-        wrapped_fields=dict(x=wt_x, y=wt_y, z=wt_z),
-        field_alignments=dict(x=None, y=None, z=None),
-    )
-    assert res == ref
-
-
-def test__align_aligned_struct_custom_itemsize():
-    dtype_aligned = numpy.dtype(
-        dict(
-            names=["x", "y", "z"],
-            formats=[numpy.int8, numpy.int16, numpy.int32],
-            offsets=[0, 2, 4],
-            itemsize=16,
-            aligned=True,
-        )
-    )
-
-    res = dtypes._align(dtype_aligned)
-
-    wt_x = dtypes.WrappedType.non_struct(numpy.dtype("int8"), 1)
-    wt_y = dtypes.WrappedType.non_struct(numpy.dtype("int16"), 2)
-    wt_z = dtypes.WrappedType.non_struct(numpy.dtype("int32"), 4)
-    ref = dtypes.WrappedType(
-        dtype_aligned,
-        16,
-        explicit_alignment=16,
-        wrapped_fields=dict(x=wt_x, y=wt_y, z=wt_z),
-        field_alignments=dict(x=None, y=None, z=None),
-    )
-    assert res == ref
-
-
-def test__align_custom_field_offsets():
-    dtype_aligned = numpy.dtype(
+def test_align_ignores_offsets_and_itemsize():
+    dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],
             formats=[numpy.int8, numpy.int16, numpy.int32],
@@ -209,34 +189,62 @@ def test__align_custom_field_offsets():
         )
     )
 
-    res = dtypes._align(dtype_aligned)
+    # Aligning will ignore all existing offets and itemsizes,
+    # so the itemsize will be reset to 8 and alignment to 4.
+    res = dtypes.align(dtype)
 
-    wt_x = dtypes.WrappedType.non_struct(numpy.dtype("int8"), 1)
-    wt_y = dtypes.WrappedType.non_struct(numpy.dtype("int16"), 2)
-    wt_z = dtypes.WrappedType.non_struct(numpy.dtype("int32"), 4)
-    ref = dtypes.WrappedType(
-        dtype_aligned,
-        16,
-        explicit_alignment=None,
-        wrapped_fields=dict(x=wt_x, y=wt_y, z=wt_z),
-        field_alignments=dict(x=None, y=4, z=16),
-    )
-    assert res == ref
+    assert res.isalignedstruct
+    assert dict(res.fields) == dict(x=(numpy.int8, 0), y=(numpy.int16, 2), z=(numpy.int32, 4))
+    assert res.itemsize == 8
+    assert res.alignment == 4
 
 
-def test__align_aligned_struct_invalid_itemsize():
-    dtype_aligned = numpy.dtype(
+def test_wrap_custom_offsets_and_itemsize():
+    dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],
             formats=[numpy.int8, numpy.int16, numpy.int32],
-            offsets=[0, 2, 4],
-            itemsize=20,  # not a power of 2, an error should be raised
+            offsets=[0, 4, 16],
+            itemsize=32,
             aligned=True,
         )
     )
 
-    with pytest.raises(ValueError, match="Invalid non-default itemsize for dtype"):
-        dtypes._align(dtype_aligned)
+    wt_x = _WrappedType.wrap(numpy.dtype("int8"))
+    wt_y = _WrappedType.wrap(numpy.dtype("int16"))
+    wt_z = _WrappedType.wrap(numpy.dtype("int32"))
+
+    # The offsets & itemsize are possible to achieve with alignments,
+    # so this won't fail.
+    res = _WrappedType.wrap(dtype)
+    ref = _WrappedType(
+        dtype=dtype,
+        alignment=16,
+        explicit_alignment=None,
+        wrapped_fields=dict(x=wt_x, y=wt_y, z=wt_z),
+        explicit_field_alignments=dict(x=None, y=4, z=16),
+    )
+    assert res == ref
+
+
+def test_wrap_invalid_itemsize():
+    dtype = numpy.dtype(
+        dict(
+            names=["x", "y", "z"],
+            formats=[numpy.int8, numpy.int16, numpy.int32],
+            offsets=[0, 2, 4],
+            # This itemsize is not the implicit one based on the field sizes and alignments,
+            # and is not a power of 2, so it cannot be caused by an explicit alignment.
+            # An error should be raised.
+            itemsize=20,
+            aligned=True,
+        )
+    )
+
+    with pytest.raises(
+        ValueError, match="An itemsize that requires an explicit alignment must be a power of 2"
+    ):
+        _WrappedType.wrap(dtype)
 
 
 def test_align_nested():
@@ -255,28 +263,33 @@ def test_align_nested():
             formats=[numpy.int32, (dtype_nested, (2,)), (numpy.int16, (3,))],
             offsets=[0, 4, 8],
             itemsize=16,
+            aligned=True,
         )
     )
 
     dtype_aligned = dtypes.align(dtype)
 
-    assert dtype_aligned.isalignedstruct
     assert dtype_aligned == dtype_ref
 
 
-def test_align_preserve_nested_aligned():
+def test_align_nested_ignores_itemsize():
     dtype_int3 = numpy.dtype(
         dict(names=["x"], formats=[(numpy.int32, 3)], itemsize=16, aligned=True)
     )
+    dtype = numpy.dtype(
+        dict(names=["x", "y", "z"], formats=[numpy.int32, dtype_int3, numpy.int32], aligned=True)
+    )
 
-    dtype = numpy.dtype(dict(names=["x", "y", "z"], formats=[numpy.int32, dtype_int3, numpy.int32]))
-
+    # Alignment will ignore the existing itemsize and pack the components tighter.
+    dtype_int3_ref = numpy.dtype(
+        dict(names=["x"], formats=[(numpy.int32, 3)], itemsize=12, aligned=True)
+    )
     dtype_ref = numpy.dtype(
         dict(
             names=["x", "y", "z"],
-            formats=[numpy.int32, dtype_int3, numpy.int32],
-            offsets=[0, 16, 32],
-            itemsize=48,
+            formats=[numpy.int32, dtype_int3_ref, numpy.int32],
+            offsets=[0, 4, 16],
+            itemsize=20,
             aligned=True,
         )
     )
@@ -357,21 +370,6 @@ def test_ctype_struct_nested():
     )
 
 
-def test_ctype_to_ctype_struct():
-    # Checks that ctype() on an unknown type calls ctype_struct()
-    dtype = dtypes.align(numpy.dtype([("val1", numpy.int32), ("val2", numpy.float32)]))
-    ctype = dtypes.ctype(dtype)
-    src = render_with_modules("${ctype}", render_globals=dict(ctype=ctype)).strip()
-
-    assert src == (
-        "typedef struct _mod__module_0__ {\n"
-        "    int  val1;\n"
-        "    float  val2;\n"
-        "}  _mod__module_0_;\n\n\n"
-        "_mod__module_0_"
-    )
-
-
 def test_ctype_struct_aligned():
     dtype = numpy.dtype(
         dict(
@@ -382,7 +380,7 @@ def test_ctype_struct_aligned():
             aligned=True,
         )
     )
-    ctype = dtypes.ctype_struct(dtype)
+    ctype = dtypes.ctype(dtype)
     src = render_with_modules("${ctype}", render_globals=dict(ctype=ctype)).strip()
     assert src == (
         "typedef struct _mod__module_0__ {\n"
@@ -394,42 +392,20 @@ def test_ctype_struct_aligned():
     )
 
 
-def test_ctype_struct_ignore_alignment():
-    dtype = numpy.dtype(
-        dict(
-            names=["x", "y", "z"],
-            formats=[numpy.int8, numpy.int16, numpy.int32],
-            offsets=[0, 4, 16],
-            itemsize=64,
-            aligned=True,
-        )
-    )
-    ctype = dtypes.ctype_struct(dtype, ignore_alignment=True)
-    src = render_with_modules("${ctype}", render_globals=dict(ctype=ctype)).strip()
-    assert src == (
-        "typedef struct _mod__module_0__ {\n"
-        "    char  x;\n"
-        "    short  y;\n"
-        "    int  z;\n"
-        "}  _mod__module_0_;\n\n\n"
-        "_mod__module_0_"
-    )
-
-
-def test_ctype_struct_checks_alignment():
+def test_ctype_checks_alignment():
     dtype = numpy.dtype(dict(names=["x", "y", "z"], formats=[numpy.int8, numpy.int16, numpy.int32]))
-    with pytest.raises(ValueError, match="The data type must be an aligned struct"):
-        dtypes.ctype_struct(dtype)
+    message = re.escape(
+        "Failed to find alignment for field `y`: "
+        "Field offset (1) must be a multiple of the base alignment (2)."
+    )
+    with pytest.raises(ValueError, match=message):
+        dtypes.ctype(dtype)
 
 
-def test_ctype_struct_for_non_struct():
+def test_ctype_for_array():
     dtype = numpy.dtype((numpy.int32, 3))
     with pytest.raises(ValueError, match="The data type cannot be an array"):
-        dtypes.ctype_struct(dtype)
-
-    # ctype_struct() is not applicable for simple types
-    with pytest.raises(ValueError, match="The data type must be a structure"):
-        dtypes.ctype_struct(numpy.int32)
+        dtypes.ctype(dtype)
 
 
 def test_flatten_dtype():
@@ -444,21 +420,22 @@ def test_flatten_dtype():
 
     res = dtypes.flatten_dtype(dtype)
     ref = [
-        (["pad"], numpy.dtype("int32")),
-        (["struct_arr", 0, "val1"], numpy.dtype("int8")),
-        (["struct_arr", 0, "pad"], numpy.dtype("int8")),
-        (["struct_arr", 1, "val1"], numpy.dtype("int8")),
-        (["struct_arr", 1, "pad"], numpy.dtype("int8")),
-        (["regular_arr", 0], numpy.dtype("int16")),
-        (["regular_arr", 1], numpy.dtype("int16")),
-        (["regular_arr", 2], numpy.dtype("int16")),
+        FieldInfo(path=["pad"], dtype=numpy.dtype("int32"), offset=0),
+        FieldInfo(path=["struct_arr", 0, "val1"], dtype=numpy.dtype("int8"), offset=4),
+        FieldInfo(path=["struct_arr", 0, "pad"], dtype=numpy.dtype("int8"), offset=5),
+        FieldInfo(path=["struct_arr", 1, "val1"], dtype=numpy.dtype("int8"), offset=6),
+        FieldInfo(path=["struct_arr", 1, "pad"], dtype=numpy.dtype("int8"), offset=7),
+        FieldInfo(path=["regular_arr", 0], dtype=numpy.dtype("int16"), offset=8),
+        FieldInfo(path=["regular_arr", 1], dtype=numpy.dtype("int16"), offset=10),
+        FieldInfo(path=["regular_arr", 2], dtype=numpy.dtype("int16"), offset=12),
     ]
 
     assert res == ref
 
 
 def test_c_path():
-    assert dtypes.c_path(["struct_arr", 0, "val1"]) == "struct_arr[0].val1"
+    field_info = FieldInfo(path=["struct_arr", 0, "val1"], dtype=numpy.int8, offset=0)
+    assert field_info.c_path == "struct_arr[0].val1"
 
 
 def test_extract_field():

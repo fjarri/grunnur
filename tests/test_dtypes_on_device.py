@@ -3,49 +3,59 @@ import numpy
 from grunnur import Array, Program, Queue, dtypes
 
 
-def check_struct_fill(context, dtype):
-    """
-    Fill every field of the given ``dtype`` with its number and check the results.
-    This helps detect issues with offsets in the struct.
-    """
-    struct = dtypes.ctype_struct(dtype)
+def check_offsets_on_device(queue, dtype):
+    flat_dtype = dtypes.flatten_dtype(dtype)
 
     program = Program(
-        [context.device],
+        [queue.device],
         """
-        KERNEL void test(GLOBAL_MEM ${struct} *dest, GLOBAL_MEM int *itemsizes)
+        #define my_offsetof(type, field) ((size_t)(&((type *)0)->field))
+
+        KERNEL void test(GLOBAL_MEM int *dest)
         {
-            const SIZE_T i = get_global_id(0);
-            ${struct} res;
+            ${struct} temp;
 
-            %for i, field_info in enumerate(dtypes.flatten_dtype(dtype)):
-            res.${dtypes.c_path(field_info[0])} = ${i};
+            %for i, field_info in enumerate(flat_dtype):
+            dest[${i}] = (size_t)&(temp.${field_info.c_path}) - (size_t)&temp;
             %endfor
-
-            dest[i] = res;
-            itemsizes[i] = sizeof(${struct});
+            dest[${len(flat_dtype)}] = sizeof(${struct});
         }
         """,
-        render_globals=dict(struct=struct, dtypes=dtypes, dtype=dtype),
+        render_globals=dict(struct=dtypes.ctype(dtype), dtype=dtype, flat_dtype=flat_dtype),
     )
 
+    offsets_dev = Array.empty(queue.device, (len(flat_dtype) + 1,), numpy.int32)
     test = program.kernel.test
+    test(queue, [1], None, offsets_dev)
+    offsets = offsets_dev.get(queue)
+    offsets = [int(offset) for offset in offsets]
+
+    for field_info, device_offset in zip(flat_dtype, offsets[:-1], strict=True):
+        message = (
+            f"offset for {field_info.c_path} is different: {field_info.offset} in numpy, "
+            f"{device_offset} on device"
+        )
+        assert field_info.offset == device_offset, message
+
+    assert offsets[-1] == dtype.itemsize
+
+
+def test_offsets_simple(context):
     queue = Queue(context.device)
+    dtype = numpy.dtype(
+        dict(
+            names=["val1", "pad"],
+            formats=[numpy.int32, numpy.int8],
+            offsets=[0, 4],
+            itemsize=8,
+            aligned=True,
+        )
+    )
+    check_offsets_on_device(queue, dtype)
 
-    a_dev = Array.empty(context.device, [128], dtype)
-    itemsizes_dev = Array.empty(context.device, [128], numpy.int32)
-    test(queue, [128], None, a_dev, itemsizes_dev)
-    a = a_dev.get(queue)
-    itemsizes = itemsizes_dev.get(queue)
 
-    for i, field_info in enumerate(dtypes.flatten_dtype(dtype)):
-        path, _ = field_info
-        assert (dtypes.extract_field(a, path) == i).all()
-    assert (itemsizes == dtype.itemsize).all()
-
-
-def test_struct_offsets(context):
-    """Test the correctness of alignment for an explicit set of field offsets."""
+def test_offsets_nested(context):
+    queue = Queue(context.device)
     dtype_nested = numpy.dtype(
         dict(
             names=["val1", "pad"],
@@ -55,7 +65,6 @@ def test_struct_offsets(context):
             aligned=True,
         )
     )
-
     dtype = numpy.dtype(
         dict(
             names=["val1", "val2", "nested"],
@@ -65,36 +74,70 @@ def test_struct_offsets(context):
             aligned=True,
         )
     )
+    check_offsets_on_device(queue, dtype)
 
-    check_struct_fill(context, dtype)
+
+def test_offsets_arrays(context):
+    queue = Queue(context.device)
+    dtype = numpy.dtype(
+        dict(
+            names=["val1", "val2"],
+            formats=[(numpy.int8, 3), (numpy.int8, 2)],
+            offsets=[0, 8],
+            itemsize=16,
+            aligned=True,
+        )
+    )
+    check_offsets_on_device(queue, dtype)
 
 
-def test_struct_offsets_array(context):
-    """Test the correctness of alignment for an explicit set of field offsets."""
+def test_offsets_nested_arrays(context):
+    queue = Queue(context.device)
     dtype_nested = numpy.dtype(dict(names=["val1", "pad"], formats=[numpy.int8, numpy.int8]))
-
     dtype = numpy.dtype(
         dict(
             names=["pad", "struct_arr", "regular_arr"],
             formats=[numpy.int32, numpy.dtype((dtype_nested, 2)), numpy.dtype((numpy.int16, 3))],
         )
     )
-
     dtype_aligned = dtypes.align(dtype)
+    check_offsets_on_device(queue, dtype_aligned)
 
-    check_struct_fill(context, dtype_aligned)
 
-
-def test_struct_offsets_field_alignments(context):
+def test_offsets_custom_itemsize(context):
+    queue = Queue(context.device)
     dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],
             formats=[numpy.int8, numpy.int16, numpy.int32],
             offsets=[0, 4, 16],
             itemsize=32,
+            aligned=True,
+        )
+    )
+    check_offsets_on_device(queue, dtype)
+
+
+def test_offsets_custom_itemsize_nested(context):
+    queue = Queue(context.device)
+    dtype_nested = numpy.dtype(
+        dict(
+            names=["val1", "pad"],
+            formats=[numpy.int32, numpy.int8],
+            offsets=[0, 4],
+            itemsize=16,
+            aligned=True,
         )
     )
 
-    dtype_aligned = dtypes.align(dtype)
+    dtype = numpy.dtype(
+        dict(
+            names=["val1", "val2", "nested"],
+            formats=[numpy.int32, numpy.int16, dtype_nested],
+            offsets=[0, 4, 16],
+            itemsize=64,
+            aligned=True,
+        )
+    )
 
-    check_struct_fill(context, dtype_aligned)
+    check_offsets_on_device(queue, dtype)

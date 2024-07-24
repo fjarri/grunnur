@@ -230,11 +230,13 @@ def process(obj: Any, collector: SourceCollector) -> Any:
         return obj.process(collector)
     if hasattr(obj, "__process_modules__"):
         return obj.__process_modules__(lambda x: process(x, collector))
-    if isinstance(obj, dict):
+    # Since we can't guarantee that custom types derived from these ones
+    # will have the same constructors, we have to do strict type checking.
+    if type(obj) == dict:  # noqa: E721
         return {k: process(v, collector) for k, v in obj.items()}
-    if isinstance(obj, tuple):
+    if type(obj) == tuple:  # noqa: E721
         return tuple(process(v, collector) for v in obj)
-    if isinstance(obj, list):
+    if type(obj) == list:  # noqa: E721
         return [process(v, collector) for v in obj]
     return obj
 
