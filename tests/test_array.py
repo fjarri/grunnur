@@ -90,11 +90,10 @@ def test_empty(mock_or_real_context):
 
 def test_empty_like(mock_or_real_context):
     context, _mocked = mock_or_real_context
-    queue = Queue(context.device)
     arr = numpy.arange(100).reshape(5, 20).astype(numpy.int32)
     arr_dev = Array.empty_like(context.device, arr)
-    assert arr.shape == (5, 20)
-    assert arr.dtype == numpy.int32
+    assert arr_dev.shape == (5, 20)
+    assert arr_dev.dtype == numpy.int32
 
 
 def test_multi_device(mock_or_real_multi_device_context):
