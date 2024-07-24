@@ -435,7 +435,12 @@ def test_flatten_dtype():
 
 def test_c_path():
     field_info = FieldInfo(path=["struct_arr", 0, "val1"], dtype=numpy.int8, offset=0)
-    assert field_info.c_path == "struct_arr[0].val1"
+    assert field_info.c_path == ".struct_arr[0].val1"
+
+
+def test_c_path_primitive_type():
+    flat_dtype = dtypes.flatten_dtype(numpy.int32)
+    assert flat_dtype[0].c_path == ""
 
 
 def test_extract_field():

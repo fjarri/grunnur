@@ -561,11 +561,10 @@ class FieldInfo(NamedTuple):
     @property
     def c_path(self) -> str:
         """Returns a string corresponding to the ``path`` to a struct element in C."""
-        res = "".join(
+        return "".join(
             (("." + elem) if isinstance(elem, str) else ("[" + str(elem) + "]"))
             for elem in self.path
         )
-        return res[1:]  # drop the first dot
 
 
 def flatten_dtype(dtype: DTypeLike) -> list[FieldInfo]:

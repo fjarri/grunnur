@@ -16,7 +16,7 @@ def check_offsets_on_device(queue, dtype):
             ${struct} temp;
 
             %for i, field_info in enumerate(flat_dtype):
-            dest[${i}] = (size_t)&(temp.${field_info.c_path}) - (size_t)&temp;
+            dest[${i}] = (size_t)&(temp${field_info.c_path}) - (size_t)&temp;
             %endfor
             dest[${len(flat_dtype)}] = sizeof(${struct});
         }
