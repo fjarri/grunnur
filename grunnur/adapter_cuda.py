@@ -9,10 +9,12 @@ import numpy
 try:  # pragma: no cover
     import pycuda.compiler as pycuda_compiler
     import pycuda.driver as pycuda_driver
+    import pycuda.tools as pycuda_tools
 except ImportError:  # pragma: no cover
     # these variables are used for a PyCUDA mock during tests
     pycuda_driver = None  # type: ignore[assignment]
     pycuda_compiler = None  # type: ignore[assignment]
+    pycuda_tools = None  # type: ignore[assignment]
 
 from . import dtypes
 from .adapter_base import (
@@ -227,6 +229,7 @@ class CuDeviceParameters(DeviceParameters):
         self._warp_size = pycuda_device.warp_size
         self._local_mem_size = pycuda_device.max_shared_memory_per_block
         self._compute_units = pycuda_device.multiprocessor_count
+        self._devdata = pycuda_tools.DeviceData(pycuda_device)
 
     @property
     def max_total_local_size(self) -> int:
@@ -259,6 +262,9 @@ class CuDeviceParameters(DeviceParameters):
     @property
     def compute_units(self) -> int:
         return self._compute_units
+
+    def align_words(self, word_size: int) -> int:
+        return self._devdata.align_words(word_size)
 
 
 class _ContextStack:

@@ -136,6 +136,9 @@ def test_device_parameters_opencl(mock_backend_pyopencl):
     assert d.params.local_mem_size == device_info.local_mem_size
     assert d.params.local_mem_banks == 32
     assert d.params.compute_units == device_info.max_compute_units
+    assert d.params.align_words(4) >= 1
+    assert d.params.align_words(8) >= 1
+    assert d.params.align_words(16) >= 1
 
 
 def test_device_parameters_opencl_apple_cpu(mock_backend_pyopencl):
@@ -238,6 +241,9 @@ def test_device_parameters_cuda(mock_backend_pycuda):
     assert d.params.local_mem_size == device_info.max_shared_memory_per_block
     assert d.params.local_mem_banks == 32
     assert d.params.compute_units == device_info.multiprocessor_count
+    assert d.params.align_words(4) >= 1
+    assert d.params.align_words(8) >= 1
+    assert d.params.align_words(16) >= 1
 
 
 def test_device_parameters_cuda_1(mock_backend_pycuda):

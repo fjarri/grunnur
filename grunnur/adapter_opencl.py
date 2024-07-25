@@ -306,6 +306,10 @@ class OclDeviceParameters(DeviceParameters):
     def compute_units(self) -> int:
         return self._compute_units
 
+    def align_words(self, word_size: int) -> int:
+        # TODO: is it possible to query it from the API?
+        return {4: 16, 8: 16, 16: 8}[word_size]
+
 
 class OclContextAdapter(ContextAdapter):
     @classmethod
