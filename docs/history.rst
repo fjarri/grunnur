@@ -2,16 +2,34 @@ Version history
 ===============
 
 
-0.3.1 (Unreleased)
+0.4.0 (Unreleased)
 ------------------
 
 Changed
 ^^^^^^^
 
 * Minimal Python version bumped to 3.10, and ``numpy`` to 2.0. (PR_12_)
+* Refactored alignment logic to avoid inconsistent behavior and redundant calls. (PR_13_)
+* ``Array`` does not support empty shape anymore. (PR_13_)
+* ``dtypes.flatten_dtype`` returns ``FieldInfo`` objects. (PR_13_)
+
+
+Added
+^^^^^
+
+* ``Array.empty_like()``. (PR_13_)
+* ``DeviceParams.align_words()``. (PR_13_)
+
+
+Fixed
+^^^^^
+
+* ``Array.from_host()`` is now synchronous if the device is given as the first parameter. (PR_13_)
+* Mako tracebacks are shown render error. (PR_13_)
 
 
 .. _PR_12: https://github.com/fjarri/grunnur/pull/12
+.. _PR_13: https://github.com/fjarri/grunnur/pull/13
 
 
 0.3.0 (29 Jan 2023)
