@@ -524,12 +524,17 @@ class VirtualSizes:
         # but it can be overridden to get a kernel that uses less resources.
         max_local_sizes = [min(max_total_local_size, mls) for mls in max_local_sizes]
 
-        # sanity check
-        if max_total_local_size > prod(max_local_sizes):
-            raise RuntimeError(
-                "Inconsistent device parameters: "
-                "maximum flat local size is greater than the product of local size by dimension"
-            )
+        # Defensive adjustment #1.
+        # With consistent device parameters, maximum flat local size won't be greater
+        # than the product of maximum local sizes for each dimension.
+        # But if it is, we just limit it to that value.
+        max_total_local_size = min(max_total_local_size, prod(max_local_sizes))
+
+        # Defensive adjustment #2.
+        # It would be very strange if a device had a local size multiple
+        # so big you can't actually launch that many threads.
+        # But if it does, we limit it.
+        local_size_multiple = min(local_size_multiple, max_total_local_size)
 
         if virtual_local_size is None:
             # TODO: We can obtain better results by taking occupancy into account here,
@@ -539,14 +544,6 @@ class VirtualSizes:
             if flat_global_size < max_total_local_size:
                 flat_local_size = flat_global_size
             else:
-                # A sanity check - it would be very strange if a device had a local size multiple
-                # so big you can't actually launch that many threads.
-                if max_total_local_size < local_size_multiple:
-                    raise RuntimeError(
-                        "Inconsistent device parameters: "
-                        "maximum flat local size is smaller than the local size multiple"
-                    )
-
                 flat_local_size = local_size_multiple * (
                     max_total_local_size // local_size_multiple
                 )

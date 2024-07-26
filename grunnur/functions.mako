@@ -1,16 +1,14 @@
 <%def name="cast(prefix)">
 FUNCTION ${dtypes.ctype(out_dtype)} ${prefix}(${dtypes.ctype(in_dtype)} x)
 {
-<%
-    if dtypes.is_complex(out_dtype) and not dtypes.is_complex(in_dtype):
-        result = dtypes.complex_ctr(out_dtype) + "(x, 0)"
-    elif dtypes.is_complex(out_dtype) == dtypes.is_complex(in_dtype):
-        result = "(" + dtypes.ctype(out_dtype) + ")x"
-    else:
-        raise ValueError("Cast from " + str(in_dtype) + " to " + str(out_dtype) +
-            " is not supported")
-%>
-    return ${result};
+    %if upcast_to_complex:
+    return ${dtypes.complex_ctr(out_dtype)}(x, 0);
+    %elif same_space:
+    return (${dtypes.ctype(out_dtype)})x;
+    %else:
+    ## Should be unreachable
+    raise RuntimeError(f"cast from {in_dtype} to {out_dtype} is not supported")
+    %endif
 }
 </%def>
 

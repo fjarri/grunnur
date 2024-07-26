@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import itertools
 import platform
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -9,7 +10,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 import numpy
 
 from .modules import Module
-from .utils import bounding_power_of_2, log2, min_blocks
+from .utils import bounding_power_of_2, log2, min_blocks, prod
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import DTypeLike
@@ -33,31 +34,10 @@ _DTYPE_TO_BUILTIN_CTYPE = {
 }
 
 
-def _ctype_builtin(dtype: DTypeLike) -> str:
-    dtype = _normalize_type(dtype)
+def _ctype_builtin(dtype: numpy.dtype[Any]) -> str:
     if dtype in _DTYPE_TO_BUILTIN_CTYPE:
         return _DTYPE_TO_BUILTIN_CTYPE[dtype]
     raise ValueError(f"{dtype} is not a built-in data type")
-
-
-def ctype(dtype: DTypeLike) -> str | Module:
-    """
-    Returns an object that can be passed as a global to :py:meth:`~grunnur.Program`
-    and used to render a C equivalent of the given ``numpy`` dtype.
-    If there is a built-in C equivalent, the object is just a string with the type name;
-    otherwise it is a :py:class:`~grunnur.Module` object containing
-    the corresponding ``struct`` declaration.
-
-    .. note::
-
-        If ``dtype`` is a struct type, it needs to be aligned
-        (see :py:func:`ctype_struct` and :py:func:`align`).
-    """
-    dtype = _normalize_type(dtype)
-    try:
-        return _ctype_builtin(dtype)
-    except ValueError:
-        return ctype_struct(dtype)
 
 
 def _normalize_type(dtype: DTypeLike) -> numpy.dtype[Any]:
@@ -144,7 +124,7 @@ def real_for(dtype: DTypeLike) -> numpy.dtype[Any]:
 
 def complex_ctr(dtype: DTypeLike) -> str:
     """Returns name of the constructor for the given ``dtype``."""
-    return "COMPLEX_CTR(" + _ctype_builtin(dtype) + ")"
+    return "COMPLEX_CTR(" + _ctype_builtin(_normalize_type(dtype)) + ")"
 
 
 def _c_constant_arr(val: Any, shape: Sequence[int]) -> str:
@@ -244,135 +224,172 @@ def _find_minimum_alignment(offset: int, base_alignment: int, prev_end: int) -> 
     )
 
 
-class WrappedType(NamedTuple):
+class _WrappedType(NamedTuple):
     """Contains an accompanying information for an aligned dtype."""
 
+    # The original dtype (note that it can be an array, that is have a non-empty ``shape``)
     dtype: numpy.dtype[Any]
 
-    # This type's alignment
+    # The calculated structure alignment.
+    # Can be different from ``dtype.alignment`` if it's needed to ensure the chosen ``itemsize``.
     alignment: int
+
+    # A dictionary of `_WrappedType` objects for this dtype's fields.
+    wrapped_fields: dict[str, _WrappedType]
 
     # An in integer if the type's alignment requires
     # an explicit specification in the C definition,
     # None otherwise.
     explicit_alignment: int | None
 
-    # A dictionary of `WrappedType` object for this dtype's fields.
-    wrapped_fields: dict[str, WrappedType]
-
     # A dictionary of alignments for this dtype's fields;
     # similarly to `explicit_alignment`, a value is an integer if the alignment
     # has to be set explicitly, None otherwise.
-    field_alignments: dict[str, int | None]
+    explicit_field_alignments: dict[str, int | None]
 
     @classmethod
-    def non_struct(cls, dtype: numpy.dtype[Any], alignment: int) -> WrappedType:
-        return cls(dtype, alignment, None, {}, {})
+    def _wrap_single(
+        cls, dtype: numpy.dtype[Any], wrapped_fields: dict[str, _WrappedType]
+    ) -> _WrappedType:
+        """
+        Attempts to build a `_WrappedType` object with the alignment information
+        for the given dtype, aiming to preserve the given offsets and itemsizes.
+        Raises a ``ValueError`` if it is not possible.
+        """
+        base_dtype = dtype.base
 
+        # At this point dtype is guaranteed to be a struct type
+        dtype_fields = cast(Mapping[str, tuple[numpy.dtype[Any], int]], base_dtype.fields)
+        names = list(dtype_fields)
 
-def _align(dtype: numpy.dtype[Any]) -> WrappedType:
-    """
-    Builds a `WrappedType` object with the alignment information for a dtype,
-    aligning it if it is not aligned, and checking the consistency of metadata if it is.
-    """
-    if len(dtype.shape) > 0:
-        wt = _align(dtype.base)
-        return WrappedType(
-            numpy.dtype((wt.dtype, dtype.shape)),
-            wt.alignment,
-            explicit_alignment=wt.explicit_alignment,
-            wrapped_fields=wt.wrapped_fields,
-            field_alignments={},
-        )
-
-    if dtype.names is None:
-        return WrappedType.non_struct(dtype, dtype.itemsize)
-
-    # Since `.names` is not `None` at this point, we can restrict the type to help the inference
-    dtype_fields = cast(Mapping[str, tuple["numpy.dtype[Any]", int]], dtype.fields)
-
-    wrapped_fields = {name: _align(dtype_fields[name][0]) for name in dtype.names}
-
-    if dtype.isalignedstruct:
         # Find out what alignment has to be set for the field in order for the compiler
         # to place it at the offset specified in the description of `dtype`.
-        field_alignments = [wrapped_fields[dtype.names[0]].alignment]
-        for i in range(1, len(dtype.names)):
-            prev_field_dtype, prev_offset = dtype_fields[dtype.names[i - 1]]
-            _, offset = dtype_fields[dtype.names[i]]
+        explicit_field_alignments: dict[str, int | None] = {names[0]: None}
+        field_alignments = [wrapped_fields[names[0]].alignment]
+        for i in range(1, len(names)):
+            name = names[i]
+            prev_field_dtype, prev_offset = dtype_fields[names[i - 1]]
+            _, offset = dtype_fields[name]
             prev_end = prev_offset + prev_field_dtype.itemsize
-            field_alignment = _find_minimum_alignment(
-                offset, wrapped_fields[dtype.names[i]].alignment, prev_end
+            inherent_alignment = wrapped_fields[name].alignment
+
+            try:
+                field_alignment = _find_minimum_alignment(offset, inherent_alignment, prev_end)
+            except ValueError as exc:
+                raise ValueError(f"Failed to find alignment for field `{name}`: {exc}") from exc
+
+            explicit_field_alignments[name] = (
+                field_alignment if field_alignment != inherent_alignment else None
             )
             field_alignments.append(field_alignment)
 
-        offsets = [dtype_fields[name][1] for name in dtype.names]
-    else:
+        # Same principle as above, but for the whole struct:
+        # find out what alignment has to be set in order for the compiler
+        # to place the next field at some dtype where this struct is a field type
+        # at the offset corresponding to this struct's itemsize.
+
+        last_dtype, last_offset = dtype_fields[names[-1]]
+        struct_end = last_offset + last_dtype.itemsize
+
+        # Find the total itemsize.
+        # According to the standard, it must be a multiple of the struct alignment.
+        base_struct_alignment = _struct_alignment(field_alignments)
+        min_itemsize = min_blocks(struct_end, base_struct_alignment) * base_struct_alignment
+
+        # A sanity check; `numpy` won't allow a dtype to have an itemsize smaller than the minimum
+        assert base_dtype.itemsize >= min_itemsize, "dtype's itemsize is too small"  # noqa: S101
+
+        if base_dtype.itemsize == min_itemsize:
+            explicit_alignment = None
+            alignment = base_struct_alignment
+        elif base_dtype.itemsize != 2 ** log2(base_dtype.itemsize):
+            raise ValueError("An itemsize that requires an explicit alignment must be a power of 2")
+        else:
+            explicit_alignment = base_dtype.itemsize
+            alignment = explicit_alignment
+
+        return cls(
+            dtype=dtype,
+            alignment=alignment,
+            wrapped_fields=wrapped_fields,
+            explicit_alignment=explicit_alignment,
+            explicit_field_alignments=explicit_field_alignments,
+        )
+
+    @classmethod
+    def _align_single(
+        cls, dtype: numpy.dtype[Any], aligned_fields: dict[str, _WrappedType]
+    ) -> _WrappedType:
+        """
+        Builds a `_WrappedType` object with the alignment information for a dtype,
+        aligning it if it is not aligned, and checking the consistency of metadata if it is.
+        """
+        names = list(aligned_fields)
+
         # Build offsets for the structure using a procedure
         # similar to the one a compiler would use
         offsets = [0]
-        for i in range(1, len(dtype.names)):
-            prev_field_dtype, _ = dtype_fields[dtype.names[i - 1]]
-            prev_end = offsets[-1] + prev_field_dtype.itemsize
-            alignment = wrapped_fields[dtype.names[i]].alignment
+        for i in range(1, len(names)):
+            prev_end = offsets[-1] + aligned_fields[names[i - 1]].dtype.itemsize
+            alignment = aligned_fields[names[i]].alignment
             offsets.append(min_blocks(prev_end, alignment) * alignment)
 
-        field_alignments = [wrapped_fields[name].alignment for name in dtype.names]
+        # Same principle as above, but for the whole struct:
+        # find out the offset of the next struct of the same type,
+        # which will be the struct's itemsize.
+        # According to the standard, the itemsize must be a multiple of the struct alignment.
+        field_alignments = [aligned_fields[name].alignment for name in names]
+        struct_end = offsets[-1] + aligned_fields[names[-1]].dtype.itemsize
+        base_struct_alignment = _struct_alignment(field_alignments)
+        itemsize = min_blocks(struct_end, base_struct_alignment) * base_struct_alignment
 
-    # Same principle as above, but for the whole struct:
-    # find out what alignment has to be set in order for the compiler
-    # to place the next field at some dtype where this struct is a field type
-    # at the offset corresponding to this struct's itemsize.
-
-    last_dtype, _ = dtype_fields[dtype.names[-1]]
-    last_offset = offsets[-1]
-    struct_end = last_offset + last_dtype.itemsize
-
-    # Find the total itemsize.
-    # According to the standard, it must be a multiple of the struct alignment.
-    base_struct_alignment = _struct_alignment(field_alignments)
-    itemsize = min_blocks(struct_end, base_struct_alignment) * base_struct_alignment
-    if dtype.isalignedstruct:
-        if 2 ** log2(dtype.itemsize) != dtype.itemsize:
-            raise ValueError(
-                f"Invalid non-default itemsize for dtype {dtype}: "
-                f"must be a power of 2 (currently {dtype.itemsize})"
-            )
-
-        # Should be already checked by `numpy.dtype` when an aligned struct was created.
-        # Checking it just in case the behavior changes.
-        assert dtype.itemsize >= itemsize  # noqa: S101
-
-        aligned_dtype = dtype
-        struct_alignment = dtype.itemsize if dtype.itemsize > itemsize else base_struct_alignment
-    else:
-        # Must be some problems with numpy stubs - the type is too restrictive here.
-        aligned_dtype = numpy.dtype(
+        base_dtype = numpy.dtype(
             dict(
-                names=dtype.names,
-                formats=[wrapped_fields[name].dtype for name in dtype.names],
+                names=list(aligned_fields),
+                formats=[aligned.dtype for aligned in aligned_fields.values()],
                 offsets=offsets,
                 itemsize=itemsize,
                 aligned=True,
             )
         )
+        aligned_dtype = numpy.dtype((base_dtype, dtype.shape))
 
-        struct_alignment = _find_minimum_alignment(itemsize, base_struct_alignment, struct_end)
+        # Now let the other method find out if any explicit alignments need to be set at this level.
+        return cls._wrap_single(aligned_dtype, aligned_fields)
 
-    field_alignments_map = {
-        dtype.names[i]: field_alignments[i]
-        if field_alignments[i] != wrapped_fields[dtype.names[i]].alignment
-        else None
-        for i in range(len(dtype.names))
-    }
+    @classmethod
+    def wrap(cls, dtype: numpy.dtype[Any]) -> _WrappedType:
+        if dtype.base.names is None:
+            return cls(
+                dtype=dtype,
+                alignment=dtype.alignment,
+                wrapped_fields={},
+                explicit_alignment=None,
+                explicit_field_alignments={},
+            )
 
-    return WrappedType(
-        aligned_dtype,
-        struct_alignment,
-        explicit_alignment=struct_alignment if struct_alignment != base_struct_alignment else None,
-        wrapped_fields=wrapped_fields,
-        field_alignments=field_alignments_map,
-    )
+        # Since `.names` is not `None` at this point, we can restrict the type to help the inference
+        dtype_fields = cast(Mapping[str, tuple[numpy.dtype[Any], int]], dtype.base.fields)
+
+        wrapped_fields = {
+            name: cls.wrap(field_dtype) for name, (field_dtype, _offset) in dtype_fields.items()
+        }
+
+        return cls._wrap_single(dtype, wrapped_fields)
+
+    @classmethod
+    def align(cls, dtype: numpy.dtype[Any]) -> _WrappedType:
+        if dtype.base.names is None:
+            return _WrappedType.wrap(dtype)
+
+        # Since `.names` is not `None` at this point, we can restrict the type to help the inference
+        dtype_fields = cast(Mapping[str, tuple[numpy.dtype[Any], int]], dtype.base.fields)
+
+        aligned_fields = {
+            name: cls.align(field_dtype) for name, (field_dtype, _offset) in dtype_fields.items()
+        }
+
+        return cls._align_single(dtype, aligned_fields)
 
 
 def align(dtype: DTypeLike) -> numpy.dtype[Any]:
@@ -382,7 +399,7 @@ def align(dtype: DTypeLike) -> numpy.dtype[Any]:
     Ignores all existing explicit itemsizes and offsets.
     """
     dtype = _normalize_type(dtype)
-    wrapped_dtype = _align(dtype)
+    wrapped_dtype = _WrappedType.align(dtype)
     return wrapped_dtype.dtype
 
 
@@ -401,32 +418,23 @@ def _alignment_str(alignment: int | None) -> str:
     return ""
 
 
-def _get_struct_module(dtype: numpy.dtype[Any], *, ignore_alignment: bool = False) -> Module:
+def _get_struct_module(wrapped_type: _WrappedType) -> Module:
     """
     Builds and returns a module with the C type definition for a given ``dtype``,
     possibly using modules for nested structures.
     """
     # `dtype.names` is not `None` at this point, restricting types
-    dtype_names = cast(Iterable[str], dtype.names)
-    dtype_fields = cast(Mapping[str, tuple[numpy.dtype[Any], int]], dtype.fields)
+    dtype_fields = cast(Mapping[str, tuple[numpy.dtype[Any], int]], wrapped_type.dtype.base.fields)
 
-    field_alignments: dict[str, int | None]
-    if ignore_alignment:
-        struct_alignment = None
-        field_alignments = {name: None for name in dtype_names}
-    else:
-        wrapped_type = _align(dtype)
-        struct_alignment = wrapped_type.explicit_alignment
-        field_alignments = {name: wrapped_type.field_alignments[name] for name in dtype_names}
+    struct_alignment = wrapped_type.explicit_alignment
+    field_alignments = wrapped_type.explicit_field_alignments
 
     # The tag (${prefix}_) is not necessary, but it helps to avoid
     # CUDA bug #1409907 (nested struct initialization like
     # "mystruct x = {0, {0, 0}, 0};" fails to compile)
     lines = ["typedef struct ${prefix}_ {"]
     kwds: dict[str, str | Module] = {}
-    for name in dtype_names:
-        elem_dtype, _ = dtype_fields[name]
-
+    for name, (elem_dtype, _offset) in dtype_fields.items():
         base_elem_dtype = elem_dtype.base
         elem_dtype_shape = elem_dtype.shape
 
@@ -441,75 +449,76 @@ def _get_struct_module(dtype: numpy.dtype[Any], *, ignore_alignment: bool = Fals
         if base_elem_dtype.names is None:
             kwds[typename_var] = _ctype_builtin(base_elem_dtype)
         else:
-            kwds[typename_var] = ctype_struct(base_elem_dtype, ignore_alignment=ignore_alignment)
+            kwds[typename_var] = _get_struct_module(wrapped_type.wrapped_fields[name])
 
     lines.append("} " + _alignment_str(struct_alignment) + " ${prefix};")
-
     return Module.from_string("\n".join(lines), render_globals=kwds)
 
 
-def ctype_struct(dtype: DTypeLike, *, ignore_alignment: bool = False) -> Module:
+# TODO: this has a possibility of a memory leak, albeit it's very unlikely -
+# the number of different types will most surely be limited.
+# A way to avoid that is to introduce some custom class that encapsulates the dtype
+# and the corresponding module (generated once on the first request).
+# This way we can even have "newtypes" of sorts for dtypes with the same structure.
+@functools.cache
+def ctype(dtype: DTypeLike) -> str | Module:
     """
-    For a struct type, returns a :py:class:`~grunnur.Module` object
-    with the ``typedef`` of a struct corresponding to the given ``dtype``
-    (with its name set to the module prefix).
+    Returns an object that can be passed as a global to :py:meth:`~grunnur.Program`
+    and used to render a C equivalent of the given ``numpy`` dtype.
+    If there is a built-in C equivalent, the object is just a string with the type name;
+    otherwise it is a :py:class:`~grunnur.Module` object containing
+    the corresponding ``struct`` declaration.
 
-    The structure definition includes the alignment required
-    to produce field offsets specified in ``dtype``;
-    therefore, ``dtype`` must be either a simple type, or have
-    proper offsets and dtypes (the ones that can be reporoduced in C
-    using explicit alignment attributes, but without additional padding)
-    and the attribute ``isalignedstruct == True``.
-    An aligned dtype can be produced either by standard means
-    (``aligned`` flag in ``numpy.dtype`` constructor and explicit offsets and itemsizes),
-    or created out of an arbitrary dtype with the help of :py:func:`~grunnur.dtypes.align`.
-
-    If ``ignore_alignment`` is True, all of the above is ignored.
-    The C structures produced will not have any explicit alignment modifiers.
-    As a result, the the field offsets of ``dtype`` may differ from the ones
-    chosen by the compiler.
+    The given ``dtype`` cannot be an array type (that is, its shape must be ``()``).
 
     Modules are cached, and the function returns a single module instance for equal ``dtype``'s.
     Therefore inside a kernel it will be rendered with the same prefix everywhere it is used.
     This results in a behavior characteristic for a structural type system,
     same as for the basic dtype-ctype conversion.
 
+    .. note::
+
+        If ``dtype`` is a struct type, it needs to be aligned
+        (manually or with :py:func:`align`) in order for the field offsets
+        on the host and the devices coincide.
+
     .. warning::
 
-        As of ``numpy`` 1.8, the ``isalignedstruct`` attribute is not enough to ensure
-        a mapping between a dtype and a C struct with only the fields that are present in the dtype.
-        Therefore, ``ctype_struct`` will make some additional checks and raise ``ValueError``
-        if it is not the case.
+        ``numpy``'s ``isalignedstruct`` attribute, or ``aligned`` parameter
+        is neither necessary nor sufficient for the memory layout
+        on the host and the device to coincide.
+        Use :py:func:`align` if you are not sure how to align your struct type.
     """
+    # It doesn't seem like `numpy` is going to fix the alignment behavior.
+    # For now the `isalignedstruct` attribute is more of an internal marker,
+    # not useful for external users. So we will have to rely on `align()`.
+    # See https://github.com/numpy/numpy/issues/4084 for the discussion.
+    #
+    # Would be nice to have our own marker, but it doesn't seem like `dtype`
+    # can be safely inherited from.
+
     dtype = _normalize_type(dtype)
 
     if len(dtype.shape) > 0:
         raise ValueError("The data type cannot be an array")
+
     if dtype.names is None:
-        raise ValueError("The data type must be a structure")
+        return _ctype_builtin(dtype)
 
-    # Note that numpy's ``isalignedstruct`` relies on hidden padding fields,
-    # and may not mean that the returned C representation actually corresponds to the
-    # ``numpy`` dtype.
-    # There will be more checking in ``_align()`` which will fail in that case.
-    if not ignore_alignment and not dtype.isalignedstruct:
-        raise ValueError("The data type must be an aligned struct")
-
-    return _get_struct_module(dtype, ignore_alignment=ignore_alignment)
+    wrapped_type = _WrappedType.wrap(dtype)
+    return _get_struct_module(wrapped_type)
 
 
-def _flatten_dtype(
-    dtype: numpy.dtype[Any], prefix: list[str | int] = []
-) -> list[tuple[list[str | int], numpy.dtype[Any]]]:
+def _flatten_dtype(dtype: numpy.dtype[Any], offset: int, path: list[str | int]) -> list[FieldInfo]:
     if dtype.names is None:
-        return [(prefix, dtype)]
+        return [FieldInfo(path=path, dtype=dtype, offset=offset)]
 
     # `dtype.names` is not `None` at this point, restricting types
     dtype_fields = cast(Mapping[str, tuple[numpy.dtype[Any], int]], dtype.fields)
 
-    result: list[tuple[list[str | int], numpy.dtype[Any]]] = []
+    result: list[FieldInfo] = []
     for name in dtype.names:
-        elem_dtype, _ = dtype_fields[name]
+        elem_dtype, elem_offset = dtype_fields[name]
 
         elem_dtype_shape: tuple[int, ...]
         if len(elem_dtype.shape) == 0:
@@ -520,35 +529,52 @@ def _flatten_dtype(
             elem_dtype_shape = elem_dtype.shape
 
         if len(elem_dtype_shape) == 0:
-            result += _flatten_dtype(base_elem_dtype, prefix=[*prefix, name])
+            result += _flatten_dtype(
+                dtype=base_elem_dtype, offset=offset + elem_offset, path=[*path, name]
+            )
         else:
+            strides = list(
+                reversed(numpy.multiply.accumulate([1, *reversed(elem_dtype_shape[1:])]))
+            )
             for idxs in itertools.product(*[range(dim) for dim in elem_dtype_shape]):
-                result += _flatten_dtype(base_elem_dtype, prefix=[*prefix, name, *idxs])
+                flat_idx = sum(idx * stride for idx, stride in zip(idxs, strides, strict=True))
+                result += _flatten_dtype(
+                    dtype=base_elem_dtype,
+                    offset=offset + elem_offset + base_elem_dtype.itemsize * flat_idx,
+                    path=[*path, name, *idxs],
+                )
     return result
 
 
-def flatten_dtype(
-    dtype: DTypeLike,
-) -> list[tuple[list[str | int], numpy.dtype[Any]]]:
+class FieldInfo(NamedTuple):
+    """Metadata of a structure field."""
+
+    path: list[str | int]
+    """The full path to the field."""
+
+    dtype: numpy.dtype[Any]
+    """The field's datatype."""
+
+    offset: int
+    """The field's offset from the beginning of the struct."""
+
+    @property
+    def c_path(self) -> str:
+        """Returns a string corresponding to the ``path`` to a struct element in C."""
+        return "".join(
+            (("." + elem) if isinstance(elem, str) else ("[" + str(elem) + "]"))
+            for elem in self.path
+        )
+
+
+def flatten_dtype(dtype: DTypeLike) -> list[FieldInfo]:
     """
     Returns a list of tuples ``(path, dtype)`` for each of the basic dtypes in
     a (possibly nested) ``dtype``.
     ``path`` is a list of field names/array indices leading to the corresponding element.
     """
     dtype = _normalize_type(dtype)
-    return _flatten_dtype(dtype)
-
-
-def c_path(path: list[str | int]) -> str:
-    """
-    Returns a string corresponding to the ``path`` to a struct element in C.
-    The ``path`` is the sequence of field names/array indices returned from
-    :py:func:`~grunnur.dtypes.flatten_dtype`.
-    """
-    res = "".join(
-        (("." + elem) if isinstance(elem, str) else ("[" + str(elem) + "]")) for elem in path
-    )
-    return res[1:]  # drop the first dot
+    return _flatten_dtype(dtype, 0, [])
 
 
 def _extract_field(

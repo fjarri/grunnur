@@ -42,7 +42,8 @@ class Array:
         """
         Creates an array object from a host array.
 
-        :param queue: the queue to use for the transfer.
+        :param queue_or_device: the queue to use for the transfer, or the target device.
+            In the latter case an operation will be performed synchronously.
         :param host_arr: the source array.
         """
         if isinstance(queue_or_device, BoundDevice):
@@ -51,6 +52,8 @@ class Array:
             queue = queue_or_device
         array = cls.empty(queue.device, host_arr.shape, host_arr.dtype)
         array.set(queue, host_arr)
+        if isinstance(queue_or_device, BoundDevice):
+            queue.synchronize()
         return array
 
     @classmethod
@@ -83,6 +86,11 @@ class Array:
         data = allocator(device, size)
 
         return cls(metadata, data)
+
+    @classmethod
+    def empty_like(cls, device: BoundDevice, array_like: ArrayMetadataLike) -> Array:
+        """Creates an empty array with the same shape and dtype as ``array_like``."""
+        return cls.empty(device, array_like.shape, array_like.dtype)
 
     def __init__(self, array_metadata: ArrayMetadata, data: Buffer):
         self._metadata = array_metadata

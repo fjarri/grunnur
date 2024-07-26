@@ -31,6 +31,7 @@ class MockPyCUDA:
     def __init__(self, cuda_version: tuple[int, int, int] = (10, 0, 0)):
         self.pycuda_driver = MockPyCUDADriverModule(self, cuda_version)
         self.pycuda_compiler = MockPyCUDACompilerModule(self)
+        self.pycuda_tools = MockPyCUDATools()
 
         self.device_infos: list[PyCUDADeviceInfo] = []
         self._context_stack: list[weakref.ReferenceType[BaseContext]] = []
@@ -702,3 +703,12 @@ def make_function_class(backend: MockPyCUDA) -> type[BaseFunction]:
             raise NotImplementedError(f"Unknown attribute: {attribute}")  # pragma: no cover
 
     return Function
+
+
+class MockPyCUDATools:
+    class DeviceData:
+        def __init__(self, device: BaseDevice):
+            pass
+
+        def align_words(self, word_size: int) -> int:
+            return {4: 16, 8: 16, 16: 8}[word_size]

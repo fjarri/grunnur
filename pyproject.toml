@@ -1,6 +1,6 @@
 [project]
 name = "grunnur"
-version = "0.3.1.dev"
+version = "0.4.0.dev"
 description = "Uniform API for PyOpenCL and PyCUDA."
 authors = [
     {name = "Bogdan Opanchuk", email = "bogdan@opanchuk.net"},
@@ -26,7 +26,7 @@ pycuda = [
 tests = [
     "pytest>=6",
     "pytest-cov",
-    "pytest-grunnur>=0.2",
+    "pytest-grunnur>=0.3",
 ]
 docs = [
     "sphinx>=4",
@@ -61,6 +61,9 @@ source-includes = [
 [build-system]
 requires = ["pdm-pep517"]
 build-backend = "pdm.pep517.api"
+
+[tool.pytest.ini_options]
+addopts = "-p no:pytest_grunnur"
 
 [tool.mypy]
 strict = true

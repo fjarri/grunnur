@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Iterable, Mapping, Sequence
 
+import mako.exceptions
 import mako.template
 
 
@@ -29,19 +30,26 @@ class RenderError(Exception):
     """The source of the template."""
 
     def __init__(
-        self, exception: Exception, args: Sequence[Any], globals_: Mapping[str, Any], source: str
+        self,
+        exception: Exception,
+        args: Sequence[Any],
+        globals_: Mapping[str, Any],
+        source: str,
+        mako_traceback: str,
     ):
         super().__init__()
         self.exception = exception
         self.args = tuple(args)
         self.globals = dict(globals_)
         self.source = source
+        self.mako_traceback = mako_traceback
 
     def __str__(self) -> str:
         return (
             "Failed to render a template with\n"
             f"* args: {self.args}\n* globals: {self.globals}\n* source:\n{self.source}\n"
-            f"* Mako error: ({type(self.exception).__name__}) {self.exception}"
+            f"* Mako error: ({type(self.exception).__name__}) {self.exception}\n\n"
+            f"* Mako traceback:{self.mako_traceback}"
         )
 
 
@@ -158,7 +166,5 @@ class DefTemplate:
             # passing the original render error to the top so that it could be handled there.
             raise
         except Exception as exc:
-            # TODO: we could collect mako.exceptions.text_error_template().render() here,
-            # because ideally it should point to the line where the error occurred,
-            # but for some reason it doesn't. So we don't bother for now.
-            raise RenderError(exc, args, globals_, self.source) from exc
+            mako_traceback = mako.exceptions.text_error_template().render()
+            raise RenderError(exc, args, globals_, self.source, mako_traceback) from exc

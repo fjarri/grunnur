@@ -232,6 +232,13 @@ class DeviceParameters(ABC):
     def compute_units(self) -> int:
         """The number of multiprocessors (CUDA)/compute units (OpenCL) for the device."""
 
+    @abstractmethod
+    def align_words(self, word_size: int) -> int:
+        """
+        The distance (in ``word_size`` units) between global memory base addresses
+        that allow accesses of word-size ``word_size`` bytes to get coalesced.
+        """
+
 
 class ContextAdapter(ABC):
     @property

@@ -191,8 +191,6 @@ C interop
 
 .. autofunction:: ctype
 
-.. autofunction:: ctype_struct
-
 .. autofunction:: complex_ctr
 
 .. autofunction:: c_constant
@@ -203,11 +201,11 @@ C interop
 Struct helpers
 ~~~~~~~~~~~~~~
 
-.. autofunction:: c_path
-
 .. autofunction:: flatten_dtype
 
 .. autofunction:: extract_field
+
+.. autoclass:: FieldInfo
 
 
 Data type checks and conversions

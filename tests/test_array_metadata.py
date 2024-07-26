@@ -166,3 +166,8 @@ def test_minimal_subregion():
     # minus the origin.
     assert new_meta.first_element_offset == 1 * meta.strides[0] + 5 * meta.strides[1] - origin
     assert new_meta.buffer_size == size
+
+
+def test_empty_shape():
+    with pytest.raises(ValueError, match="Array shape cannot be an empty sequence"):
+        ArrayMetadata((), numpy.int32)

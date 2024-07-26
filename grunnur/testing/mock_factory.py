@@ -23,8 +23,10 @@ class MockBackendFactory:
     def _set_backend_cuda(self, backend: MockPyCUDA | None = None) -> None:
         pycuda_driver = backend.pycuda_driver if backend else None
         pycuda_compiler = backend.pycuda_compiler if backend else None
+        pycuda_tools = backend.pycuda_tools if backend else None
         self.monkeypatch.setattr("grunnur.adapter_cuda.pycuda_driver", pycuda_driver)
         self.monkeypatch.setattr("grunnur.adapter_cuda.pycuda_compiler", pycuda_compiler)
+        self.monkeypatch.setattr("grunnur.adapter_cuda.pycuda_tools", pycuda_tools)
 
     def mock_pycuda(self) -> MockPyCUDA:
         backend = MockPyCUDA()
