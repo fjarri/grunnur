@@ -4,7 +4,8 @@ import pytest
 from grunnur import API, Buffer, Context, Queue, cuda_api_id, opencl_api_id
 
 
-def test_allocate_and_copy(mock_or_real_context):  # noqa: PLR0915
+@pytest.mark.parametrize("sync", [False, True], ids=["async", "sync"])
+def test_transfer(mock_or_real_context, sync):
     context, mocked = mock_or_real_context
 
     length = 100
@@ -18,73 +19,141 @@ def test_allocate_and_copy(mock_or_real_context):  # noqa: PLR0915
     assert buf.offset == 0
 
     # Just covering the existence of the attribute.
-    # Hard to actually check it without running a kernel
+    # Hard to actually check its validity without running a kernel
     assert buf.kernel_arg is not None
 
     queue = Queue(context.device)
-    buf.set(queue, arr)
+
+    buf.set(queue, arr, no_async=sync)
 
     # Read the whole buffer
     res = numpy.empty_like(arr)
-    buf.get(queue, res)
-    queue.synchronize()
+    buf.get(queue, res, async_=not sync)
+    if not sync:
+        queue.synchronize()
     assert (res == arr).all()
+
+    # Device-to-device copy
+    res = numpy.empty_like(arr)
+    buf2 = Buffer.allocate(context.device, size)
+    buf2.set(queue, buf, no_async=sync)
+    buf2.get(queue, res, async_=not sync)
+    if not sync:
+        queue.synchronize()
+    assert (res == arr).all()
+
+
+@pytest.mark.parametrize("sync", [False, True], ids=["async", "sync"])
+def test_subregion(mock_or_real_context, sync):
+    context, mocked = mock_or_real_context
+
+    length = 200
+    dtype = numpy.dtype("int32")
+    size = length * dtype.itemsize
+
+    arr = numpy.arange(length).astype(dtype)
+
+    buf = Buffer.allocate(context.device, size)
+
+    queue = Queue(context.device)
+
+    region_offset = 64
+    region_length = 50
+
+    buf_region = buf.get_sub_region(region_offset * dtype.itemsize, region_length * dtype.itemsize)
+    buf.set(queue, arr)  # just to make the test harder, fill the buffer after creating a subregion
 
     # Read a subregion
-    buf_region = buf.get_sub_region(25 * dtype.itemsize, 50 * dtype.itemsize)
-    arr_region = arr[25 : 25 + 50]
+    res = numpy.empty_like(arr)
+    arr_region = arr[region_offset : region_offset + region_length]
     res_region = numpy.empty_like(arr_region)
-    buf_region.get(queue, res_region)
-    queue.synchronize()
+    buf_region.get(queue, res_region, async_=not sync)
+    if not sync:
+        queue.synchronize()
     assert (res_region == arr_region).all()
 
-    # Check that our mock can detect taking a sub-region of a sub-region (segfault in OpenCL)
-    if mocked and context.api.id == opencl_api_id():
-        with pytest.raises(RuntimeError, match="Cannot create a subregion of subregion"):
-            buf_region.get_sub_region(0, 10)
-
     # Write a subregion
-    arr_region = (numpy.ones(50) * 100).astype(dtype)
-    arr[25 : 25 + 50] = arr_region
-    buf_region.set(queue, arr_region)
-    buf.get(queue, res)
-    queue.synchronize()
+    res = numpy.empty_like(arr)
+    arr_region = (numpy.ones(50) * region_length).astype(dtype)
+    arr[region_offset : region_offset + region_length] = arr_region
+    buf_region.set(queue, arr_region, no_async=sync)
+    buf.get(queue, res, async_=not sync)
+    if not sync:
+        queue.synchronize()
     assert (res == arr).all()
 
-    # Subregion of subregion
-    if context.api.id == cuda_api_id():
-        # In OpenCL that leads to segfault, but with CUDA we just emulate that with pointers.
-        arr_region2 = (numpy.ones(20) * 200).astype(dtype)
-        arr[25 + 20 : 25 + 40] = arr_region2
-        buf_region2 = buf_region.get_sub_region(20 * dtype.itemsize, 20 * dtype.itemsize)
-        buf_region2.set(queue, arr_region2)
-        buf.get(queue, res)
-        queue.synchronize()
-        assert (res == arr).all()
+
+@pytest.mark.parametrize("sync", [False, True], ids=["async", "sync"])
+def test_subregion_copy(mock_or_real_context, sync):
+    context, mocked = mock_or_real_context
+
+    length = 100
+    dtype = numpy.dtype("int32")
+    size = length * dtype.itemsize
+
+    arr = numpy.arange(length).astype(dtype)
+
+    buf = Buffer.allocate(context.device, size)
+
+    queue = Queue(context.device)
+    buf.set(queue, arr, no_async=sync)
+
+    region_offset = 64
+    region_length = 100
 
     # Device-to-device copy
     buf2 = Buffer.allocate(context.device, size * 2)
     buf2.set(queue, numpy.ones(length * 2, dtype))
-    buf2_view = buf2.get_sub_region(50 * dtype.itemsize, 100 * dtype.itemsize)
-    buf2_view.set(queue, buf)
+    buf2_view = buf2.get_sub_region(region_offset * dtype.itemsize, region_length * dtype.itemsize)
+    buf2_view.set(queue, buf, no_async=sync)
     res2 = numpy.empty(length * 2, dtype)
-    buf2.get(queue, res2)
-    queue.synchronize()
-    assert (res2[50:150] == arr).all()
-    assert (res2[:50] == 1).all()
-    assert (res2[150:] == 1).all()
+    buf2.get(queue, res2, async_=not sync)
+    if not sync:
+        queue.synchronize()
+    assert (res2[region_offset : region_offset + region_length] == arr).all()
+    assert (res2[:region_offset] == 1).all()
+    assert (res2[region_offset + region_length :] == 1).all()
 
-    # Device-to-device copy (no_async)
-    buf2 = Buffer.allocate(context.device, size * 2)
-    buf2.set(queue, numpy.ones(length * 2, dtype))
-    buf2_view = buf2.get_sub_region(50 * dtype.itemsize, 100 * dtype.itemsize)
-    buf2_view.set(queue, buf, no_async=True)
-    res2 = numpy.empty(length * 2, dtype)
-    buf2.get(queue, res2)
+
+def test_subregion_of_subregion(mock_or_real_context):
+    context, mocked = mock_or_real_context
+
+    length = 200
+    dtype = numpy.dtype("int32")
+    size = length * dtype.itemsize
+
+    r1_offset = 64
+    r1_length = 50
+
+    r2_offset = 20
+    r2_length = 20
+
+    buf = Buffer.allocate(context.device, size)
+    buf_region = buf.get_sub_region(r1_offset * dtype.itemsize, r1_length * dtype.itemsize)
+
+    if context.api.id == opencl_api_id():
+        # Check that our mock can detect taking a sub-region of a sub-region (segfault in OpenCL)
+        if mocked:
+            with pytest.raises(RuntimeError, match="Cannot create a subregion of subregion"):
+                buf_region.get_sub_region(0, 10)
+            return
+
+        pytest.skip("Subregions of subregions are not supported in OpenCL")
+
+    queue = Queue(context.device)
+
+    arr = numpy.arange(length).astype(dtype)
+    res = numpy.empty_like(arr)
+
+    buf.set(queue, arr)
+
+    arr_region2 = (numpy.ones(r2_length) * 200).astype(dtype)
+    arr[r1_offset + r2_offset : r1_offset + r2_offset + r2_length] = arr_region2
+    buf_region2 = buf_region.get_sub_region(r2_offset * dtype.itemsize, r2_length * dtype.itemsize)
+    buf_region2.set(queue, arr_region2)
+    buf.get(queue, res)
     queue.synchronize()
-    assert (res2[50:150] == arr).all()
-    assert (res2[:50] == 1).all()
-    assert (res2[150:] == 1).all()
+    assert (res == arr).all()
 
 
 def test_subregion_overflow(mock_context):
