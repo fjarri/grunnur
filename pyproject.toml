@@ -38,10 +38,6 @@ lint = [
     "ruff>=0.2",
 ]
 
-[tool.black]
-line-length = 100
-target-version = ['py38']
-
 [tool.pdm.build]
 source-includes = [
     "**/*.pyi",
