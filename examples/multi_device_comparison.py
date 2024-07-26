@@ -101,10 +101,10 @@ def test_multi_device(
         assert (a_ref == a_res).all()
 
 
+test_single_device(0, 2**20)
 test_single_device(1, 2**20)
-test_single_device(2, 2**20)
-test_multi_device([1, 2], 2**20)
+test_multi_device([0, 1], 2**20)
 
+test_single_device(0, 2**24, benchmark=True)
 test_single_device(1, 2**24, benchmark=True)
-test_single_device(2, 2**24, benchmark=True)
-test_multi_device([1, 2], 2**24, benchmark=True)
+test_multi_device([0, 1], 2**24, benchmark=True)

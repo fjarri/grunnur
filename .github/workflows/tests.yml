@@ -62,5 +62,11 @@ jobs:
       run: |
         pdm sync -G tests,pyopencl
     - name: Test with pytest
+      # Create two POCL devices so that we could run multi-device tests
       run: |
-        pdm run py.test --cov=grunnur --cov-report=xml tests
+        env POCL_DEVICES="cpu cpu" pdm run py.test --cov=grunnur --cov-report=xml tests
+    - name: Run examples
+      # Create two POCL devices so that we could run multi-device tests
+      run: |
+        env POCL_DEVICES="cpu cpu" pdm run examples/multi_device_comparison.py
+        env POCL_DEVICES="cpu cpu" pdm run examples/temporary_allocations.py
