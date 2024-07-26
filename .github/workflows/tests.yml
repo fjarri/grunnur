@@ -38,3 +38,29 @@ jobs:
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         chmod +x codecov
         ./codecov
+
+  test-pocl:
+
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install system dependencies
+      run: |
+        sudo apt-get install libpocl2
+    - name: Install PDM
+      run: curl -sSL https://raw.githubusercontent.com/pdm-project/pdm/main/install-pdm.py | python3
+    - name: Install dependencies
+      run: |
+        pdm sync -G tests,pyopencl
+    - name: Test with pytest
+      run: |
+        pdm run py.test --cov=grunnur --cov-report=xml tests
