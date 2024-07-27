@@ -87,7 +87,7 @@ def test_compile(mock_or_real_context, no_prelude):
         assert (res == ref).all()
 
     # Explicit local_size
-    res2_dev = Array.from_host(queue, a)  # Array.empty(queue, length, numpy.int32)
+    res2_dev = Array.empty(context.device, [length], numpy.int32)
     program.kernel.multiply(queue, [length], [length // 2], res2_dev, a_dev, b_dev, c)
     res2 = res2_dev.get(queue)
     if not mocked:
@@ -518,3 +518,19 @@ def test_builtin_globals(mock_backend_pycuda):
 
     assert "max_total_local_size = 1024" in program.sources[context.devices[0]].source
     assert "max_total_local_size = 512" in program.sources[context.devices[1]].source
+
+
+def test_cu_dynamic_local_mem(mock_context):
+    src = MockDefTemplate(kernels=[MockKernel("test", [numpy.int32])])
+    program = Program([mock_context.device], src)
+    queue = Queue(mock_context.device)
+
+    if mock_context.api.id == opencl_api_id():
+        message = (
+            "`cu_dynamic_local_mem` must be zero for OpenCL kernels; "
+            "dynamic local memory allocation is not supported"
+        )
+        with pytest.raises(ValueError, match=message):
+            program.kernel.test(queue, [100], [100], numpy.int32(1), cu_dynamic_local_mem=100)
+    else:
+        program.kernel.test(queue, [100], [100], numpy.int32(1), cu_dynamic_local_mem=100)

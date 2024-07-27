@@ -314,7 +314,7 @@ class PreparedKernel:
         self,
         queue: Queue | MultiQueue,
         *args: MultiArray | Array | Buffer | numpy.generic,
-        local_mem: int = 0,
+        cu_dynamic_local_mem: int = 0,
     ) -> Any:
         """
         Enqueues the kernel on the devices in the given queue.
@@ -332,8 +332,10 @@ class PreparedKernel:
         If an argument is a integer-keyed ``dict``, its values corresponding to the
         device indices the kernel is executed on will be passed as kernel arguments.
 
+        :param cu_dynamic_local_mem: **CUDA only.** The size of dynamically allocated local
+            (shared in CUDA terms) memory, in bytes. That is, the size of
+            ``extern __shared__`` arrays in CUDA kernels.
         :param args: kernel arguments.
-        :param kwds: backend-specific keyword parameters.
         :returns: a list of ``Event`` objects for enqueued kernels in case of PyOpenCL.
         """
         if isinstance(queue, Queue):
@@ -357,7 +359,11 @@ class PreparedKernel:
             single_queue = queue.queues[device]
 
             pkernel = self._prepared_kernel_adapters[device]
-            ret_val = pkernel(single_queue._queue_adapter, *kernel_args, local_mem=local_mem)  # noqa: SLF001
+            ret_val = pkernel(
+                single_queue._queue_adapter,  # noqa: SLF001
+                *kernel_args,
+                cu_dynamic_local_mem=cu_dynamic_local_mem,
+            )
             ret_vals.append(ret_val)
 
         return ret_vals
@@ -455,11 +461,11 @@ class Kernel:
         global_size: Sequence[int] | Mapping[BoundDevice, Sequence[int]],
         local_size: Sequence[int] | None | Mapping[BoundDevice, Sequence[int] | None] = None,
         *args: MultiArray | Array | Buffer | numpy.generic,
-        local_mem: int = 0,
+        cu_dynamic_local_mem: int = 0,
     ) -> Any:
         """
         A shortcut for :py:meth:`Kernel.prepare` and subsequent :py:meth:`PreparedKernel.__call__`.
         See their doc entries for details.
         """
         pkernel = self.prepare(global_size, local_size)
-        return pkernel(queue, *args, local_mem=local_mem)
+        return pkernel(queue, *args, cu_dynamic_local_mem=cu_dynamic_local_mem)

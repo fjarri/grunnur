@@ -701,7 +701,7 @@ class CuPreparedKernelAdapter(PreparedKernelAdapter):
         self,
         queue_adapter: QueueAdapter,
         *args: BufferAdapter | numpy.generic,
-        local_mem: int = 0,
+        cu_dynamic_local_mem: int = 0,
     ) -> None:
         # Will be checked in the upper levels
         assert isinstance(queue_adapter, CuQueueAdapter)  # noqa: S101
@@ -724,5 +724,5 @@ class CuPreparedKernelAdapter(PreparedKernelAdapter):
             grid=self._grid,
             block=self._block,
             stream=queue_adapter._pycuda_stream,  # noqa: SLF001
-            shared=local_mem,
+            shared=cu_dynamic_local_mem,
         )
