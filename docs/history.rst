@@ -2,6 +2,19 @@ Version history
 ===============
 
 
+0.5.0 (unreleased)
+------------------
+
+Changed
+^^^^^^^
+
+* ``local_mem`` keyword parameter of kernel calls renamed to ``cu_dynamic_local_mem``. (PR_17_)
+
+
+.. _PR_17: https://github.com/fjarri/grunnur/pull/17
+
+
+
 0.4.0 (25 Jul 2024)
 -------------------
 

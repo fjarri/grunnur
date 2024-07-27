@@ -632,11 +632,13 @@ class OclPreparedKernelAdapter(PreparedKernelAdapter):
         self,
         queue_adapter: QueueAdapter,
         *args: BufferAdapter | numpy.generic,
-        local_mem: int = 0,
+        cu_dynamic_local_mem: int = 0,
     ) -> pyopencl.Event:
-        # Local memory size is passed via regular kernel arguments in OpenCL.
-        # Should be checked in `PreparedKernel`.
-        assert local_mem == 0  # noqa: S101
+        if cu_dynamic_local_mem != 0:
+            raise ValueError(
+                "`cu_dynamic_local_mem` must be zero for OpenCL kernels; "
+                "dynamic local memory allocation is not supported"
+            )
 
         # We have to keep the signature more general because of the base class,
         # but the upper levels will ensure this is the case.

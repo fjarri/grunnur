@@ -404,6 +404,6 @@ class PreparedKernelAdapter(ABC):
         self,
         queue_adapter: QueueAdapter,
         *args: BufferAdapter | numpy.generic,
-        local_mem: int = 0,
+        cu_dynamic_local_mem: int = 0,
     ) -> Any:
         pass
