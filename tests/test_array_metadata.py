@@ -132,6 +132,22 @@ def test_metadata_constructor():
         )
 
 
+def test_eq():
+    meta1 = ArrayMetadata((5, 6), numpy.int32)
+    meta2 = ArrayMetadata((5, 6), numpy.int32)
+    meta3 = ArrayMetadata((5, 6), numpy.int32, first_element_offset=12)
+    assert meta1 == meta2
+    assert meta1 != meta3
+
+
+def test_hash():
+    meta1 = ArrayMetadata((5, 6), numpy.int32)
+    meta2 = ArrayMetadata((5, 6), numpy.int32)
+    meta3 = ArrayMetadata((5, 6), numpy.int32, first_element_offset=12)
+    assert hash(meta1) == hash(meta2)
+    assert hash(meta1) != hash(meta3)
+
+
 def test_view():
     meta = ArrayMetadata((5, 6), numpy.int32)
     view = meta[1:4, -1:-5:-2]

@@ -100,6 +100,19 @@ class ArrayMetadata:
         self._full_max_offset = full_max_offset
         self.buffer_size = buffer_size
 
+    def __eq__(self, other: object) -> bool:
+        return (
+            isinstance(other, ArrayMetadata)
+            and self.shape == other.shape
+            and self.dtype == other.dtype
+            and self.strides == other.strides
+            and self.first_element_offset == other.first_element_offset
+            and self.buffer_size == other.buffer_size
+        )
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.dtype, self.shape, self.strides, self.first_element_offset))
+
     def minimal_subregion(self) -> tuple[int, int, ArrayMetadata]:
         """
         Returns the metadata for the minimal subregion that fits all the data in this view,
