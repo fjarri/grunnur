@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from .dtypes import _normalize_type
 
@@ -26,34 +26,6 @@ class ArrayMetadataLike(Protocol):
         """The type of an array element."""
 
 
-class NormalizedArgs(NamedTuple):
-    shape: tuple[int, ...]
-    dtype: numpy.dtype[Any]
-    strides: tuple[int, ...]
-    default_strides: bool
-
-
-def _normalize_args(
-    shape: Sequence[int] | int,
-    dtype: DTypeLike,
-    *,
-    strides: Sequence[int] | None = None,
-) -> NormalizedArgs:
-    shape = tuple(shape) if isinstance(shape, Sequence) else (shape,)
-
-    if len(shape) == 0:
-        raise ValueError("Array shape cannot be an empty sequence")
-
-    dtype = _normalize_type(dtype)
-
-    default_strides = _get_strides(shape, dtype.itemsize)
-    strides = default_strides if strides is None else tuple(strides)
-
-    return NormalizedArgs(
-        shape=shape, dtype=dtype, strides=strides, default_strides=strides == default_strides
-    )
-
-
 class ArrayMetadata:
     """
     A helper object for array-like classes that handles shape/strides/buffer size checks
@@ -69,41 +41,28 @@ class ArrayMetadata:
     strides: tuple[int, ...]
     """Array strides."""
 
+    buffer_size: int
+    """The size of the buffer this array resides in."""
+
+    span: int
+    """The minimum size of the buffer that fits all the elements described by this metadata."""
+
+    min_offset: int
+    """The minimum offset of an array element described by this metadata."""
+
+    first_element_offset: int
+    """The offset of the first element (that is, the one with the all indices equal to 0)."""
+
     is_contiguous: bool
     """If ``True``, means that array's data forms a continuous chunk of memory."""
 
     @classmethod
     def from_arraylike(cls, array: ArrayMetadataLike) -> ArrayMetadata:
-        return cls(shape=array.shape, dtype=array.dtype, strides=getattr(array, "strides", None))
-
-    @classmethod
-    def padded(
-        cls,
-        shape: Sequence[int] | int,
-        dtype: DTypeLike,
-        *,
-        pad: Sequence[int] | int,
-    ) -> ArrayMetadata:
-        normalized = _normalize_args(shape=shape, dtype=dtype)
-        pad = tuple(pad) if isinstance(pad, Sequence) else (pad,) * len(normalized.shape)
-
-        if len(normalized.shape) != len(pad):
-            raise ValueError(
-                "`pad` must be either an integer or a sequence of the same length as `shape`"
-            )
-
-        padded_shape = [
-            dim_len + dim_pad * 2 for dim_len, dim_pad in zip(normalized.shape, pad, strict=True)
-        ]
-
-        # A little inefficiency here, we will be normalizing the arguments twice
-        full_metadata = cls(shape=padded_shape, dtype=normalized.dtype)
-
-        slices = tuple(
-            slice(dim_pad, dim_len + dim_pad)
-            for dim_len, dim_pad in zip(normalized.shape, pad, strict=True)
+        return cls(
+            shape=array.shape,
+            dtype=array.dtype,
+            strides=getattr(array, "strides", None),
         )
-        return full_metadata[slices]
 
     def __init__(
         self,
@@ -111,98 +70,102 @@ class ArrayMetadata:
         dtype: DTypeLike,
         *,
         strides: Sequence[int] | None = None,
-        first_element_offset: int = 0,
+        first_element_offset: int | None = None,
         buffer_size: int | None = None,
     ):
-        normalized = _normalize_args(shape=shape, dtype=dtype, strides=strides)
-        shape = normalized.shape
-        dtype = normalized.dtype
-        strides = normalized.strides
+        shape = tuple(shape) if isinstance(shape, Sequence) else (shape,)
 
-        min_offset, max_offset = _get_range(shape, dtype.itemsize, strides)
-        default_buffer_size = first_element_offset + max_offset
-        if buffer_size is None:
-            buffer_size = default_buffer_size
+        if len(shape) == 0:
+            raise ValueError("Array shape cannot be an empty sequence")
 
-        full_min_offset = first_element_offset + min_offset
-        if full_min_offset < 0 or full_min_offset + dtype.itemsize > buffer_size:
-            raise ValueError(
-                f"The minimum offset for given strides ({full_min_offset}) "
-                f"is outside the given buffer range ({buffer_size})"
-            )
+        dtype = _normalize_type(dtype)
 
-        full_max_offset = first_element_offset + max_offset
-        if full_max_offset > buffer_size:
-            raise ValueError(
-                f"The maximum offset for given strides ({full_max_offset}) "
-                f"is outside the given buffer range ({buffer_size})"
-            )
+        default_strides = _get_strides(shape, dtype.itemsize)
+        strides = default_strides if strides is None else tuple(strides)
 
         self.shape = shape
         self.dtype = dtype
         self.strides = strides
+
+        # Note that these are minimum and maximum offsets
+        # when the first element offset is 0.
+        min_offset, max_offset = _get_range(shape, dtype.itemsize, strides)
+        self.span = max_offset - min_offset
+
+        if first_element_offset is None:
+            first_element_offset = -min_offset
+        elif first_element_offset < -min_offset:
+            raise ValueError(f"First element offset is smaller than the minimum {-min_offset}")
         self.first_element_offset = first_element_offset
+        self.min_offset = first_element_offset + min_offset
+
+        min_buffer_size = self.first_element_offset + max_offset
+        if buffer_size is None:
+            buffer_size = min_buffer_size
+        elif buffer_size < min_buffer_size:
+            raise ValueError(f"Buffer size is smaller than the minimum {min_buffer_size}")
         self.buffer_size = buffer_size
 
         # Technically, an array with non-default (e.g., overlapping) strides
         # can be contioguous, but that's too hard to determine.
-        self.is_contiguous = normalized.default_strides
+        self.is_contiguous = strides == default_strides
 
-        self._full_min_offset = full_min_offset
-        self._full_max_offset = full_max_offset
-        self._default_strides = normalized.default_strides
-        self._default_buffer_size = buffer_size == default_buffer_size
+        self._default_strides = strides == default_strides
+
+    def _basis(self) -> tuple[numpy.dtype[Any], tuple[int, ...], tuple[int, ...], int, int]:
+        return (
+            self.dtype,
+            self.shape,
+            self.strides,
+            self.first_element_offset,
+            self.buffer_size,
+        )
 
     def __eq__(self, other: object) -> bool:
-        return (
-            isinstance(other, ArrayMetadata)
-            and self.shape == other.shape
-            and self.dtype == other.dtype
-            and self.strides == other.strides
-            and self.first_element_offset == other.first_element_offset
-            and self.buffer_size == other.buffer_size
-        )
+        return isinstance(other, ArrayMetadata) and self._basis() == other._basis()
 
     def __hash__(self) -> int:
-        return hash((type(self), self.dtype, self.shape, self.strides, self.first_element_offset))
+        return hash((type(self), self._basis()))
 
-    def minimal_subregion(self) -> tuple[int, int, ArrayMetadata]:
+    def get_sub_region(self, origin: int, size: int) -> ArrayMetadata:
         """
-        Returns the metadata for the minimal subregion that fits all the data in this view,
-        along with the subgregion offset in the current buffer and the required subregion length.
+        Returns the same metadata shape-wise, but for the given subregion
+        of the original buffer.
         """
-        subregion_origin = self._full_min_offset
-        subregion_size = self._full_max_offset - self._full_min_offset
-        new_metadata = ArrayMetadata(
-            self.shape,
-            self.dtype,
+        # The size errors will be checked by ArrayMetadata constructor
+        return ArrayMetadata(
+            shape=self.shape,
+            dtype=self.dtype,
             strides=self.strides,
-            first_element_offset=self.first_element_offset - self._full_min_offset,
-            buffer_size=subregion_size,
+            first_element_offset=self.first_element_offset - origin,
+            buffer_size=size,
         )
-        return subregion_origin, subregion_size, new_metadata
 
     def __getitem__(self, slices: slice | tuple[slice, ...]) -> ArrayMetadata:
+        """
+        Returns the view of this metadata with the given ranges,
+        with the offsets and buffer size corresponding to the original buffer.
+        """
         if isinstance(slices, slice):
             slices = (slices,)
         if len(slices) < len(self.shape):
             slices += (slice(None),) * (len(self.shape) - len(slices))
-        new_fe_offset, new_shape, new_strides = _get_view(self.shape, self.strides, slices)
+        offset, new_shape, new_strides = _get_view(self.shape, self.strides, slices)
         return ArrayMetadata(
-            new_shape,
-            self.dtype,
+            shape=new_shape,
+            dtype=self.dtype,
             strides=new_strides,
-            first_element_offset=new_fe_offset,
+            first_element_offset=self.first_element_offset + offset,
             buffer_size=self.buffer_size,
         )
 
     def __repr__(self) -> str:
         args = [f"dtype={self.dtype}", f"shape={self.shape}"]
-        if self.first_element_offset != 0:
-            args.append(f"first_element_offset={self.first_element_offset}")
         if not self._default_strides:
             args.append(f"strides={self.strides}")
-        if not self._default_buffer_size:
+        if self.first_element_offset != 0:
+            args.append(f"first_element_offset={self.first_element_offset}")
+        if self.buffer_size != self.min_offset + self.span:
             args.append(f"buffer_size={self.buffer_size}")
         args_str = ", ".join(args)
         return f"ArrayMetadata({args_str})"

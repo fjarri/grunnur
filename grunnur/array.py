@@ -33,6 +33,9 @@ class Array:
     strides: tuple[int, ...]
     """Array strides."""
 
+    offset: int
+    """Offset of the first element in the associated buffer."""
+
     metadata: ArrayMetadata
     """Array metadata object."""
 
@@ -83,10 +86,10 @@ class Array:
         metadata = ArrayMetadata(
             shape, dtype, strides=strides, first_element_offset=first_element_offset
         )
-        size = metadata.buffer_size
+
         if allocator is None:
             allocator = Buffer.allocate
-        data = allocator(device, size)
+        data = allocator(device, metadata.buffer_size)
 
         return cls(metadata, data)
 
@@ -96,29 +99,38 @@ class Array:
         # TODO: take other information like strides and offset
         return cls.empty(device, array_like.shape, array_like.dtype)
 
-    def __init__(self, array_metadata: ArrayMetadata, data: Buffer):
-        self.metadata = array_metadata
+    def __init__(self, metadata: ArrayMetadata, data: Buffer):
+        if data.size < metadata.buffer_size:
+            raise ValueError(
+                f"The buffer size required by the given metadata ({metadata.buffer_size}) "
+                f"is larger than the given buffer size ({data.size})"
+            )
+
+        self.metadata = metadata
         self.device = data.device
+
         self.shape = self.metadata.shape
         self.dtype = self.metadata.dtype
         self.strides = self.metadata.strides
-        self.first_element_offset = self.metadata.first_element_offset
-        self.buffer_size = self.metadata.buffer_size
-
-        if data.size < self.buffer_size:
-            raise ValueError(
-                "Provided data buffer is not big enough to hold the array "
-                "(minimum required {self.buffer_size})"
-            )
 
         self.data = data
 
-    def _view(self, slices: slice | tuple[slice, ...]) -> Array:
-        new_metadata = self.metadata[slices]
-
-        origin, size, new_metadata = new_metadata.minimal_subregion()
+    def minimum_subregion(self) -> Array:
+        """
+        Returns a new array with the same metadata and the buffer substituted with
+        the minimum-sized subregion of the original buffer,
+        such that all the elements described by the metadata still fit in it.
+        """
+        # TODO: some platforms (e.g. POCL) require this to be aligned.
+        origin = self.metadata.min_offset
+        size = self.metadata.span
         data = self.data.get_sub_region(origin, size)
-        return Array(new_metadata, data)
+        metadata = self.metadata.get_sub_region(origin, size)
+        return Array(metadata, data)
+
+    def __getitem__(self, slices: slice | tuple[slice, ...]) -> Array:
+        """Returns a view of this array."""
+        return Array(self.metadata[slices], self.data)
 
     def set(
         self,
@@ -169,10 +181,6 @@ class Array:
             dest = numpy.empty(self.shape, self.dtype)
         self.data.get(queue, dest, async_=async_)
         return dest
-
-    def __getitem__(self, slices: slice | tuple[slice, ...]) -> Array:
-        """Returns a view of this array."""
-        return self._view(slices)
 
 
 @runtime_checkable

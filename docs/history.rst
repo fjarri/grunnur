@@ -15,8 +15,8 @@ Added
 ^^^^^
 
 * Made ``ArrayMetadata`` public. (PR_18_)
-* Add ``metadata`` attribute to ``Array``. (PR_18_)
-* ``ArrayMetadata.padded()``. (PR_18_)
+* ``metadata`` attribute to ``Array``. (PR_18_)
+* ``ArrayMetadata.buffer_size``, ``span``, ``min_offset``, ``first_element_offset``, and ``get_sub_region()``; ``Array.minimum_subregion()``. (PR_18_)
 
 
 .. _PR_17: https://github.com/fjarri/grunnur/pull/17
