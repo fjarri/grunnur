@@ -33,6 +33,9 @@ class Array:
     strides: tuple[int, ...]
     """Array strides."""
 
+    metadata: ArrayMetadata
+    """Array metadata object."""
+
     @classmethod
     def from_host(
         cls,
@@ -90,17 +93,17 @@ class Array:
     @classmethod
     def empty_like(cls, device: BoundDevice, array_like: ArrayMetadataLike) -> Array:
         """Creates an empty array with the same shape and dtype as ``array_like``."""
+        # TODO: take other information like strides and offset
         return cls.empty(device, array_like.shape, array_like.dtype)
 
     def __init__(self, array_metadata: ArrayMetadata, data: Buffer):
-        self._metadata = array_metadata
-
+        self.metadata = array_metadata
         self.device = data.device
-        self.shape = self._metadata.shape
-        self.dtype = self._metadata.dtype
-        self.strides = self._metadata.strides
-        self.first_element_offset = self._metadata.first_element_offset
-        self.buffer_size = self._metadata.buffer_size
+        self.shape = self.metadata.shape
+        self.dtype = self.metadata.dtype
+        self.strides = self.metadata.strides
+        self.first_element_offset = self.metadata.first_element_offset
+        self.buffer_size = self.metadata.buffer_size
 
         if data.size < self.buffer_size:
             raise ValueError(
@@ -111,7 +114,7 @@ class Array:
         self.data = data
 
     def _view(self, slices: slice | tuple[slice, ...]) -> Array:
-        new_metadata = self._metadata[slices]
+        new_metadata = self.metadata[slices]
 
         origin, size, new_metadata = new_metadata.minimal_subregion()
         data = self.data.get_sub_region(origin, size)
@@ -135,7 +138,7 @@ class Array:
         if isinstance(array, numpy.ndarray):
             array_data = array
         elif isinstance(array, Array):
-            if not array._metadata.is_contiguous:
+            if not array.metadata.is_contiguous:
                 raise ValueError("Setting from a non-contiguous device array is not supported")
             array_data = array.data
         else:
