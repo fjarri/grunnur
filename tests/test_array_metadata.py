@@ -168,6 +168,20 @@ def test_repr():
     assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6), strides=(48, 4))"
 
 
+def test_from_arraylike():
+    meta = ArrayMetadata.from_arraylike(numpy.empty((5, 6), numpy.int32))
+    assert meta.shape == (5, 6)
+    assert meta.dtype == numpy.int32
+    assert meta.strides == (24, 4)
+
+    meta = ArrayMetadata.from_arraylike(
+        ArrayMetadata(shape=(5, 6), dtype=numpy.int32, strides=(48, 4))
+    )
+    assert meta.shape == (5, 6)
+    assert meta.dtype == numpy.int32
+    assert meta.strides == (48, 4)
+
+
 def test_view():
     meta = ArrayMetadata((5, 6), numpy.int32)
     view = meta[1:4, -1:-5:-2]

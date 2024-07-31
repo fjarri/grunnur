@@ -46,7 +46,7 @@ class ArrayMetadata:
 
     @classmethod
     def from_arraylike(cls, array: ArrayMetadataLike) -> ArrayMetadata:
-        return cls(array.shape, array.dtype, strides=getattr(array, "strides", None))
+        return cls(shape=array.shape, dtype=array.dtype, strides=getattr(array, "strides", None))
 
     def __init__(
         self,
