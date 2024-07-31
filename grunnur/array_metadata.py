@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
 from .dtypes import _normalize_type
 
@@ -26,6 +26,34 @@ class ArrayMetadataLike(Protocol):
         """The type of an array element."""
 
 
+class NormalizedArgs(NamedTuple):
+    shape: tuple[int, ...]
+    dtype: numpy.dtype[Any]
+    strides: tuple[int, ...]
+    default_strides: bool
+
+
+def _normalize_args(
+    shape: Sequence[int] | int,
+    dtype: DTypeLike,
+    *,
+    strides: Sequence[int] | None = None,
+) -> NormalizedArgs:
+    shape = tuple(shape) if isinstance(shape, Sequence) else (shape,)
+
+    if len(shape) == 0:
+        raise ValueError("Array shape cannot be an empty sequence")
+
+    dtype = _normalize_type(dtype)
+
+    default_strides = _get_strides(shape, dtype.itemsize)
+    strides = default_strides if strides is None else tuple(strides)
+
+    return NormalizedArgs(
+        shape=shape, dtype=dtype, strides=strides, default_strides=strides == default_strides
+    )
+
+
 class ArrayMetadata:
     """
     A helper object for array-like classes that handles shape/strides/buffer size checks
@@ -48,30 +76,48 @@ class ArrayMetadata:
     def from_arraylike(cls, array: ArrayMetadataLike) -> ArrayMetadata:
         return cls(shape=array.shape, dtype=array.dtype, strides=getattr(array, "strides", None))
 
+    @classmethod
+    def padded(
+        cls,
+        shape: Sequence[int] | int,
+        dtype: DTypeLike,
+        *,
+        pad: Sequence[int] | int,
+    ) -> ArrayMetadata:
+        normalized = _normalize_args(shape=shape, dtype=dtype)
+        pad = tuple(pad) if isinstance(pad, Sequence) else (pad,) * len(normalized.shape)
+
+        if len(normalized.shape) != len(pad):
+            raise ValueError(
+                "`pad` must be either an integer or a sequence of the same length as `shape`"
+            )
+
+        padded_shape = [
+            dim_len + dim_pad * 2 for dim_len, dim_pad in zip(normalized.shape, pad, strict=True)
+        ]
+
+        # A little inefficiency here, we will be normalizing the arguments twice
+        full_metadata = cls(shape=padded_shape, dtype=normalized.dtype)
+
+        slices = tuple(
+            slice(dim_pad, dim_len + dim_pad)
+            for dim_len, dim_pad in zip(normalized.shape, pad, strict=True)
+        )
+        return full_metadata[slices]
+
     def __init__(
         self,
         shape: Sequence[int] | int,
         dtype: DTypeLike,
+        *,
         strides: Sequence[int] | None = None,
         first_element_offset: int = 0,
         buffer_size: int | None = None,
     ):
-        shape = tuple(shape) if isinstance(shape, Sequence) else (shape,)
-        dtype = _normalize_type(dtype)
-
-        if len(shape) == 0:
-            raise ValueError("Array shape cannot be an empty sequence")
-
-        default_strides = _get_strides(shape, dtype.itemsize)
-
-        if strides is None:
-            strides = default_strides
-            self.is_contiguous = True
-        else:
-            strides = tuple(strides)
-            # Technically, an array with non-default (e.g., overlapping) strides
-            # can be contioguous, but that's too hard to determine.
-            self.is_contiguous = strides == default_strides
+        normalized = _normalize_args(shape=shape, dtype=dtype, strides=strides)
+        shape = normalized.shape
+        dtype = normalized.dtype
+        strides = normalized.strides
 
         min_offset, max_offset = _get_range(shape, dtype.itemsize, strides)
         default_buffer_size = first_element_offset + max_offset
@@ -96,11 +142,15 @@ class ArrayMetadata:
         self.dtype = dtype
         self.strides = strides
         self.first_element_offset = first_element_offset
-        self._full_min_offset = full_min_offset
-        self._full_max_offset = full_max_offset
         self.buffer_size = buffer_size
 
-        self._default_strides = strides == default_strides
+        # Technically, an array with non-default (e.g., overlapping) strides
+        # can be contioguous, but that's too hard to determine.
+        self.is_contiguous = normalized.default_strides
+
+        self._full_min_offset = full_min_offset
+        self._full_max_offset = full_max_offset
+        self._default_strides = normalized.default_strides
         self._default_buffer_size = buffer_size == default_buffer_size
 
     def __eq__(self, other: object) -> bool:

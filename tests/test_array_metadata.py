@@ -226,3 +226,15 @@ def test_minimal_subregion():
 def test_empty_shape():
     with pytest.raises(ValueError, match="Array shape cannot be an empty sequence"):
         ArrayMetadata((), numpy.int32)
+
+
+def test_padded():
+    meta = ArrayMetadata.padded((5, 6), numpy.int32, pad=(1, 2))
+    # The offset is the full padded first line (6 + left pad + right pad)
+    # plus the pad of the first line (2)
+    assert meta.first_element_offset == ((6 + 2 + 2) + 2) * 4
+    assert meta.buffer_size == (5 + 1 + 1) * (6 + 2 + 2) * 4
+
+    message = "`pad` must be either an integer or a sequence of the same length as `shape`"
+    with pytest.raises(ValueError, match=message):
+        ArrayMetadata.padded((5, 6), numpy.int32, pad=(1,))

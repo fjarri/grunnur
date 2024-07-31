@@ -16,6 +16,7 @@ Added
 
 * Made ``ArrayMetadata`` public. (PR_18_)
 * Add ``metadata`` attribute to ``Array``. (PR_18_)
+* ``ArrayMetadata.padded()``. (PR_18_)
 
 
 .. _PR_17: https://github.com/fjarri/grunnur/pull/17
