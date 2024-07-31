@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from .dtypes import _normalize_type
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Sequence
-
     import numpy
     from numpy.typing import DTypeLike
 
@@ -51,13 +50,13 @@ class ArrayMetadata:
 
     def __init__(
         self,
-        shape: Sequence[int],
+        shape: Sequence[int] | int,
         dtype: DTypeLike,
         strides: Sequence[int] | None = None,
         first_element_offset: int = 0,
         buffer_size: int | None = None,
     ):
-        shape = tuple(shape)
+        shape = tuple(shape) if isinstance(shape, Sequence) else (shape,)
         dtype = _normalize_type(dtype)
 
         if len(shape) == 0:

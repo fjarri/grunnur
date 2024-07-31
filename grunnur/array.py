@@ -63,7 +63,7 @@ class Array:
     def empty(
         cls,
         device: BoundDevice,
-        shape: Sequence[int],
+        shape: Sequence[int] | int,
         dtype: DTypeLike,
         strides: Sequence[int] | None = None,
         first_element_offset: int = 0,
