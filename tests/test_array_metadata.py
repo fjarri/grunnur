@@ -188,6 +188,11 @@ def test_view():
     ref_view = numpy.empty(meta.shape, meta.dtype)[1:4, -1:-5:-2]
     assert view.shape == ref_view.shape
     assert view.strides == ref_view.strides
+    # Note that the buffer size is taken from the parent array
+    assert view.buffer_size == meta.buffer_size
+    # The first element is [1, -1] of the original array
+    # (even though the first in memory will be the [1, -3] one)
+    assert view.first_element_offset == 1 * 4 * 6 + (6 - 1) * 4
 
     meta = ArrayMetadata((5, 6), numpy.int32)
     view = meta[1:4]  # omitting the innermost slices

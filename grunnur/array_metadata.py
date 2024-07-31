@@ -139,7 +139,11 @@ class ArrayMetadata:
             slices += (slice(None),) * (len(self.shape) - len(slices))
         new_fe_offset, new_shape, new_strides = _get_view(self.shape, self.strides, slices)
         return ArrayMetadata(
-            new_shape, self.dtype, strides=new_strides, first_element_offset=new_fe_offset
+            new_shape,
+            self.dtype,
+            strides=new_strides,
+            first_element_offset=new_fe_offset,
+            buffer_size=self.buffer_size,
         )
 
     def __repr__(self) -> str:
