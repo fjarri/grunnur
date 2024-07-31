@@ -148,6 +148,26 @@ def test_hash():
     assert hash(meta1) != hash(meta3)
 
 
+def test_repr():
+    meta = ArrayMetadata((5, 6), numpy.int32)
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6))"
+
+    meta = ArrayMetadata((5, 6), numpy.int32, first_element_offset=0)
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6))"
+    meta = ArrayMetadata((5, 6), numpy.int32, first_element_offset=12)
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6), first_element_offset=12)"
+
+    meta = ArrayMetadata((5, 6), numpy.int32, buffer_size=5 * 6 * 4)
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6))"
+    meta = ArrayMetadata((5, 6), numpy.int32, buffer_size=512)
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6), buffer_size=512)"
+
+    meta = ArrayMetadata((5, 6), numpy.int32, strides=(24, 4))
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6))"
+    meta = ArrayMetadata((5, 6), numpy.int32, strides=(48, 4))
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6), strides=(48, 4))"
+
+
 def test_view():
     meta = ArrayMetadata((5, 6), numpy.int32)
     view = meta[1:4, -1:-5:-2]

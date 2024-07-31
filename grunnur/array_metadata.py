@@ -74,8 +74,9 @@ class ArrayMetadata:
             self.is_contiguous = strides == default_strides
 
         min_offset, max_offset = _get_range(shape, dtype.itemsize, strides)
+        default_buffer_size = first_element_offset + max_offset
         if buffer_size is None:
-            buffer_size = first_element_offset + max_offset
+            buffer_size = default_buffer_size
 
         full_min_offset = first_element_offset + min_offset
         if full_min_offset < 0 or full_min_offset + dtype.itemsize > buffer_size:
@@ -98,6 +99,9 @@ class ArrayMetadata:
         self._full_min_offset = full_min_offset
         self._full_max_offset = full_max_offset
         self.buffer_size = buffer_size
+
+        self._default_strides = strides == default_strides
+        self._default_buffer_size = buffer_size == default_buffer_size
 
     def __eq__(self, other: object) -> bool:
         return (
@@ -137,6 +141,17 @@ class ArrayMetadata:
         return ArrayMetadata(
             new_shape, self.dtype, strides=new_strides, first_element_offset=new_fe_offset
         )
+
+    def __repr__(self) -> str:
+        args = [f"dtype={self.dtype}", f"shape={self.shape}"]
+        if self.first_element_offset != 0:
+            args.append(f"first_element_offset={self.first_element_offset}")
+        if not self._default_strides:
+            args.append(f"strides={self.strides}")
+        if not self._default_buffer_size:
+            args.append(f"buffer_size={self.buffer_size}")
+        args_str = ", ".join(args)
+        return f"ArrayMetadata({args_str})"
 
 
 def _get_strides(shape: Sequence[int], itemsize: int) -> tuple[int, ...]:
