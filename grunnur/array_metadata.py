@@ -67,12 +67,12 @@ class ArrayMetadata:
 
         if strides is None:
             strides = default_strides
-            self.contiguous = True
+            self.is_contiguous = True
         else:
             strides = tuple(strides)
             # Technically, an array with non-default (e.g., overlapping) strides
             # can be contioguous, but that's too hard to determine.
-            self.contiguous = strides == default_strides
+            self.is_contiguous = strides == default_strides
 
         min_offset, max_offset = _get_range(shape, dtype.itemsize, strides)
         if buffer_size is None:

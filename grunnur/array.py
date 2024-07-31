@@ -135,7 +135,7 @@ class Array:
         if isinstance(array, numpy.ndarray):
             array_data = array
         elif isinstance(array, Array):
-            if not array._metadata.contiguous:  # noqa: SLF001
+            if not array._metadata.is_contiguous:
                 raise ValueError("Setting from a non-contiguous device array is not supported")
             array_data = array.data
         else:
