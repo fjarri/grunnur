@@ -102,6 +102,10 @@ Buffers and arrays
 .. autoclass:: Buffer()
     :members:
 
+.. autoclass:: ArrayMetadata
+    :members:
+    :special-members: __getitem__
+
 .. autoclass:: ArrayMetadataLike()
     :show-inheritance:
     :members:
