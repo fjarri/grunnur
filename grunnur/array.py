@@ -137,14 +137,14 @@ class Array:
         queue: Queue,
         array: numpy.ndarray[Any, numpy.dtype[Any]] | Array,
         *,
-        no_async: bool = False,
+        sync: bool = False,
     ) -> None:
         """
         Copies the contents of the host array to the array.
 
         :param queue: the queue to use for the transfer.
         :param array: the source array.
-        :param no_async: if `True`, the transfer blocks until completion.
+        :param sync: if `True`, the transfer blocks until completion.
         """
         array_data: numpy.ndarray[Any, numpy.dtype[Any]] | Buffer
         if isinstance(array, numpy.ndarray):
@@ -161,7 +161,7 @@ class Array:
         if self.dtype != array.dtype:
             raise ValueError(f"Dtype mismatch: expected {self.dtype}, got {array.dtype}")
 
-        self.data.set(queue, array_data, no_async=no_async)
+        self.data.set(queue, array_data, sync=sync)
 
     def get(
         self,
@@ -382,14 +382,14 @@ class MultiArray:
         mqueue: MultiQueue,
         array: numpy.ndarray[Any, numpy.dtype[Any]] | MultiArray,
         *,
-        no_async: bool = False,
+        sync: bool = False,
     ) -> None:
         """
         Copies the contents of the host array to the array.
 
         :param mqueue: the queue to use for the transfer.
         :param array: the source array.
-        :param no_async: if `True`, the transfer blocks until completion.
+        :param sync: if `True`, the transfer blocks until completion.
         """
         subarrays: Mapping[BoundDevice, Array | numpy.ndarray[Any, numpy.dtype[Any]]]
         if isinstance(array, numpy.ndarray):
@@ -403,4 +403,4 @@ class MultiArray:
             raise ValueError("Mismatched device sets in the source and the destination")
 
         for device in self.subarrays:
-            self.subarrays[device].set(mqueue.queues[device], subarrays[device], no_async=no_async)
+            self.subarrays[device].set(mqueue.queues[device], subarrays[device], sync=sync)

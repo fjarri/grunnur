@@ -9,6 +9,7 @@ Changed
 ^^^^^^^
 
 * ``local_mem`` keyword parameter of kernel calls renamed to ``cu_dynamic_local_mem``. (PR_17_)
+* Renamed ``no_async`` keyword parameter to ``sync``. (PR_18_)
 
 
 Added

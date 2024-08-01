@@ -491,7 +491,7 @@ class CuBufferAdapter(BufferAdapter):
         queue_adapter: QueueAdapter,
         source: numpy.ndarray[Any, numpy.dtype[Any]] | BufferAdapter,
         *,
-        no_async: bool = False,
+        sync: bool = False,
     ) -> None:
         # Will be checked in the upper levels.
         assert isinstance(queue_adapter, CuQueueAdapter)  # noqa: S101
@@ -503,7 +503,7 @@ class CuBufferAdapter(BufferAdapter):
         ptr = int(self._ptr) if isinstance(self._ptr, numpy.number) else self._ptr
 
         if isinstance(source, numpy.ndarray):
-            if no_async:
+            if sync:
                 pycuda_driver.memcpy_htod(ptr, source)
             else:
                 pycuda_driver.memcpy_htod_async(ptr, source, stream=queue_adapter._pycuda_stream)  # noqa: SLF001
@@ -511,7 +511,7 @@ class CuBufferAdapter(BufferAdapter):
             # Will be checked in the upper levels.
             assert isinstance(source, CuBufferAdapter)  # noqa: S101
             buf_ptr = int(source._ptr) if isinstance(source._ptr, numpy.number) else source._ptr  # noqa: SLF001
-            if no_async:
+            if sync:
                 pycuda_driver.memcpy_dtod(ptr, buf_ptr, source.size)
             else:
                 pycuda_driver.memcpy_dtod_async(

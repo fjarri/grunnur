@@ -332,7 +332,7 @@ class BufferAdapter(ABC):
         queue_adapter: QueueAdapter,
         source: numpy.ndarray[Any, numpy.dtype[Any]] | BufferAdapter,
         *,
-        no_async: bool = False,
+        sync: bool = False,
     ) -> None:
         pass
 

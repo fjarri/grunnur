@@ -55,14 +55,14 @@ class Buffer:
         queue: Queue,
         buf: numpy.ndarray[Any, numpy.dtype[Any]] | Buffer,
         *,
-        no_async: bool = False,
+        sync: bool = False,
     ) -> None:
         """
         Copy the contents of the host array or another buffer to this buffer.
 
         :param queue: the queue to use for the transfer.
         :param buf: the source - ``numpy`` array or a :py:class:`Buffer` object.
-        :param no_async: if `True`, the transfer blocks until completion.
+        :param sync: if `True`, the transfer blocks until completion.
         """
         if queue.device != self.device:
             raise ValueError(
@@ -78,7 +78,7 @@ class Buffer:
         else:
             raise TypeError(f"Cannot set from an object of type {type(buf)}")
 
-        self._buffer_adapter.set(queue._queue_adapter, buf_adapter, no_async=no_async)  # noqa: SLF001
+        self._buffer_adapter.set(queue._queue_adapter, buf_adapter, sync=sync)  # noqa: SLF001
 
     def get(
         self,

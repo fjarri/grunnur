@@ -31,7 +31,7 @@ def _check_array_operations(queue, array_cls):
 
     # sync set
     arr2 = numpy.arange(100) + 2
-    arr_dev.set(queue, arr2, no_async=True)
+    arr_dev.set(queue, arr2, sync=True)
     assert (arr_dev.get(queue) == arr2).all()
 
     # async set from another array
@@ -43,7 +43,7 @@ def _check_array_operations(queue, array_cls):
     # sync set from another array
     arr2 = numpy.arange(100) + 4
     arr2_dev = array_cls.from_host(queue, arr2)
-    arr_dev.set(queue, arr2_dev, no_async=True)
+    arr_dev.set(queue, arr2_dev, sync=True)
     assert (arr_dev.get(queue) == arr2).all()
 
 
