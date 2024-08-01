@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from .dtypes import _normalize_type
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Sequence
-
     import numpy
     from numpy.typing import DTypeLike
 
@@ -42,89 +41,134 @@ class ArrayMetadata:
     strides: tuple[int, ...]
     """Array strides."""
 
+    buffer_size: int
+    """The size of the buffer this array resides in."""
+
+    span: int
+    """The minimum size of the buffer that fits all the elements described by this metadata."""
+
+    min_offset: int
+    """The minimum offset of an array element described by this metadata."""
+
+    first_element_offset: int
+    """The offset of the first element (that is, the one with the all indices equal to 0)."""
+
     is_contiguous: bool
     """If ``True``, means that array's data forms a continuous chunk of memory."""
 
     @classmethod
     def from_arraylike(cls, array: ArrayMetadataLike) -> ArrayMetadata:
-        return cls(array.shape, array.dtype, strides=getattr(array, "strides", None))
+        return cls(
+            shape=array.shape,
+            dtype=array.dtype,
+            strides=getattr(array, "strides", None),
+        )
 
     def __init__(
         self,
-        shape: Sequence[int],
+        shape: Sequence[int] | int,
         dtype: DTypeLike,
+        *,
         strides: Sequence[int] | None = None,
-        first_element_offset: int = 0,
+        first_element_offset: int | None = None,
         buffer_size: int | None = None,
     ):
-        shape = tuple(shape)
-        dtype = _normalize_type(dtype)
+        shape = tuple(shape) if isinstance(shape, Sequence) else (shape,)
 
         if len(shape) == 0:
             raise ValueError("Array shape cannot be an empty sequence")
 
+        dtype = _normalize_type(dtype)
+
         default_strides = _get_strides(shape, dtype.itemsize)
-
-        if strides is None:
-            strides = default_strides
-            self.contiguous = True
-        else:
-            strides = tuple(strides)
-            # Technically, an array with non-default (e.g., overlapping) strides
-            # can be contioguous, but that's too hard to determine.
-            self.contiguous = strides == default_strides
-
-        min_offset, max_offset = _get_range(shape, dtype.itemsize, strides)
-        if buffer_size is None:
-            buffer_size = first_element_offset + max_offset
-
-        full_min_offset = first_element_offset + min_offset
-        if full_min_offset < 0 or full_min_offset + dtype.itemsize > buffer_size:
-            raise ValueError(
-                f"The minimum offset for given strides ({full_min_offset}) "
-                f"is outside the given buffer range ({buffer_size})"
-            )
-
-        full_max_offset = first_element_offset + max_offset
-        if full_max_offset > buffer_size:
-            raise ValueError(
-                f"The maximum offset for given strides ({full_max_offset}) "
-                f"is outside the given buffer range ({buffer_size})"
-            )
+        strides = default_strides if strides is None else tuple(strides)
 
         self.shape = shape
         self.dtype = dtype
         self.strides = strides
+
+        # Note that these are minimum and maximum offsets
+        # when the first element offset is 0.
+        min_offset, max_offset = _get_range(shape, dtype.itemsize, strides)
+        self.span = max_offset - min_offset
+
+        if first_element_offset is None:
+            first_element_offset = -min_offset
+        elif first_element_offset < -min_offset:
+            raise ValueError(f"First element offset is smaller than the minimum {-min_offset}")
         self.first_element_offset = first_element_offset
-        self._full_min_offset = full_min_offset
-        self._full_max_offset = full_max_offset
+        self.min_offset = first_element_offset + min_offset
+
+        min_buffer_size = self.first_element_offset + max_offset
+        if buffer_size is None:
+            buffer_size = min_buffer_size
+        elif buffer_size < min_buffer_size:
+            raise ValueError(f"Buffer size is smaller than the minimum {min_buffer_size}")
         self.buffer_size = buffer_size
 
-    def minimal_subregion(self) -> tuple[int, int, ArrayMetadata]:
-        """
-        Returns the metadata for the minimal subregion that fits all the data in this view,
-        along with the subgregion offset in the current buffer and the required subregion length.
-        """
-        subregion_origin = self._full_min_offset
-        subregion_size = self._full_max_offset - self._full_min_offset
-        new_metadata = ArrayMetadata(
-            self.shape,
+        # Technically, an array with non-default (e.g., overlapping) strides
+        # can be contioguous, but that's too hard to determine.
+        self.is_contiguous = strides == default_strides
+
+        self._default_strides = strides == default_strides
+
+    def _basis(self) -> tuple[numpy.dtype[Any], tuple[int, ...], tuple[int, ...], int, int]:
+        return (
             self.dtype,
-            strides=self.strides,
-            first_element_offset=self.first_element_offset - self._full_min_offset,
-            buffer_size=subregion_size,
+            self.shape,
+            self.strides,
+            self.first_element_offset,
+            self.buffer_size,
         )
-        return subregion_origin, subregion_size, new_metadata
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, ArrayMetadata) and self._basis() == other._basis()
+
+    def __hash__(self) -> int:
+        return hash((type(self), self._basis()))
+
+    def get_sub_region(self, origin: int, size: int) -> ArrayMetadata:
+        """
+        Returns the same metadata shape-wise, but for the given subregion
+        of the original buffer.
+        """
+        # The size errors will be checked by ArrayMetadata constructor
+        return ArrayMetadata(
+            shape=self.shape,
+            dtype=self.dtype,
+            strides=self.strides,
+            first_element_offset=self.first_element_offset - origin,
+            buffer_size=size,
+        )
 
     def __getitem__(self, slices: slice | tuple[slice, ...]) -> ArrayMetadata:
+        """
+        Returns the view of this metadata with the given ranges,
+        with the offsets and buffer size corresponding to the original buffer.
+        """
         if isinstance(slices, slice):
             slices = (slices,)
         if len(slices) < len(self.shape):
             slices += (slice(None),) * (len(self.shape) - len(slices))
-        new_fe_offset, new_shape, new_strides = _get_view(self.shape, self.strides, slices)
+        offset, new_shape, new_strides = _get_view(self.shape, self.strides, slices)
         return ArrayMetadata(
-            new_shape, self.dtype, strides=new_strides, first_element_offset=new_fe_offset
+            shape=new_shape,
+            dtype=self.dtype,
+            strides=new_strides,
+            first_element_offset=self.first_element_offset + offset,
+            buffer_size=self.buffer_size,
         )
+
+    def __repr__(self) -> str:
+        args = [f"dtype={self.dtype}", f"shape={self.shape}"]
+        if not self._default_strides:
+            args.append(f"strides={self.strides}")
+        if self.first_element_offset != 0:
+            args.append(f"first_element_offset={self.first_element_offset}")
+        if self.buffer_size != self.min_offset + self.span:
+            args.append(f"buffer_size={self.buffer_size}")
+        args_str = ", ".join(args)
+        return f"ArrayMetadata({args_str})"
 
 
 def _get_strides(shape: Sequence[int], itemsize: int) -> tuple[int, ...]:

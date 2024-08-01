@@ -105,9 +105,9 @@ class VirtualBufferAdapter(BufferAdapter):
         queue_adapter: QueueAdapter,
         source: numpy.ndarray[Any, numpy.dtype[Any]] | BufferAdapter,
         *,
-        no_async: bool = False,
+        sync: bool = False,
     ) -> None:
-        return self._real_buffer_adapter.set(queue_adapter, source, no_async=no_async)
+        return self._real_buffer_adapter.set(queue_adapter, source, sync=sync)
 
     @property
     def offset(self) -> int:

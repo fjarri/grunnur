@@ -36,10 +36,7 @@ def log2(num: int) -> int:
 
 
 def bounding_power_of_2(num: int) -> int:
-    """
-    Returns the minimal number of the form ``2**m``
-    such that it is greater or equal to ``n``.
-    """
+    """Returns the minimum ``x`` such that ``x == 2**m >= num``."""
     if num == 1:
         return 1
     return 1 << (log2(num - 1) + 1)

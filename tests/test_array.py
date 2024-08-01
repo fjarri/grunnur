@@ -1,3 +1,5 @@
+import re
+
 import numpy
 import pytest
 
@@ -29,7 +31,7 @@ def _check_array_operations(queue, array_cls):
 
     # sync set
     arr2 = numpy.arange(100) + 2
-    arr_dev.set(queue, arr2, no_async=True)
+    arr_dev.set(queue, arr2, sync=True)
     assert (arr_dev.get(queue) == arr2).all()
 
     # async set from another array
@@ -41,7 +43,7 @@ def _check_array_operations(queue, array_cls):
     # sync set from another array
     arr2 = numpy.arange(100) + 4
     arr2_dev = array_cls.from_host(queue, arr2)
-    arr_dev.set(queue, arr2_dev, no_async=True)
+    arr_dev.set(queue, arr2_dev, sync=True)
     assert (arr_dev.get(queue) == arr2).all()
 
 
@@ -204,9 +206,11 @@ def test_custom_buffer(mock_context):
     metadata = ArrayMetadata.from_arraylike(arr)
 
     data = Buffer.allocate(context.device, 100)
-    with pytest.raises(
-        ValueError, match="Provided data buffer is not big enough to hold the array"
-    ):
+    message = re.escape(
+        "The buffer size required by the given metadata (400) "
+        "is larger than the given buffer size (100)"
+    )
+    with pytest.raises(ValueError, match=message):
         Array(metadata, data)
 
     bigger_data = Buffer.allocate(context.device, arr.size * arr.dtype.itemsize)
@@ -215,6 +219,18 @@ def test_custom_buffer(mock_context):
     arr_dev = Array(metadata, bigger_data)
     res = arr_dev.get(queue)
     assert (res == arr).all()
+
+
+def test_minimum_subregion(mock_context):
+    context = mock_context
+    arr = Array.empty(context.device, (5, 6), numpy.int32)
+    arr_view = arr[1:4]
+    assert arr.data == arr_view.data
+
+    arr_view_min = arr_view.minimum_subregion()
+    assert arr_view_min.metadata.first_element_offset == 0
+    assert arr_view_min.metadata.buffer_size == 3 * 6 * 4
+    assert arr_view_min.data.size == 3 * 6 * 4
 
 
 def test_set_checks_shape(mock_context):

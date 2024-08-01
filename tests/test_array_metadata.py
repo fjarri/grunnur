@@ -66,108 +66,142 @@ def test_get_strides():
     assert strides == ref.strides
 
 
-def check_metadata(meta, *, check_max=False):
+def check_metadata(meta):
     """
-    Checks array metadata by creating a buffer of the size specified in the metadata
-    and trying to access every element there.
+    Checks array metadata by testing that address of every element of the array
+    lies within the range specified in the metadata.
     """
-    buf = numpy.zeros(meta.buffer_size, numpy.uint8)
-
     itemsize = meta.dtype.itemsize
 
-    for indices in itertools.product(*[range(length) for length in meta.shape]):
-        flat_idx = sum(idx * stride for idx, stride in zip(indices, meta.strides, strict=True))
-        addr = flat_idx + meta.first_element_offset
-        buf[addr : addr + itemsize] = 1
+    addresses = [
+        sum(idx * stride for idx, stride in zip(indices, meta.strides, strict=True))
+        for indices in itertools.product(*[range(length) for length in meta.shape])
+    ]
 
-    nz = numpy.flatnonzero(buf)
-    min_addr = nz[0]
-    max_addr = nz[-1] + 1
-    assert min_addr == meta.first_element_offset
-    if check_max:
-        assert max_addr == meta.buffer_size
+    addresses = numpy.array(addresses)
+
+    assert addresses.max() + itemsize - addresses.min() == meta.span
+    assert meta.first_element_offset + addresses.min() == meta.min_offset
+    assert meta.first_element_offset + addresses.max() + itemsize <= meta.buffer_size
 
 
 def test_metadata_constructor():
     # a scalar shape is converted into a tuple
-    check_metadata(ArrayMetadata([5], numpy.float64), check_max=True)
+    check_metadata(ArrayMetadata([5], numpy.float64))
 
     # strides are created automatically if not provided
     meta = ArrayMetadata((6, 7), numpy.complex128)
-    check_metadata(meta, check_max=True)
+    check_metadata(meta)
     ref = numpy.empty((6, 7), numpy.complex128)
     assert meta.strides == ref.strides
 
     # setting strides manually
-    check_metadata(ArrayMetadata((6, 7), numpy.complex128, strides=[200, 20]), check_max=True)
+    check_metadata(ArrayMetadata((6, 7), numpy.complex128, strides=[200, 20]))
+    check_metadata(ArrayMetadata((6, 7), numpy.complex128, strides=[200, -20]))
 
-    # setting buffer size
-    check_metadata(ArrayMetadata((5, 6), numpy.complex64, strides=[100, 10], buffer_size=1000))
+    # Buffer overflow
+    with pytest.raises(ValueError, match="First element offset is smaller than the minimum 20"):
+        ArrayMetadata((5, 6), numpy.int32, strides=(24, -4), first_element_offset=8)
+    with pytest.raises(ValueError, match="Buffer size is smaller than the minimum 120"):
+        ArrayMetadata((5, 6), numpy.int32, buffer_size=5 * 6 * 4 - 1)
 
-    # Minimum offset is too small
-    message = re.escape(
-        "The minimum offset for given strides (-16) " "is outside the given buffer range (100)"
+
+def test_eq():
+    meta1 = ArrayMetadata((5, 6), numpy.int32)
+    meta2 = ArrayMetadata((5, 6), numpy.int32)
+    meta3 = ArrayMetadata((5, 6), numpy.int32, strides=(48, 4))
+    assert meta1 == meta2
+    assert meta1 != meta3
+
+
+def test_hash():
+    meta1 = ArrayMetadata((5, 6), numpy.int32)
+    meta2 = ArrayMetadata((5, 6), numpy.int32)
+    meta3 = ArrayMetadata((5, 6), numpy.int32, strides=(48, 4))
+    assert hash(meta1) == hash(meta2)
+    assert hash(meta1) != hash(meta3)
+
+
+def test_repr():
+    meta = ArrayMetadata((5, 6), numpy.int32)
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6))"
+
+    meta = ArrayMetadata((5, 6), numpy.int32, strides=(24, 4))
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6))"
+    meta = ArrayMetadata((5, 6), numpy.int32, strides=(48, 4))
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6), strides=(48, 4))"
+
+    meta = ArrayMetadata((5, 6), numpy.int32, first_element_offset=0)
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6))"
+    meta = ArrayMetadata((5, 6), numpy.int32, first_element_offset=12)
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6), first_element_offset=12)"
+
+    meta = ArrayMetadata((5, 6), numpy.int32, buffer_size=5 * 6 * 4)
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6))"
+    meta = ArrayMetadata((5, 6), numpy.int32, buffer_size=512)
+    assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6), buffer_size=512)"
+
+
+def test_from_arraylike():
+    meta = ArrayMetadata.from_arraylike(numpy.empty((5, 6), numpy.int32))
+    assert meta.shape == (5, 6)
+    assert meta.dtype == numpy.int32
+    assert meta.strides == (24, 4)
+
+    meta = ArrayMetadata.from_arraylike(
+        ArrayMetadata(shape=(5, 6), dtype=numpy.int32, strides=(48, 4))
     )
-    with pytest.raises(ValueError, match=message):
-        meta = ArrayMetadata(
-            (4, 5), numpy.int32, strides=(20, -4), first_element_offset=0, buffer_size=100
-        )
-
-    # Minimum offset is too big
-    message = re.escape(
-        "The minimum offset for given strides (120) " "is outside the given buffer range (100)"
-    )
-    with pytest.raises(ValueError, match=message):
-        meta = ArrayMetadata(
-            (4, 5), numpy.int32, strides=(20, 4), first_element_offset=120, buffer_size=100
-        )
-
-    # Maximum offset is too big
-    message = re.escape(
-        "The maximum offset for given strides (80) " "is outside the given buffer range (70)"
-    )
-    with pytest.raises(ValueError, match=message):
-        meta = ArrayMetadata(
-            (4, 5), numpy.int32, strides=(20, 4), first_element_offset=0, buffer_size=70
-        )
+    assert meta.shape == (5, 6)
+    assert meta.dtype == numpy.int32
+    assert meta.strides == (48, 4)
 
 
 def test_view():
     meta = ArrayMetadata((5, 6), numpy.int32)
     view = meta[1:4, -1:-5:-2]
     ref_view = numpy.empty(meta.shape, meta.dtype)[1:4, -1:-5:-2]
+    # First element is [1, -1] == [1, 5] of the original array
+    assert view.first_element_offset == 1 * 6 * 4 + 5 * 4
     assert view.shape == ref_view.shape
     assert view.strides == ref_view.strides
+    assert view.buffer_size == meta.buffer_size
+    # The element with the minimum address is [1, -3] == [1, 3] of the original array
+    assert view.min_offset == 1 * 6 * 4 + 3 * 4
+    # The element with the maximum address is [3, -1] == [3, 5] of the original array.
+    # It is located 2 * 4 * 6 (2 elements in the dimension 0 times the stride 4 * 6)
+    # bytes after the first element of the view.
+    # The minimum buffer size is the first element offset plus this offset plus the element size (4)
+    assert view.span == (view.first_element_offset + 2 * 4 * 6 + 4) - view.min_offset
 
     meta = ArrayMetadata((5, 6), numpy.int32)
     view = meta[1:4]  # omitting the innermost slices
     ref_view = numpy.empty(meta.shape, meta.dtype)[1:4]
+    # First element is [1, 0] of the original array
+    assert view.first_element_offset == 1 * 6 * 4
     assert view.shape == ref_view.shape
     assert view.strides == ref_view.strides
-
-
-def test_minimal_subregion():
-    meta = ArrayMetadata((5, 6), numpy.int32)
-    view = meta[1:4, -1:-5:-2]
-    origin, size, new_meta = view.minimal_subregion()
-
-    # the address of the elem with the lowest address, that is (1, -3) == (1, 3)
-    assert origin == 1 * meta.strides[0] + 3 * meta.strides[1]
-
-    # the distance between the lowest address ((1, -3) == (1, 3))
-    # and the highest one ((3, -1) == (3, 5)) plus itemsize
-    assert size == (
-        (3 * meta.strides[0] + 5 * meta.strides[1])
-        + meta.dtype.itemsize
-        - (1 * meta.strides[0] + 3 * meta.strides[1])
-    )
-
-    # The new first element address is the address of (1, -1) == (1, 5)
-    # minus the origin.
-    assert new_meta.first_element_offset == 1 * meta.strides[0] + 5 * meta.strides[1] - origin
-    assert new_meta.buffer_size == size
+    assert view.buffer_size == meta.buffer_size
+    # The leftmost element is also the first
+    assert view.min_offset == view.first_element_offset
+    # Three lines of stride 4 * 6 each
+    assert view.span == 3 * 4 * 6
 
 
 def test_empty_shape():
     with pytest.raises(ValueError, match="Array shape cannot be an empty sequence"):
         ArrayMetadata((), numpy.int32)
+
+
+def test_get_sub_region():
+    meta = ArrayMetadata((5, 6), numpy.int32)
+    view = meta[1:4]
+
+    view_region = view.get_sub_region(0, meta.buffer_size)
+    assert view_region.first_element_offset == view.first_element_offset
+    assert view_region.buffer_size == view.buffer_size
+
+    span = 3 * 6 * 4  # 3 lines of 6 elements of 4 bytes each
+    # The new first element offset will be 24 - 8 == 16
+    view_region = view.get_sub_region(8, 16 + span + 1)
+    assert view_region.first_element_offset == view.first_element_offset - 8
+    assert view_region.buffer_size == 16 + span + 1

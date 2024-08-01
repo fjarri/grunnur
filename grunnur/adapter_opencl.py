@@ -491,7 +491,7 @@ class OclBufferAdapter(BufferAdapter):
         queue_adapter: QueueAdapter,
         source: numpy.ndarray[Any, numpy.dtype[Any]] | BufferAdapter,
         *,
-        no_async: bool = False,
+        sync: bool = False,
     ) -> None:
         # Will be checked in the upper levels.
         assert isinstance(queue_adapter, OclQueueAdapter)  # noqa: S101
@@ -506,7 +506,7 @@ class OclBufferAdapter(BufferAdapter):
         # This keyword is only supported for transfers involving hosts in PyOpenCL
         kwds = {}
         if not isinstance(source, OclBufferAdapter):
-            kwds["is_blocking"] = no_async
+            kwds["is_blocking"] = sync
 
         pyopencl.enqueue_copy(
             queue_adapter._pyopencl_queue,  # noqa: SLF001

@@ -102,7 +102,7 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
 
     for i, metadata in enumerate(buffers_metadata):
         name, _size, deps = metadata
-        buffers[name].set(queue, numpy.ones(buffers[name].size, numpy.uint8) * i, no_async=True)
+        buffers[name].set(queue, numpy.ones(buffers[name].size, numpy.uint8) * i, sync=True)
         # According to the virtual allocator contract, the allocated buffer
         # will not intersect with the buffers from the specified dependencies.
         # So we're filling the buffer and checking that the dependencies did not change.

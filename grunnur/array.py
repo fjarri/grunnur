@@ -33,6 +33,12 @@ class Array:
     strides: tuple[int, ...]
     """Array strides."""
 
+    offset: int
+    """Offset of the first element in the associated buffer."""
+
+    metadata: ArrayMetadata
+    """Array metadata object."""
+
     @classmethod
     def from_host(
         cls,
@@ -60,7 +66,7 @@ class Array:
     def empty(
         cls,
         device: BoundDevice,
-        shape: Sequence[int],
+        shape: Sequence[int] | int,
         dtype: DTypeLike,
         strides: Sequence[int] | None = None,
         first_element_offset: int = 0,
@@ -80,62 +86,71 @@ class Array:
         metadata = ArrayMetadata(
             shape, dtype, strides=strides, first_element_offset=first_element_offset
         )
-        size = metadata.buffer_size
+
         if allocator is None:
             allocator = Buffer.allocate
-        data = allocator(device, size)
+        data = allocator(device, metadata.buffer_size)
 
         return cls(metadata, data)
 
     @classmethod
     def empty_like(cls, device: BoundDevice, array_like: ArrayMetadataLike) -> Array:
         """Creates an empty array with the same shape and dtype as ``array_like``."""
+        # TODO: take other information like strides and offset
         return cls.empty(device, array_like.shape, array_like.dtype)
 
-    def __init__(self, array_metadata: ArrayMetadata, data: Buffer):
-        self._metadata = array_metadata
-
-        self.device = data.device
-        self.shape = self._metadata.shape
-        self.dtype = self._metadata.dtype
-        self.strides = self._metadata.strides
-        self.first_element_offset = self._metadata.first_element_offset
-        self.buffer_size = self._metadata.buffer_size
-
-        if data.size < self.buffer_size:
+    def __init__(self, metadata: ArrayMetadata, data: Buffer):
+        if data.size < metadata.buffer_size:
             raise ValueError(
-                "Provided data buffer is not big enough to hold the array "
-                "(minimum required {self.buffer_size})"
+                f"The buffer size required by the given metadata ({metadata.buffer_size}) "
+                f"is larger than the given buffer size ({data.size})"
             )
+
+        self.metadata = metadata
+        self.device = data.device
+
+        self.shape = self.metadata.shape
+        self.dtype = self.metadata.dtype
+        self.strides = self.metadata.strides
 
         self.data = data
 
-    def _view(self, slices: slice | tuple[slice, ...]) -> Array:
-        new_metadata = self._metadata[slices]
-
-        origin, size, new_metadata = new_metadata.minimal_subregion()
+    def minimum_subregion(self) -> Array:
+        """
+        Returns a new array with the same metadata and the buffer substituted with
+        the minimum-sized subregion of the original buffer,
+        such that all the elements described by the metadata still fit in it.
+        """
+        # TODO: some platforms (e.g. POCL) require this to be aligned.
+        origin = self.metadata.min_offset
+        size = self.metadata.span
         data = self.data.get_sub_region(origin, size)
-        return Array(new_metadata, data)
+        metadata = self.metadata.get_sub_region(origin, size)
+        return Array(metadata, data)
+
+    def __getitem__(self, slices: slice | tuple[slice, ...]) -> Array:
+        """Returns a view of this array."""
+        return Array(self.metadata[slices], self.data)
 
     def set(
         self,
         queue: Queue,
         array: numpy.ndarray[Any, numpy.dtype[Any]] | Array,
         *,
-        no_async: bool = False,
+        sync: bool = False,
     ) -> None:
         """
         Copies the contents of the host array to the array.
 
         :param queue: the queue to use for the transfer.
         :param array: the source array.
-        :param no_async: if `True`, the transfer blocks until completion.
+        :param sync: if `True`, the transfer blocks until completion.
         """
         array_data: numpy.ndarray[Any, numpy.dtype[Any]] | Buffer
         if isinstance(array, numpy.ndarray):
             array_data = array
         elif isinstance(array, Array):
-            if not array._metadata.contiguous:  # noqa: SLF001
+            if not array.metadata.is_contiguous:
                 raise ValueError("Setting from a non-contiguous device array is not supported")
             array_data = array.data
         else:
@@ -146,7 +161,7 @@ class Array:
         if self.dtype != array.dtype:
             raise ValueError(f"Dtype mismatch: expected {self.dtype}, got {array.dtype}")
 
-        self.data.set(queue, array_data, no_async=no_async)
+        self.data.set(queue, array_data, sync=sync)
 
     def get(
         self,
@@ -166,10 +181,6 @@ class Array:
             dest = numpy.empty(self.shape, self.dtype)
         self.data.get(queue, dest, async_=async_)
         return dest
-
-    def __getitem__(self, slices: slice | tuple[slice, ...]) -> Array:
-        """Returns a view of this array."""
-        return self._view(slices)
 
 
 @runtime_checkable
@@ -371,14 +382,14 @@ class MultiArray:
         mqueue: MultiQueue,
         array: numpy.ndarray[Any, numpy.dtype[Any]] | MultiArray,
         *,
-        no_async: bool = False,
+        sync: bool = False,
     ) -> None:
         """
         Copies the contents of the host array to the array.
 
         :param mqueue: the queue to use for the transfer.
         :param array: the source array.
-        :param no_async: if `True`, the transfer blocks until completion.
+        :param sync: if `True`, the transfer blocks until completion.
         """
         subarrays: Mapping[BoundDevice, Array | numpy.ndarray[Any, numpy.dtype[Any]]]
         if isinstance(array, numpy.ndarray):
@@ -392,4 +403,4 @@ class MultiArray:
             raise ValueError("Mismatched device sets in the source and the destination")
 
         for device in self.subarrays:
-            self.subarrays[device].set(mqueue.queues[device], subarrays[device], no_async=no_async)
+            self.subarrays[device].set(mqueue.queues[device], subarrays[device], sync=sync)

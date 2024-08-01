@@ -24,7 +24,7 @@ def test_transfer(mock_or_real_context, sync):
 
     queue = Queue(context.device)
 
-    buf.set(queue, arr, no_async=sync)
+    buf.set(queue, arr, sync=sync)
 
     # Read the whole buffer
     res = numpy.empty_like(arr)
@@ -36,7 +36,7 @@ def test_transfer(mock_or_real_context, sync):
     # Device-to-device copy
     res = numpy.empty_like(arr)
     buf2 = Buffer.allocate(context.device, size)
-    buf2.set(queue, buf, no_async=sync)
+    buf2.set(queue, buf, sync=sync)
     buf2.get(queue, res, async_=not sync)
     if not sync:
         queue.synchronize()
@@ -76,7 +76,7 @@ def test_subregion(mock_or_real_context, sync):
     res = numpy.empty_like(arr)
     arr_region = (numpy.ones(50) * region_length).astype(dtype)
     arr[region_offset : region_offset + region_length] = arr_region
-    buf_region.set(queue, arr_region, no_async=sync)
+    buf_region.set(queue, arr_region, sync=sync)
     buf.get(queue, res, async_=not sync)
     if not sync:
         queue.synchronize()
@@ -96,7 +96,7 @@ def test_subregion_copy(mock_or_real_context, sync):
     buf = Buffer.allocate(context.device, size)
 
     queue = Queue(context.device)
-    buf.set(queue, arr, no_async=sync)
+    buf.set(queue, arr, sync=sync)
 
     region_offset = 64
     region_length = 100
@@ -105,7 +105,7 @@ def test_subregion_copy(mock_or_real_context, sync):
     buf2 = Buffer.allocate(context.device, size * 2)
     buf2.set(queue, numpy.ones(length * 2, dtype))
     buf2_view = buf2.get_sub_region(region_offset * dtype.itemsize, region_length * dtype.itemsize)
-    buf2_view.set(queue, buf, no_async=sync)
+    buf2_view.set(queue, buf, sync=sync)
     res2 = numpy.empty(length * 2, dtype)
     buf2.get(queue, res2, async_=not sync)
     if not sync:
