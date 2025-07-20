@@ -625,8 +625,7 @@ class CuProgramAdapter(ProgramAdapter):
 
         if transfer_size != size:
             raise ValueError(
-                f"Incorrect size of the constant buffer; "
-                f"expected {size} bytes, got {transfer_size}"
+                f"Incorrect size of the constant buffer; expected {size} bytes, got {transfer_size}"
             )
 
         if isinstance(arr, CuBufferAdapter):

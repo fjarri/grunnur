@@ -350,8 +350,7 @@ class PreparedKernel:
 
         if not queue.devices.issubset(self._devices):
             raise ValueError(
-                f"Requested execution on devices {queue.devices}; "
-                f"only compiled for {self._devices}"
+                f"Requested execution on devices {queue.devices}; only compiled for {self._devices}"
             )
 
         ret_vals = []
@@ -381,10 +380,10 @@ def normalize_sizes(
     dict[BoundDevice, tuple[int, ...] | None],
 ]:
     if not isinstance(global_size, Mapping):
-        global_size = {device: global_size for device in devices}
+        global_size = dict.fromkeys(devices, global_size)
 
     if not isinstance(local_size, Mapping):
-        local_size = {device: local_size for device in devices}
+        local_size = dict.fromkeys(devices, local_size)
 
     normalized_global_size = {device: tuple(gs) for device, gs in global_size.items()}
     normalized_local_size = {

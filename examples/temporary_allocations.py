@@ -1,6 +1,6 @@
 """The example illustrating how to manually use a temporary array manager (if you must)."""
 
-# ruff: noqa: T201, S101
+# ruff: noqa: T201
 
 import numpy
 

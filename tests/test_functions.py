@@ -382,7 +382,7 @@ def test_cast_complex_to_real(context):
     out_dtype = numpy.float32
     in_dtypes = [numpy.complex64]
     message = re.escape(
-        "cast from <class 'numpy.complex64'> " "to <class 'numpy.float32'> is not supported"
+        "cast from <class 'numpy.complex64'> to <class 'numpy.float32'> is not supported"
     )
     with pytest.raises(ValueError, match=message):
         check_func(

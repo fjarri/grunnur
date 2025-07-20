@@ -45,7 +45,7 @@ def calc_ref(
     return res
 
 
-def test_single_device(device_idx: int, full_len: int, *, benchmark: bool = False) -> None:
+def run_single_device(device_idx: int, full_len: int, *, benchmark: bool = False) -> None:
     """Runs the kernel on a single device."""
     pwr = 50
 
@@ -71,9 +71,7 @@ def test_single_device(device_idx: int, full_len: int, *, benchmark: bool = Fals
         assert (a_ref == a_res).all()
 
 
-def test_multi_device(
-    device_idxs: Sequence[int], full_len: int, *, benchmark: bool = False
-) -> None:
+def run_multi_device(device_idxs: Sequence[int], full_len: int, *, benchmark: bool = False) -> None:
     """Runs the kernel on a multiple devices."""
     pwr = 50
 
@@ -101,10 +99,10 @@ def test_multi_device(
         assert (a_ref == a_res).all()
 
 
-test_single_device(0, 2**20)
-test_single_device(1, 2**20)
-test_multi_device([0, 1], 2**20)
+run_single_device(0, 2**20)
+run_single_device(1, 2**20)
+run_multi_device([0, 1], 2**20)
 
-test_single_device(0, 2**24, benchmark=True)
-test_single_device(1, 2**24, benchmark=True)
-test_multi_device([0, 1], 2**24, benchmark=True)
+run_single_device(0, 2**24, benchmark=True)
+run_single_device(1, 2**24, benchmark=True)
+run_multi_device([0, 1], 2**24, benchmark=True)

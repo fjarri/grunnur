@@ -229,8 +229,7 @@ class EqualSplay(BaseSplay):
         outer_dim = arr.shape[0]
         if parts > outer_dim:
             raise ValueError(
-                "The number of devices to splay to "
-                "cannot be greater than the outer array dimension"
+                "The number of devices to splay to cannot be greater than the outer array dimension"
             )
         chunk_size = min_blocks(outer_dim, parts)
         rem = outer_dim % parts
@@ -251,7 +250,7 @@ class CloneSplay(BaseSplay):
     def __call__(
         self, arr: _ArrayLike, devices: Sequence[BoundDevice]
     ) -> dict[BoundDevice, _ArrayLike]:
-        return {device: arr for device in devices}
+        return dict.fromkeys(devices, arr)
 
 
 class MultiArray:

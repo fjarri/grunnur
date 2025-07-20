@@ -113,8 +113,7 @@ class StaticKernel:
                     render_globals,
                     {_STATIC_MODULES_GLOBAL: vs.vsize_modules},
                     error_msg=(
-                        f"The global name '{_STATIC_MODULES_GLOBAL}' "
-                        "is reserved in static kernels"
+                        f"The global name '{_STATIC_MODULES_GLOBAL}' is reserved in static kernels"
                     ),
                 )
 

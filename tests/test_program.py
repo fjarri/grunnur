@@ -127,7 +127,7 @@ def test_compile_multi_device(mock_or_real_multi_device_context):
     program.kernel.multiply(
         mqueue,
         a_dev.shapes,
-        {device: None for device in devices},
+        dict.fromkeys(devices, None),
         res_dev,
         a_dev.subarrays,
         b_dev,
