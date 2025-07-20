@@ -23,6 +23,8 @@ from .queue import MultiQueue, Queue
 from .utils import update_dict
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Iterable
+
     from .array_metadata import ArrayMetadataLike
     from .template import DefTemplate
 
@@ -83,7 +85,7 @@ class SingleDeviceProgram:
         render_globals: Mapping[str, Any] = {},
         constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
         keep: bool = False,
-        compiler_options: Sequence[str] | None = None,
+        compiler_options: Iterable[str] | None = None,
     ):
         """
         Renders and compiles the given template on a single device.

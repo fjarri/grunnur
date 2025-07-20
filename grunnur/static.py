@@ -19,7 +19,7 @@ from .vsize import VirtualSizeError, VirtualSizes
 _STATIC_MODULES_GLOBAL = "static"
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterable, Mapping, Sequence
 
     import numpy
 
@@ -62,7 +62,7 @@ class StaticKernel:
         constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
         keep: bool = False,
         fast_math: bool = False,
-        compiler_options: Sequence[str] | None = None,
+        compiler_options: Iterable[str] | None = None,
     ):
         """
         :param devices: a single- or a multi-device object on which to compile this program.

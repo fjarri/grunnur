@@ -5,7 +5,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
     import numpy
 
@@ -278,7 +278,7 @@ class ContextAdapter(ABC):
         *,
         keep: bool = False,
         fast_math: bool = False,
-        compiler_options: Sequence[str] | None = None,
+        compiler_options: Iterable[str] | None = None,
         constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
     ) -> ProgramAdapter:
         """

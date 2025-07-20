@@ -32,7 +32,7 @@ from .template import Template
 from .utils import normalize_object_sequence
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
     import numpy
 
@@ -391,7 +391,7 @@ class OclContextAdapter(ContextAdapter):
         *,
         keep: bool = False,
         fast_math: bool = False,
-        compiler_options: Sequence[str] | None = None,
+        compiler_options: Iterable[str] | None = None,
         constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
     ) -> OclProgramAdapter:
         # Will be checked in the upper levels.

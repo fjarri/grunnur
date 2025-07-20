@@ -38,7 +38,7 @@ from .template import Template
 from .utils import get_launch_size, normalize_object_sequence, prod
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
 
 # Another way would be to place it in the try block and only set `_avaialable`
@@ -391,7 +391,7 @@ class CuContextAdapter(ContextAdapter):
         *,
         keep: bool = False,
         fast_math: bool = False,
-        compiler_options: Sequence[str] | None = None,
+        compiler_options: Iterable[str] | None = None,
         constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
     ) -> CuProgramAdapter:
         # Will be checked in the higher levels
