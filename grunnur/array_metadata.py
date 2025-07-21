@@ -25,6 +25,10 @@ class ArrayMetadataLike(Protocol):
     def dtype(self) -> numpy.dtype[Any]:
         """The type of an array element."""
 
+    @property
+    def strides(self) -> tuple[int, ...]:
+        """Array strides."""
+
 
 class ArrayMetadata:
     """
@@ -58,10 +62,13 @@ class ArrayMetadata:
 
     @classmethod
     def from_arraylike(cls, array: ArrayMetadataLike) -> ArrayMetadata:
+        if isinstance(array, ArrayMetadata):
+            return array
+
         return cls(
             shape=array.shape,
             dtype=array.dtype,
-            strides=getattr(array, "strides", None),
+            strides=array.strides,
         )
 
     def __init__(

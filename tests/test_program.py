@@ -214,12 +214,13 @@ def _test_constant_memory(context, mocked, is_static):
     class Metadata(NamedTuple):
         shape: tuple[int, ...]
         dtype: numpy.dtype
+        strides: tuple[int, ...]
 
     if context.api.id == cuda_api_id():
         # Use different forms of constant array representation
         constant_arrays = dict(
             cm1=cm1,  # as an array(-like) object
-            cm2=Metadata(cm2.shape, cm2.dtype),  # as a metadata-like
+            cm2=Metadata(cm2.shape, cm2.dtype, cm2.strides),  # as a metadata-like
             cm3=cm3_dev,
         )  # as a device array
 
