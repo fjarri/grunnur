@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from .dtypes import _normalize_type
@@ -73,14 +73,14 @@ class ArrayMetadata:
 
     def __init__(
         self,
-        shape: Sequence[int] | int,
+        shape: Iterable[int] | int,
         dtype: DTypeLike,
         *,
-        strides: Sequence[int] | None = None,
+        strides: Iterable[int] | None = None,
         first_element_offset: int | None = None,
         buffer_size: int | None = None,
     ):
-        shape = tuple(shape) if isinstance(shape, Sequence) else (shape,)
+        shape = tuple(shape) if isinstance(shape, Iterable) else (shape,)
 
         if len(shape) == 0:
             raise ValueError("Array shape cannot be an empty sequence")
@@ -178,7 +178,7 @@ class ArrayMetadata:
         return f"ArrayMetadata({args_str})"
 
 
-def _get_strides(shape: Sequence[int], itemsize: int) -> tuple[int, ...]:
+def _get_strides(shape: tuple[int, ...], itemsize: int) -> tuple[int, ...]:
     # Constructs strides for a contiguous array of shape ``shape`` and item size ``itemsize``.
     strides = []
     stride = itemsize
@@ -206,7 +206,7 @@ def _normalize_slice(length: int, stride: int, slice_: slice) -> tuple[int, int,
 
 
 def _get_view(
-    shape: Sequence[int], strides: Sequence[int], slices: Sequence[slice]
+    shape: tuple[int, ...], strides: tuple[int, ...], slices: tuple[slice, ...]
 ) -> tuple[int, tuple[int, ...], tuple[int, ...]]:
     """
     Given an array shape and strides, and a sequence of slices defining a view,
@@ -229,7 +229,7 @@ def _get_view(
     return sum(offsets), tuple(lengths), tuple(strides)
 
 
-def _get_range(shape: Sequence[int], itemsize: int, strides: Sequence[int]) -> tuple[int, int]:
+def _get_range(shape: tuple[int, ...], itemsize: int, strides: tuple[int, ...]) -> tuple[int, int]:
     """
     Given an array shape, item size (in bytes), and a sequence of strides,
     returns a pair ``(min_offset, max_offset)``,

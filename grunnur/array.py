@@ -13,7 +13,7 @@ from .queue import MultiQueue, Queue
 from .utils import min_blocks
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterable, Mapping, Sequence
 
     from numpy.typing import DTypeLike
 
@@ -66,9 +66,9 @@ class Array:
     def empty(
         cls,
         device: BoundDevice,
-        shape: Sequence[int] | int,
+        shape: Iterable[int] | int,
         dtype: DTypeLike,
-        strides: Sequence[int] | None = None,
+        strides: Iterable[int] | None = None,
         first_element_offset: int = 0,
         allocator: Callable[[BoundDevice, int], Buffer] | None = None,
     ) -> Array:
@@ -305,7 +305,7 @@ class MultiArray:
     def empty(
         cls,
         devices: BoundMultiDevice,
-        shape: Sequence[int],
+        shape: Iterable[int],
         dtype: DTypeLike,
         allocator: Callable[[BoundDevice, int], Buffer] | None = None,
         splay: BaseSplay | None = None,
