@@ -33,9 +33,6 @@ class Array:
     strides: tuple[int, ...]
     """Array strides."""
 
-    offset: int
-    """Offset of the first element in the associated buffer."""
-
     metadata: ArrayMetadata
     """Array metadata object."""
 
