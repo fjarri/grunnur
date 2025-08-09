@@ -439,7 +439,7 @@ class Kernel:
         :param global_size: the total number of threads (CUDA)/work items (OpenCL) in each dimension
             (column-major). Note that there may be a maximum size in each dimension as well
             as the maximum number of dimensions.
-            See :py:class:`~grunnur.adapter_base.DeviceParameters` for details.
+            See :py:class:`~grunnur.DeviceParameters` for details.
         :param local_size: the number of threads in a block (CUDA)/work items in a
             work group (OpenCL) in each dimension (column-major).
             If ``None``, it will be chosen automatically.

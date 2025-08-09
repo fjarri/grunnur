@@ -2,6 +2,18 @@ Version history
 ===============
 
 
+0.6.0 (in development)
+----------------------
+
+Added
+^^^^^
+
+* Export ``DeviceParameters`` and ``BoundDevice``. (PR_20_)
+
+
+.. _PR_20: https://github.com/fjarri/grunnur/pull/20
+
+
 0.5.0 (31 Jul 2024)
 -------------------
 

@@ -1,4 +1,5 @@
 from . import dtypes, functions
+from .adapter_base import DeviceParameters
 from .api import (
     API,
     all_api_ids,
@@ -8,7 +9,7 @@ from .api import (
 from .array import Array, ArrayLike, MultiArray
 from .array_metadata import ArrayMetadata, ArrayMetadataLike
 from .buffer import Buffer
-from .context import Context
+from .context import BoundDevice, Context
 from .device import Device, DeviceFilter
 from .device_discovery import (
     platforms_and_devices_by_mask,
