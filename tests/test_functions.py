@@ -119,9 +119,7 @@ def test_exp_mocked(mock_context, out_code, in_codes):
 
 
 def test_exp_of_integer():
-    with pytest.raises(
-        ValueError, match=re.escape("exp() of <class 'numpy.int32'> is not supported")
-    ):
+    with pytest.raises(ValueError, match=re.escape("exp() of int32 is not supported")):
         functions.exp(numpy.int32)
 
 
@@ -289,9 +287,7 @@ def test_polar_mocked(mock_context, out_code, in_codes):
 
 
 def test_polar_of_complex():
-    with pytest.raises(
-        ValueError, match=re.escape("polar() of <class 'numpy.complex64'> is not supported")
-    ):
+    with pytest.raises(ValueError, match=re.escape("polar() of complex64 is not supported")):
         functions.polar(numpy.complex64)
 
 
@@ -381,9 +377,7 @@ def test_cast_mocked(mock_context, out_code, in_codes):
 def test_cast_complex_to_real(context):
     out_dtype = numpy.float32
     in_dtypes = [numpy.complex64]
-    message = re.escape(
-        "cast from <class 'numpy.complex64'> to <class 'numpy.float32'> is not supported"
-    )
+    message = re.escape("cast from complex64 to float32 is not supported")
     with pytest.raises(ValueError, match=message):
         check_func(
             context,
