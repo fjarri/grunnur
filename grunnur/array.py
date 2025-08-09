@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast, runtime_checkabl
 
 import numpy
 
-from .array_metadata import ArrayMetadata, ArrayMetadataLike
+from .array_metadata import ArrayMetadata
 from .buffer import Buffer
 from .context import BoundDevice, BoundMultiDevice, Context
 from .device import Device
@@ -60,6 +60,20 @@ class Array:
         return array
 
     @classmethod
+    def empty_with_metadata(
+        cls,
+        device: BoundDevice,
+        metadata: ArrayMetadata,
+        allocator: Callable[[BoundDevice, int], Buffer] | None = None,
+    ) -> Array:
+        """Creates an empty array with the given metadata."""
+        if allocator is None:
+            allocator = Buffer.allocate
+        data = allocator(device, metadata.buffer_size)
+
+        return cls(metadata, data)
+
+    @classmethod
     def empty(
         cls,
         device: BoundDevice,
@@ -69,32 +83,30 @@ class Array:
         first_element_offset: int = 0,
         allocator: Callable[[BoundDevice, int], Buffer] | None = None,
     ) -> Array:
-        """
-        Creates an empty array.
-
-        :param device: device on which this array will be allocated.
-        :param shape: array shape.
-        :param dtype: array data type.
-        :param allocator: an optional callable taking two arguments
-            (the bound device, and the buffer size in bytes)
-            and returning a :py:class:`Buffer` object.
-            If ``None``, will use :py:meth:`Buffer.allocate`.
-        """
-        metadata = ArrayMetadata(
-            shape, dtype, strides=strides, first_element_offset=first_element_offset
+        """Creates an empty array."""
+        return cls.empty_with_metadata(
+            device,
+            ArrayMetadata(shape, dtype, strides=strides, first_element_offset=first_element_offset),
+            allocator=allocator,
         )
 
-        if allocator is None:
-            allocator = Buffer.allocate
-        data = allocator(device, metadata.buffer_size)
-
-        return cls(metadata, data)
-
     @classmethod
-    def empty_like(cls, device: BoundDevice, array_like: ArrayMetadataLike) -> Array:
+    def empty_like(
+        cls,
+        device: BoundDevice,
+        array_like: ArrayMetadata | Array | numpy.ndarray[Any, numpy.dtype[Any]],
+        allocator: Callable[[BoundDevice, int], Buffer] | None = None,
+    ) -> Array:
         """Creates an empty array with the same shape and dtype as ``array_like``."""
-        # TODO: take other information like strides and offset
-        return cls.empty(device, array_like.shape, array_like.dtype)
+        if isinstance(array_like, Array):
+            return cls.empty_like(device, array_like.metadata, allocator=allocator)
+
+        if isinstance(array_like, ArrayMetadata):
+            return cls.empty_with_metadata(device, array_like, allocator=allocator)
+
+        return cls.empty(
+            device, array_like.shape, array_like.dtype, array_like.strides, allocator=allocator
+        )
 
     def __init__(self, metadata: ArrayMetadata, data: Buffer):
         if data.size < metadata.buffer_size:
@@ -181,11 +193,19 @@ class Array:
 
 
 @runtime_checkable
-class ArrayLike(ArrayMetadataLike, Protocol):
+class ArrayLike(Protocol):
     """
     A protocol for an array-like object supporting views via ``__getitem__()``.
     :py:class:`numpy.ndarray` or :py:class:`Array` follow this protocol.
     """
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Array shape."""
+
+    @property
+    def dtype(self) -> numpy.dtype[Any]:
+        """The type of an array element."""
 
     def __getitem__(
         self: _ArrayLike, slices: slice | tuple[slice, ...]
@@ -287,8 +307,6 @@ class MultiArray:
         if splay is None:
             splay = EqualSplay()
 
-        # This is to satisfy Mypy. Numpy arrays satisfy this protocol by default.
-        assert isinstance(host_arr, ArrayMetadataLike)  # noqa: S101
         host_subarrays = splay(host_arr, list(mqueue.queues))
 
         subarrays = {

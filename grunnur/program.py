@@ -25,7 +25,7 @@ from .utils import update_dict
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
 
-    from .array_metadata import ArrayMetadataLike
+    from .array_metadata import ArrayMetadata
     from .template import DefTemplate
 
 
@@ -83,9 +83,9 @@ class SingleDeviceProgram:
         fast_math: bool = False,
         render_args: Sequence[Any] = [],
         render_globals: Mapping[str, Any] = {},
-        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
+        constant_arrays: Mapping[str, Array | ArrayMetadata] = {},
         keep: bool = False,
-        compiler_options: Iterable[str] | None = None,
+        compiler_options: Iterable[str] = [],
     ):
         """
         Renders and compiles the given template on a single device.
@@ -117,13 +117,18 @@ class SingleDeviceProgram:
 
         prelude = "" if no_prelude else context_adapter.render_prelude(fast_math=fast_math)
 
+        constant_arrays_metadata = {
+            name: array.metadata if isinstance(array, Array) else array
+            for name, array in constant_arrays.items()
+        }
+
         try:
             self._sd_program_adapter = context_adapter.compile_single_device(
                 device._device_adapter,  # noqa: SLF001
                 prelude,
                 src,
                 fast_math=fast_math,
-                constant_arrays=constant_arrays,
+                constant_arrays=constant_arrays_metadata,
                 keep=keep,
                 compiler_options=compiler_options,
             )
@@ -180,9 +185,9 @@ class Program:
         fast_math: bool = False,
         render_args: Sequence[Any] = (),
         render_globals: Mapping[str, Any] = {},
-        compiler_options: Sequence[str] | None = None,
+        compiler_options: Sequence[str] = [],
         keep: bool = False,
-        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
+        constant_arrays: Mapping[str, Array | ArrayMetadata] = {},
     ):
         """
         :param devices: a single- or a multi-device object on which to compile this program.

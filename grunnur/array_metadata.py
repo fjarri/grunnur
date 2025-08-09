@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any
 
 from .dtypes import _normalize_type
 
@@ -9,25 +9,7 @@ if TYPE_CHECKING:  # pragma: no cover
     import numpy
     from numpy.typing import DTypeLike
 
-
-@runtime_checkable
-class ArrayMetadataLike(Protocol):
-    """
-    A protocol for an object providing array metadata.
-    :py:class:`numpy.ndarray` or :py:class:`Array` follow this protocol.
-    """
-
-    @property
-    def shape(self) -> tuple[int, ...]:
-        """Array shape."""
-
-    @property
-    def dtype(self) -> numpy.dtype[Any]:
-        """The type of an array element."""
-
-    @property
-    def strides(self) -> tuple[int, ...]:
-        """Array strides."""
+    from .array import Array
 
 
 class ArrayMetadata:
@@ -61,15 +43,13 @@ class ArrayMetadata:
     """If ``True``, means that array's data forms a continuous chunk of memory."""
 
     @classmethod
-    def from_arraylike(cls, array: ArrayMetadataLike) -> ArrayMetadata:
-        if isinstance(array, ArrayMetadata):
-            return array
+    def from_arraylike(
+        cls, array_like: ArrayMetadata | numpy.ndarray[Any, numpy.dtype[Any]]
+    ) -> ArrayMetadata:
+        if isinstance(array_like, ArrayMetadata):
+            return array_like
 
-        return cls(
-            shape=array.shape,
-            dtype=array.dtype,
-            strides=array.strides,
-        )
+        return cls(shape=array_like.shape, dtype=array_like.dtype, strides=array_like.strides)
 
     def __init__(
         self,

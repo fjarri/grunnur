@@ -36,7 +36,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     import numpy
 
-    from .array_metadata import ArrayMetadataLike
+    from .array_metadata import ArrayMetadata
 
 
 _API_ID = APIID("opencl")
@@ -391,8 +391,8 @@ class OclContextAdapter(ContextAdapter):
         *,
         keep: bool = False,
         fast_math: bool = False,
-        compiler_options: Iterable[str] | None = None,
-        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
+        compiler_options: Iterable[str] = [],
+        constant_arrays: Mapping[str, ArrayMetadata] = {},
     ) -> OclProgramAdapter:
         # Will be checked in the upper levels.
         assert isinstance(device_adapter, OclDeviceAdapter)  # noqa: S101
@@ -415,9 +415,6 @@ class OclContextAdapter(ContextAdapter):
 
         else:
             temp_dir = None
-
-        if compiler_options is None:
-            compiler_options = []
 
         options = list(compiler_options) + (
             ["-cl-mad-enable", "-cl-fast-relaxed-math"] if fast_math else []

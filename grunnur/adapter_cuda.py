@@ -33,12 +33,13 @@ from .adapter_base import (
     ProgramAdapter,
     QueueAdapter,
 )
-from .array_metadata import ArrayMetadataLike
 from .template import Template
 from .utils import get_launch_size, normalize_object_sequence, prod
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Mapping, Sequence
+
+    from .array_metadata import ArrayMetadata
 
 
 # Another way would be to place it in the try block and only set `_avaialable`
@@ -391,8 +392,8 @@ class CuContextAdapter(ContextAdapter):
         *,
         keep: bool = False,
         fast_math: bool = False,
-        compiler_options: Iterable[str] | None = None,
-        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
+        compiler_options: Iterable[str] = [],
+        constant_arrays: Mapping[str, ArrayMetadata] = {},
     ) -> CuProgramAdapter:
         # Will be checked in the higher levels
         assert isinstance(device_adapter, CuDeviceAdapter)  # noqa: S101
@@ -401,9 +402,6 @@ class CuContextAdapter(ContextAdapter):
         constant_arrays_src = _CONSTANT_ARRAYS_DEF.render(
             dtypes=dtypes, constant_arrays=normalized_constant_arrays
         )
-
-        if compiler_options is None:
-            compiler_options = []
 
         options = list(compiler_options) + (["-use_fast_math"] if fast_math else [])
         full_src = prelude + constant_arrays_src + src
@@ -544,18 +542,14 @@ class CuBufferAdapter(BufferAdapter):
 
 
 def normalize_constant_arrays(
-    constant_arrays: Mapping[str, ArrayMetadataLike] | None,
+    constant_arrays: Mapping[str, ArrayMetadata] | None,
 ) -> dict[str, tuple[int, numpy.dtype[Any]]]:
     if constant_arrays is None:
         constant_arrays = {}
 
     normalized = {}
     for name, metadata in constant_arrays.items():
-        if not isinstance(metadata, ArrayMetadataLike):
-            raise TypeError("Unknown constant array metadata type")
-        dtype = metadata.dtype
-        length = prod(metadata.shape)
-        normalized[name] = (length, dtype)
+        normalized[name] = (metadata.buffer_size, metadata.dtype)
 
     return normalized
 

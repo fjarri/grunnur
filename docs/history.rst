@@ -5,6 +5,13 @@ Version history
 0.6.0 (in development)
 ----------------------
 
+Changed
+^^^^^^^
+
+* Removed ``ArrayMetadataLike``, use the strict ``ArrayMetadata`` instead. (PR_20_)
+* Removed ``None`` variant for ``compiler_options`` and ``constant_arrays``, use an empty list instead. (PR_20_)
+
+
 Added
 ^^^^^
 

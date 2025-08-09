@@ -9,7 +9,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     import numpy
 
-    from .array_metadata import ArrayMetadataLike
+    from .array_metadata import ArrayMetadata
 
 
 class DeviceType(Enum):
@@ -278,8 +278,8 @@ class ContextAdapter(ABC):
         *,
         keep: bool = False,
         fast_math: bool = False,
-        compiler_options: Iterable[str] | None = None,
-        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
+        compiler_options: Iterable[str] = [],
+        constant_arrays: Mapping[str, ArrayMetadata] = {},
     ) -> ProgramAdapter:
         """
         Compiles the given source with the given prelude on a single device.
