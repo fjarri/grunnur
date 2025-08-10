@@ -56,7 +56,7 @@ Devices
 .. autoclass:: DeviceFilter()
     :members:
 
-.. autoclass:: grunnur.adapter_base.DeviceParameters()
+.. autoclass:: DeviceParameters()
     :members:
 
 .. autoclass:: grunnur.adapter_base.DeviceType()
@@ -77,7 +77,7 @@ Contexts
 .. autoclass:: Context()
     :members:
 
-.. autoclass:: grunnur.context.BoundDevice()
+.. autoclass:: BoundDevice()
     :members:
 
 .. autoclass:: grunnur.context.BoundMultiDevice()
@@ -104,10 +104,10 @@ Buffers and arrays
 
 .. autoclass:: ArrayMetadata
     :members:
+    :show-inheritance:
     :special-members: __getitem__
 
-.. autoclass:: ArrayMetadataLike()
-    :show-inheritance:
+.. autoclass:: AsArrayMetadata()
     :members:
 
 .. autoclass:: ArrayLike()
@@ -120,6 +120,7 @@ Buffers and arrays
 
 .. autoclass:: Array()
     :members:
+    :show-inheritance:
     :special-members: __getitem__
 
 .. autoclass:: grunnur.array.BaseSplay()

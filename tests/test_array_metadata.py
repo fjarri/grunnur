@@ -205,3 +205,13 @@ def test_get_sub_region():
     view_region = view.get_sub_region(8, 16 + span + 1)
     assert view_region.first_element_offset == view.first_element_offset - 8
     assert view_region.buffer_size == 16 + span + 1
+
+
+def test_with():
+    meta = ArrayMetadata(
+        (5, 6), numpy.int32, strides=(1, 2), first_element_offset=8, buffer_size=1000
+    )
+    meta2 = meta.with_(dtype=numpy.float32)
+    assert meta2 == ArrayMetadata(
+        (5, 6), numpy.float32, strides=(1, 2), first_element_offset=8, buffer_size=1000
+    )

@@ -83,7 +83,7 @@ class BoundMultiDevice(Sequence[BoundDevice]):
         )
 
     def issubset(self, devices: BoundMultiDevice) -> bool:
-        return self._devices_as_set.issubset(devices._devices_as_set)  # noqa: SLF001
+        return self._devices_as_set.issubset(devices._devices_as_set)
 
     def __iter__(self) -> Iterator[BoundDevice]:
         return iter(self._devices)

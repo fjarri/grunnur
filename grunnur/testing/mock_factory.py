@@ -1,9 +1,13 @@
-from typing import Any, Protocol
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Protocol
 
 from .. import all_api_ids, cuda_api_id, opencl_api_id
-from ..adapter_base import APIID
 from .mock_pycuda import MockPyCUDA
 from .mock_pyopencl import MockPyOpenCL
+
+if TYPE_CHECKING:  # pragma: no cover
+    from ..adapter_base import APIID
 
 
 # Have to mock it like this since we don't want to make `pytest` a dependency for the main library.

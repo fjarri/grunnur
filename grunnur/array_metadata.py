@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from abc import ABC, abstractmethod
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any
 
 from .dtypes import _normalize_type
 
@@ -9,24 +10,19 @@ if TYPE_CHECKING:  # pragma: no cover
     import numpy
     from numpy.typing import DTypeLike
 
-
-@runtime_checkable
-class ArrayMetadataLike(Protocol):
-    """
-    A protocol for an object providing array metadata.
-    :py:class:`numpy.ndarray` or :py:class:`Array` follow this protocol.
-    """
-
-    @property
-    def shape(self) -> tuple[int, ...]:
-        """Array shape."""
-
-    @property
-    def dtype(self) -> numpy.dtype[Any]:
-        """The type of an array element."""
+    from .array import Array
 
 
-class ArrayMetadata:
+class AsArrayMetadata(ABC):
+    """An abstract class for any object allowing conversion to :py:class:`ArrayMetadata`."""
+
+    @abstractmethod
+    def as_array_metadata(self) -> ArrayMetadata:
+        """Returns array metadata representing this object."""
+        ...
+
+
+class ArrayMetadata(AsArrayMetadata):
     """
     A helper object for array-like classes that handles shape/strides/buffer size checks
     without actual data attached to it.
@@ -57,23 +53,24 @@ class ArrayMetadata:
     """If ``True``, means that array's data forms a continuous chunk of memory."""
 
     @classmethod
-    def from_arraylike(cls, array: ArrayMetadataLike) -> ArrayMetadata:
-        return cls(
-            shape=array.shape,
-            dtype=array.dtype,
-            strides=getattr(array, "strides", None),
-        )
+    def from_arraylike(
+        cls, array_like: AsArrayMetadata | numpy.ndarray[Any, numpy.dtype[Any]]
+    ) -> ArrayMetadata:
+        if isinstance(array_like, AsArrayMetadata):
+            return array_like.as_array_metadata()
+
+        return cls(shape=array_like.shape, dtype=array_like.dtype, strides=array_like.strides)
 
     def __init__(
         self,
-        shape: Sequence[int] | int,
+        shape: Iterable[int] | int,
         dtype: DTypeLike,
         *,
-        strides: Sequence[int] | None = None,
+        strides: Iterable[int] | None = None,
         first_element_offset: int | None = None,
         buffer_size: int | None = None,
     ):
-        shape = tuple(shape) if isinstance(shape, Sequence) else (shape,)
+        shape = tuple(shape) if isinstance(shape, Iterable) else (shape,)
 
         if len(shape) == 0:
             raise ValueError("Array shape cannot be an empty sequence")
@@ -111,6 +108,19 @@ class ArrayMetadata:
         self.is_contiguous = strides == default_strides
 
         self._default_strides = strides == default_strides
+
+    def as_array_metadata(self) -> ArrayMetadata:
+        return self
+
+    def with_(self, dtype: numpy.dtype[Any] | None = None) -> ArrayMetadata:
+        """Replaces a property of the metadata and returns a new metadata object."""
+        return ArrayMetadata(
+            shape=self.shape,
+            dtype=self.dtype if dtype is None else dtype,
+            strides=self.strides,
+            first_element_offset=self.first_element_offset,
+            buffer_size=self.buffer_size,
+        )
 
     def _basis(self) -> tuple[numpy.dtype[Any], tuple[int, ...], tuple[int, ...], int, int]:
         return (
@@ -171,7 +181,7 @@ class ArrayMetadata:
         return f"ArrayMetadata({args_str})"
 
 
-def _get_strides(shape: Sequence[int], itemsize: int) -> tuple[int, ...]:
+def _get_strides(shape: tuple[int, ...], itemsize: int) -> tuple[int, ...]:
     # Constructs strides for a contiguous array of shape ``shape`` and item size ``itemsize``.
     strides = []
     stride = itemsize
@@ -199,7 +209,7 @@ def _normalize_slice(length: int, stride: int, slice_: slice) -> tuple[int, int,
 
 
 def _get_view(
-    shape: Sequence[int], strides: Sequence[int], slices: Sequence[slice]
+    shape: tuple[int, ...], strides: tuple[int, ...], slices: tuple[slice, ...]
 ) -> tuple[int, tuple[int, ...], tuple[int, ...]]:
     """
     Given an array shape and strides, and a sequence of slices defining a view,
@@ -222,7 +232,7 @@ def _get_view(
     return sum(offsets), tuple(lengths), tuple(strides)
 
 
-def _get_range(shape: Sequence[int], itemsize: int, strides: Sequence[int]) -> tuple[int, int]:
+def _get_range(shape: tuple[int, ...], itemsize: int, strides: tuple[int, ...]) -> tuple[int, int]:
     """
     Given an array shape, item size (in bytes), and a sequence of strides,
     returns a pair ``(min_offset, max_offset)``,

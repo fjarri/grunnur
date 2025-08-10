@@ -2,6 +2,28 @@ Version history
 ===============
 
 
+0.6.0 (in development)
+----------------------
+
+Changed
+^^^^^^^
+
+* Removed ``ArrayMetadataLike``, use the strict ``ArrayMetadata`` instead. (PR_20_)
+* Removed ``None`` variant for ``compiler_options`` and ``constant_arrays``, use an empty list instead. (PR_20_)
+
+
+Added
+^^^^^
+
+* Export ``DeviceParameters`` and ``BoundDevice``. (PR_20_)
+* ``AsArrayMetadata`` ABC. (PR_20_)
+* ``ArrayMetadata.with_()`` method. (PR_20_)
+* Cache kernels when using PyOpenCL backend. (PR_20_)
+
+
+.. _PR_20: https://github.com/fjarri/grunnur/pull/20
+
+
 0.5.0 (31 Jul 2024)
 -------------------
 

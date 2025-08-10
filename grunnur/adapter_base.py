@@ -5,11 +5,11 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
     import numpy
 
-    from .array_metadata import ArrayMetadataLike
+    from .array_metadata import ArrayMetadata
 
 
 class DeviceType(Enum):
@@ -278,8 +278,8 @@ class ContextAdapter(ABC):
         *,
         keep: bool = False,
         fast_math: bool = False,
-        compiler_options: Sequence[str] | None = None,
-        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
+        compiler_options: Iterable[str] = [],
+        constant_arrays: Mapping[str, ArrayMetadata] = {},
     ) -> ProgramAdapter:
         """
         Compiles the given source with the given prelude on a single device.

@@ -6,7 +6,7 @@ and the lack of C++ synthax which would allow one to write them.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from warnings import warn
 
 import numpy
@@ -15,10 +15,14 @@ from . import dtypes
 from .modules import Module
 from .template import Template
 
+if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import DTypeLike
+
+
 TEMPLATE = Template.from_associated_file(__file__)
 
 
-def check_information_loss(out_dtype: numpy.dtype[Any], expected_dtype: numpy.dtype[Any]) -> None:
+def _check_information_loss(out_dtype: DTypeLike, expected_dtype: DTypeLike) -> None:
     if dtypes.is_complex(expected_dtype) and not dtypes.is_complex(out_dtype):
         warn(
             "Imaginary part ignored during the downcast from "
@@ -30,22 +34,26 @@ def check_information_loss(out_dtype: numpy.dtype[Any], expected_dtype: numpy.dt
         )
 
 
-def derive_out_dtype(
-    *in_dtypes: numpy.dtype[Any], out_dtype: numpy.dtype[Any] | None = None
-) -> numpy.dtype[Any]:
-    expected_dtype = dtypes.result_type(*in_dtypes)
+def _derive_out_dtype(
+    *in_dtypes: DTypeLike, out_dtype: DTypeLike | None = None
+) -> tuple[list[numpy.dtype[Any]], numpy.dtype[Any]]:
+    in_dtypes_normalized = [numpy.dtype(dtype) for dtype in in_dtypes]
+    expected_dtype = dtypes.result_type(*in_dtypes_normalized)
     if out_dtype is None:
-        out_dtype = expected_dtype
+        result = expected_dtype
     else:
-        check_information_loss(out_dtype, expected_dtype)
-    return out_dtype
+        _check_information_loss(out_dtype, expected_dtype)
+        result = numpy.dtype(out_dtype)
+    return in_dtypes_normalized, result
 
 
-def cast(in_dtype: numpy.dtype[Any], out_dtype: numpy.dtype[Any]) -> Module:
+def cast(in_dtype: DTypeLike, out_dtype: DTypeLike) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that casts values of ``in_dtype`` to ``out_dtype``.
     """
+    in_dtype = numpy.dtype(in_dtype)
+    out_dtype = numpy.dtype(out_dtype)
     upcast_to_complex = not dtypes.is_complex(in_dtype) and dtypes.is_complex(out_dtype)
     same_space = dtypes.is_complex(out_dtype) == dtypes.is_complex(in_dtype)
     if not upcast_to_complex and not same_space:
@@ -63,7 +71,7 @@ def cast(in_dtype: numpy.dtype[Any], out_dtype: numpy.dtype[Any]) -> Module:
     )
 
 
-def add(*in_dtypes: numpy.dtype[Any], out_dtype: numpy.dtype[Any] | None = None) -> Module:
+def add(*in_dtypes: DTypeLike, out_dtype: DTypeLike | None = None) -> Module:
     """
     Returns a :py:class:`~grunnur.Module`  with a function of
     ``len(in_dtypes)`` arguments that adds values of types ``in_dtypes``.
@@ -73,37 +81,41 @@ def add(*in_dtypes: numpy.dtype[Any], out_dtype: numpy.dtype[Any] | None = None)
     and therefore the ``+`` operator for a complex and a real number
     works in an unexpected way (returning ``(a.x + b, a.y + b)`` instead of ``(a.x + b, a.y)``).
     """
-    out_dtype = derive_out_dtype(*in_dtypes, out_dtype=out_dtype)
+    in_dtypes_normalized, out_dtype = _derive_out_dtype(*in_dtypes, out_dtype=out_dtype)
     return Module(
         TEMPLATE.get_def("add_or_mul"),
-        render_globals=dict(dtypes=dtypes, op="add", out_dtype=out_dtype, in_dtypes=in_dtypes),
+        render_globals=dict(
+            dtypes=dtypes, op="add", out_dtype=out_dtype, in_dtypes=in_dtypes_normalized
+        ),
     )
 
 
-def mul(*in_dtypes: numpy.dtype[Any], out_dtype: numpy.dtype[Any] | None = None) -> Module:
+def mul(*in_dtypes: DTypeLike, out_dtype: DTypeLike | None = None) -> Module:
     """
     Returns a :py:class:`~grunnur.Module`  with a function of
     ``len(in_dtypes)`` arguments that multiplies values of types ``in_dtypes``.
     If ``out_dtype`` is given, it will be set as a return type for this function.
     """
-    out_dtype = derive_out_dtype(*in_dtypes, out_dtype=out_dtype)
+    in_dtypes_normalized, out_dtype = _derive_out_dtype(*in_dtypes, out_dtype=out_dtype)
     return Module(
         TEMPLATE.get_def("add_or_mul"),
-        render_globals=dict(dtypes=dtypes, op="mul", out_dtype=out_dtype, in_dtypes=in_dtypes),
+        render_globals=dict(
+            dtypes=dtypes, op="mul", out_dtype=out_dtype, in_dtypes=in_dtypes_normalized
+        ),
     )
 
 
 def div(
-    dividend_dtype: numpy.dtype[Any],
-    divisor_dtype: numpy.dtype[Any],
-    out_dtype: numpy.dtype[Any] | None = None,
+    dividend_dtype: DTypeLike,
+    divisor_dtype: DTypeLike,
+    out_dtype: DTypeLike | None = None,
 ) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that divides a value of type ``dividend_dtype`` by a value of type ``divisor_dtype``.
     If ``out_dtype`` is given, it will be set as a return type for this function.
     """
-    out_dtype = derive_out_dtype(dividend_dtype, divisor_dtype, out_dtype=out_dtype)
+    in_dtypes, out_dtype = _derive_out_dtype(dividend_dtype, divisor_dtype, out_dtype=out_dtype)
     return Module(
         TEMPLATE.get_def("div"),
         render_globals=dict(
@@ -115,42 +127,49 @@ def div(
     )
 
 
-def conj(dtype: numpy.dtype[Any]) -> Module:
+def conj(dtype: DTypeLike) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that conjugates the value of type ``dtype``
     (if it is not a complex data type, the value will not be modified).
     """
-    return Module(TEMPLATE.get_def("conj"), render_globals=dict(dtypes=dtypes, dtype=dtype))
+    return Module(
+        TEMPLATE.get_def("conj"), render_globals=dict(dtypes=dtypes, dtype=numpy.dtype(dtype))
+    )
 
 
-def polar_unit(dtype: numpy.dtype[Any]) -> Module:
+def polar_unit(dtype: DTypeLike) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that returns a complex number ``exp(i * theta) == (cos(theta), sin(theta))``
     for a value ``theta`` of type ``dtype`` (must be a real data type).
     """
+    dtype = numpy.dtype(dtype)
     if not dtypes.is_real(dtype):
         raise ValueError("polar_unit() can only be applied to real dtypes")
 
     return Module(TEMPLATE.get_def("polar_unit"), render_globals=dict(dtypes=dtypes, dtype=dtype))
 
 
-def norm(dtype: numpy.dtype[Any]) -> Module:
+def norm(dtype: DTypeLike) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that returns the 2-norm of the value of type ``dtype``
     (product by the complex conjugate if the value is complex, square otherwise).
     """
-    return Module(TEMPLATE.get_def("norm"), render_globals=dict(dtypes=dtypes, dtype=dtype))
+    return Module(
+        TEMPLATE.get_def("norm"), render_globals=dict(dtypes=dtypes, dtype=numpy.dtype(dtype))
+    )
 
 
-def exp(dtype: numpy.dtype[Any]) -> Module:
+def exp(dtype: DTypeLike) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of one argument
     that exponentiates the value of type ``dtype``
     (must be a real or a complex data type).
     """
+    dtype = numpy.dtype(dtype)
+
     # Supporting this will require an explicit output type specification.
     if dtypes.is_integer(dtype):
         raise ValueError(f"exp() of {dtype} is not supported")
@@ -163,9 +182,9 @@ def exp(dtype: numpy.dtype[Any]) -> Module:
 
 
 def pow(  # noqa: A001
-    base_dtype: numpy.dtype[Any],
-    exponent_dtype: numpy.dtype[Any] | None = None,
-    out_dtype: numpy.dtype[Any] | None = None,
+    base_dtype: DTypeLike,
+    exponent_dtype: DTypeLike | None = None,
+    out_dtype: DTypeLike | None = None,
 ) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
@@ -179,11 +198,10 @@ def pow(  # noqa: A001
     If ``exponent_dtype`` is real, but both ``base_dtype`` and ``out_dtype`` are integer,
     a ``ValueError`` is raised.
     """
-    if exponent_dtype is None:
-        exponent_dtype = base_dtype
+    base_dtype = numpy.dtype(base_dtype)
 
-    if out_dtype is None:
-        out_dtype = base_dtype
+    exponent_dtype = base_dtype if exponent_dtype is None else numpy.dtype(exponent_dtype)
+    out_dtype = base_dtype if out_dtype is None else numpy.dtype(out_dtype)
 
     if dtypes.is_complex(exponent_dtype):
         raise ValueError("pow() with a complex exponent is not supported")
@@ -196,7 +214,7 @@ def pow(  # noqa: A001
         else:
             raise ValueError("pow(integer, float): integer is not supported")
 
-    kwds = dict(
+    kwds: dict[str, Any] = dict(
         dtypes=dtypes,
         base_dtype=base_dtype,
         exponent_dtype=exponent_dtype,
@@ -217,12 +235,14 @@ def pow(  # noqa: A001
     return Module(TEMPLATE.get_def("pow"), render_globals=kwds)
 
 
-def polar(dtype: numpy.dtype[Any]) -> Module:
+def polar(dtype: DTypeLike) -> Module:
     """
     Returns a :py:class:`~grunnur.Module` with a function of two arguments
     that returns the complex-valued ``rho * exp(i * theta)``
     for values ``rho, theta`` of type ``dtype`` (must be a real data type).
     """
+    dtype = numpy.dtype(dtype)
+
     if not dtypes.is_real(dtype):
         raise ValueError("polar() of " + str(dtype) + " is not supported")
 

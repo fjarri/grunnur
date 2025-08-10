@@ -23,7 +23,9 @@ from .queue import MultiQueue, Queue
 from .utils import update_dict
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .array_metadata import ArrayMetadataLike
+    from collections.abc import Iterable
+
+    from .array_metadata import ArrayMetadata
     from .template import DefTemplate
 
 
@@ -81,9 +83,9 @@ class SingleDeviceProgram:
         fast_math: bool = False,
         render_args: Sequence[Any] = [],
         render_globals: Mapping[str, Any] = {},
-        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
+        constant_arrays: Mapping[str, Array | ArrayMetadata] = {},
         keep: bool = False,
-        compiler_options: Sequence[str] | None = None,
+        compiler_options: Iterable[str] = [],
     ):
         """
         Renders and compiles the given template on a single device.
@@ -115,13 +117,18 @@ class SingleDeviceProgram:
 
         prelude = "" if no_prelude else context_adapter.render_prelude(fast_math=fast_math)
 
+        constant_arrays_metadata = {
+            name: array.metadata if isinstance(array, Array) else array
+            for name, array in constant_arrays.items()
+        }
+
         try:
             self._sd_program_adapter = context_adapter.compile_single_device(
                 device._device_adapter,  # noqa: SLF001
                 prelude,
                 src,
                 fast_math=fast_math,
-                constant_arrays=constant_arrays,
+                constant_arrays=constant_arrays_metadata,
                 keep=keep,
                 compiler_options=compiler_options,
             )
@@ -178,9 +185,9 @@ class Program:
         fast_math: bool = False,
         render_args: Sequence[Any] = (),
         render_globals: Mapping[str, Any] = {},
-        compiler_options: Sequence[str] | None = None,
+        compiler_options: Sequence[str] = [],
         keep: bool = False,
-        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
+        constant_arrays: Mapping[str, Array | ArrayMetadata] = {},
     ):
         """
         :param devices: a single- or a multi-device object on which to compile this program.
@@ -348,8 +355,7 @@ class PreparedKernel:
 
         if not queue.devices.issubset(self._devices):
             raise ValueError(
-                f"Requested execution on devices {queue.devices}; "
-                f"only compiled for {self._devices}"
+                f"Requested execution on devices {queue.devices}; only compiled for {self._devices}"
             )
 
         ret_vals = []
@@ -379,10 +385,10 @@ def normalize_sizes(
     dict[BoundDevice, tuple[int, ...] | None],
 ]:
     if not isinstance(global_size, Mapping):
-        global_size = {device: global_size for device in devices}
+        global_size = dict.fromkeys(devices, global_size)
 
     if not isinstance(local_size, Mapping):
-        local_size = {device: local_size for device in devices}
+        local_size = dict.fromkeys(devices, local_size)
 
     normalized_global_size = {device: tuple(gs) for device, gs in global_size.items()}
     normalized_local_size = {
@@ -439,7 +445,7 @@ class Kernel:
         :param global_size: the total number of threads (CUDA)/work items (OpenCL) in each dimension
             (column-major). Note that there may be a maximum size in each dimension as well
             as the maximum number of dimensions.
-            See :py:class:`~grunnur.adapter_base.DeviceParameters` for details.
+            See :py:class:`~grunnur.DeviceParameters` for details.
         :param local_size: the number of threads in a block (CUDA)/work items in a
             work group (OpenCL) in each dimension (column-major).
             If ``None``, it will be chosen automatically.

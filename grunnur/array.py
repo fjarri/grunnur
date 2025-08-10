@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast, runtime_checkabl
 
 import numpy
 
-from .array_metadata import ArrayMetadata, ArrayMetadataLike
+from .array_metadata import ArrayMetadata, AsArrayMetadata
 from .buffer import Buffer
 from .context import BoundDevice, BoundMultiDevice, Context
 from .device import Device
@@ -13,12 +13,12 @@ from .queue import MultiQueue, Queue
 from .utils import min_blocks
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterable, Mapping, Sequence
 
     from numpy.typing import DTypeLike
 
 
-class Array:
+class Array(AsArrayMetadata):
     """Array on a single device."""
 
     device: BoundDevice
@@ -32,9 +32,6 @@ class Array:
 
     strides: tuple[int, ...]
     """Array strides."""
-
-    offset: int
-    """Offset of the first element in the associated buffer."""
 
     metadata: ArrayMetadata
     """Array metadata object."""
@@ -63,30 +60,13 @@ class Array:
         return array
 
     @classmethod
-    def empty(
+    def empty_with_metadata(
         cls,
         device: BoundDevice,
-        shape: Sequence[int] | int,
-        dtype: DTypeLike,
-        strides: Sequence[int] | None = None,
-        first_element_offset: int = 0,
+        metadata: ArrayMetadata,
         allocator: Callable[[BoundDevice, int], Buffer] | None = None,
     ) -> Array:
-        """
-        Creates an empty array.
-
-        :param device: device on which this array will be allocated.
-        :param shape: array shape.
-        :param dtype: array data type.
-        :param allocator: an optional callable taking two arguments
-            (the bound device, and the buffer size in bytes)
-            and returning a :py:class:`Buffer` object.
-            If ``None``, will use :py:meth:`Buffer.allocate`.
-        """
-        metadata = ArrayMetadata(
-            shape, dtype, strides=strides, first_element_offset=first_element_offset
-        )
-
+        """Creates an empty array with the given metadata."""
         if allocator is None:
             allocator = Buffer.allocate
         data = allocator(device, metadata.buffer_size)
@@ -94,10 +74,46 @@ class Array:
         return cls(metadata, data)
 
     @classmethod
-    def empty_like(cls, device: BoundDevice, array_like: ArrayMetadataLike) -> Array:
-        """Creates an empty array with the same shape and dtype as ``array_like``."""
-        # TODO: take other information like strides and offset
-        return cls.empty(device, array_like.shape, array_like.dtype)
+    def empty(
+        cls,
+        device: BoundDevice,
+        shape: Iterable[int] | int,
+        dtype: DTypeLike,
+        strides: Iterable[int] | None = None,
+        first_element_offset: int = 0,
+        allocator: Callable[[BoundDevice, int], Buffer] | None = None,
+    ) -> Array:
+        """Creates an empty array."""
+        return cls.empty_with_metadata(
+            device,
+            ArrayMetadata(shape, dtype, strides=strides, first_element_offset=first_element_offset),
+            allocator=allocator,
+        )
+
+    @classmethod
+    def empty_like(
+        cls,
+        device: BoundDevice,
+        array_like: AsArrayMetadata | numpy.ndarray[Any, numpy.dtype[Any]],
+        allocator: Callable[[BoundDevice, int], Buffer] | None = None,
+    ) -> Array:
+        """
+        Creates an empty array with the same metadata as ``array_like``.
+
+        In case of a ``numpy`` array, uses its shape, dtype, and strides.
+        """
+        if isinstance(array_like, AsArrayMetadata):
+            return cls.empty_with_metadata(
+                device, array_like.as_array_metadata(), allocator=allocator
+            )
+
+        return cls.empty_with_metadata(
+            device,
+            ArrayMetadata(
+                shape=array_like.shape, dtype=array_like.dtype, strides=array_like.strides
+            ),
+            allocator=allocator,
+        )
 
     def __init__(self, metadata: ArrayMetadata, data: Buffer):
         if data.size < metadata.buffer_size:
@@ -114,6 +130,9 @@ class Array:
         self.strides = self.metadata.strides
 
         self.data = data
+
+    def as_array_metadata(self) -> ArrayMetadata:
+        return self.metadata
 
     def minimum_subregion(self) -> Array:
         """
@@ -184,11 +203,19 @@ class Array:
 
 
 @runtime_checkable
-class ArrayLike(ArrayMetadataLike, Protocol):
+class ArrayLike(Protocol):
     """
     A protocol for an array-like object supporting views via ``__getitem__()``.
     :py:class:`numpy.ndarray` or :py:class:`Array` follow this protocol.
     """
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Array shape."""
+
+    @property
+    def dtype(self) -> numpy.dtype[Any]:
+        """The type of an array element."""
 
     def __getitem__(
         self: _ArrayLike, slices: slice | tuple[slice, ...]
@@ -229,8 +256,7 @@ class EqualSplay(BaseSplay):
         outer_dim = arr.shape[0]
         if parts > outer_dim:
             raise ValueError(
-                "The number of devices to splay to "
-                "cannot be greater than the outer array dimension"
+                "The number of devices to splay to cannot be greater than the outer array dimension"
             )
         chunk_size = min_blocks(outer_dim, parts)
         rem = outer_dim % parts
@@ -251,7 +277,7 @@ class CloneSplay(BaseSplay):
     def __call__(
         self, arr: _ArrayLike, devices: Sequence[BoundDevice]
     ) -> dict[BoundDevice, _ArrayLike]:
-        return {device: arr for device in devices}
+        return dict.fromkeys(devices, arr)
 
 
 class MultiArray:
@@ -291,8 +317,6 @@ class MultiArray:
         if splay is None:
             splay = EqualSplay()
 
-        # This is to satisfy Mypy. Numpy arrays satisfy this protocol by default.
-        assert isinstance(host_arr, ArrayMetadataLike)  # noqa: S101
         host_subarrays = splay(host_arr, list(mqueue.queues))
 
         subarrays = {
@@ -306,7 +330,7 @@ class MultiArray:
     def empty(
         cls,
         devices: BoundMultiDevice,
-        shape: Sequence[int],
+        shape: Iterable[int],
         dtype: DTypeLike,
         allocator: Callable[[BoundDevice, int], Buffer] | None = None,
         splay: BaseSplay | None = None,

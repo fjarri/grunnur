@@ -125,7 +125,7 @@ class Device:
     @property
     def params(self) -> DeviceParameters:
         """
-        Returns a :py:class:`~grunnur.adapter_base.DeviceParameters` object
+        Returns a :py:class:`~grunnur.DeviceParameters` object
         associated with this device.
         """
         # Already cached in the adapters

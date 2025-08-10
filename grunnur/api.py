@@ -104,7 +104,7 @@ class API:
     @property
     def platforms(self) -> list[Platform]:
         """A list of this API's :py:class:`Platform` objects."""
-        from .platform import Platform  # avoiding circular imports
+        from .platform import Platform  # noqa: PLC0415
 
         return Platform.all(self)
 

@@ -19,12 +19,12 @@ from .vsize import VirtualSizeError, VirtualSizes
 _STATIC_MODULES_GLOBAL = "static"
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterable, Mapping, Sequence
 
     import numpy
 
     from .array import Array
-    from .array_metadata import ArrayMetadataLike
+    from .array_metadata import ArrayMetadata
     from .context import BoundDevice, BoundMultiDevice
     from .modules import Snippet
     from .queue import Queue
@@ -59,10 +59,10 @@ class StaticKernel:
         local_size: Sequence[int] | None | Mapping[BoundDevice, Sequence[int] | None] = None,
         render_args: Sequence[Any] = (),
         render_globals: Mapping[str, Any] = {},
-        constant_arrays: Mapping[str, ArrayMetadataLike] | None = None,
+        constant_arrays: Mapping[str, Array | ArrayMetadata] = {},
         keep: bool = False,
         fast_math: bool = False,
-        compiler_options: Sequence[str] | None = None,
+        compiler_options: Iterable[str] = [],
     ):
         """
         :param devices: a single- or a multi-device object on which to compile this program.
@@ -113,8 +113,7 @@ class StaticKernel:
                     render_globals,
                     {_STATIC_MODULES_GLOBAL: vs.vsize_modules},
                     error_msg=(
-                        f"The global name '{_STATIC_MODULES_GLOBAL}' "
-                        "is reserved in static kernels"
+                        f"The global name '{_STATIC_MODULES_GLOBAL}' is reserved in static kernels"
                     ),
                 )
 

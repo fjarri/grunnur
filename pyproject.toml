@@ -1,6 +1,6 @@
 [project]
 name = "grunnur"
-version = "0.5.0"
+version = "0.6.0-dev"
 description = "Uniform API for PyOpenCL and PyCUDA."
 authors = [
     {name = "Bogdan Opanchuk", email = "bogdan@opanchuk.net"},
@@ -18,7 +18,7 @@ homepage = "https://github.com/fjarri/grunnur"
 
 [project.optional-dependencies]
 pyopencl = [
-    "pyopencl>=2019.1.1",
+    "pyopencl>=2025.2.6",
 ]
 pycuda = [
     "pycuda>=2019.1.1",
@@ -78,14 +78,10 @@ ignore = [
     # It's never a problem unless you mutate function arguments (which is rarely a good idea).
     "B008",
     "B006",
-    # The type of `self` is derived automatically.
-    "ANN101",
     # We use `Any` quite a bit because we need to accept a lot of third-party unnormalized input.
     "ANN401",
     # The return type of `__init__` is derived automatically.
     "ANN204",
-    # The type of `cls` in classmethods is derived automatically.
-    "ANN102",
     # Doesn't mesh well with the way `black` puts the final parenthesis on a separate line
     # in functions with one parameter and a long argument.
     "COM812",
@@ -146,6 +142,10 @@ ignore = [
     "ERA001",
     # Self was only introduced in 3.11
     "PYI019",
+    # Visually marking forward references is a good thing.
+    "TC006",
+    # Not everyhing needs to be hashable.
+    "PLW1641",
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.

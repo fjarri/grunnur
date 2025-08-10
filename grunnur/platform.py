@@ -104,7 +104,7 @@ class Platform:
     @property
     def devices(self) -> list[Device]:
         """A list of this device's :py:class:`Device` objects."""
-        from .device import Device  # avoiding circular imports
+        from .device import Device  # noqa: PLC0415
 
         return Device.all(self)
 

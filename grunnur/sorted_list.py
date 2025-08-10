@@ -3,6 +3,8 @@ A class for a list that keeps itself sorted.
 Allows for fast element-based insertions/removals and element finding.
 """
 
+from __future__ import annotations
+
 import sys
 from bisect import bisect_left, bisect_right
 from collections.abc import Callable, Iterable, Iterator, Sequence

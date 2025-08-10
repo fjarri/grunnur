@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import collections
 import re
-from collections.abc import Iterable, Mapping, Sequence
 from functools import reduce
-from typing import Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, TypeVar, overload
+
+if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Iterable, Mapping, Sequence
+
 
 _T = TypeVar("_T")
 

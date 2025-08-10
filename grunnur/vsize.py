@@ -22,7 +22,7 @@ def _factorize_step(x: int) -> int:
 
 def factorize(num: int) -> list[int]:
     """Factorizes the given integer."""
-    maxq = int(floor(sqrt(num)))
+    maxq = floor(sqrt(num))
     d = 1
     q = 2 if num % 2 == 0 else 3
     while q <= maxq and num % q != 0:

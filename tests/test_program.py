@@ -127,7 +127,7 @@ def test_compile_multi_device(mock_or_real_multi_device_context):
     program.kernel.multiply(
         mqueue,
         a_dev.shapes,
-        {device: None for device in devices},
+        dict.fromkeys(devices, None),
         res_dev,
         a_dev.subarrays,
         b_dev,
@@ -211,17 +211,13 @@ def _test_constant_memory(context, mocked, is_static):
     cm3_dev = Array.from_host(queue, cm3)
     res_dev = Array.empty(context.device, [16], numpy.int32)
 
-    class Metadata(NamedTuple):
-        shape: tuple[int, ...]
-        dtype: numpy.dtype
-
     if context.api.id == cuda_api_id():
         # Use different forms of constant array representation
         constant_arrays = dict(
-            cm1=cm1,  # as an array(-like) object
-            cm2=Metadata(cm2.shape, cm2.dtype),  # as a metadata-like
+            cm1=cm1_dev,  # as an array
+            cm2=cm2_dev.metadata,  # as array metadata
             cm3=cm3_dev,
-        )  # as a device array
+        )
 
         if is_static:
             copy_from_cm = StaticKernel(
@@ -402,17 +398,19 @@ def test_set_constant_array_errors(mock_4_device_context):
     if api.id == cuda_api_id():
         other_context.deactivate()
 
+    queue = Queue(context.devices[0])
+
     cm1 = numpy.arange(16).astype(numpy.int32)
+    cm1_dev = Array.from_host(queue, cm1)
     src = MockDefTemplate(
         kernels=[
             MockKernel("kernel", [], max_total_local_sizes={0: 1024, 1: 1024, 2: 1024, 3: 1024})
         ],
         constant_mem={"cm1": cm1.size * cm1.dtype.itemsize},
     )
-    queue = Queue(context.devices[0])
 
     if context.api.id == cuda_api_id():
-        program = Program(context.devices, src, constant_arrays=dict(cm1=cm1))
+        program = Program(context.devices, src, constant_arrays=dict(cm1=cm1_dev))
 
         with pytest.raises(
             ValueError,
@@ -426,10 +424,7 @@ def test_set_constant_array_errors(mock_4_device_context):
         with pytest.raises(ValueError, match="Incorrect size of the constant buffer;"):
             program.set_constant_array(queue, "cm1", cm1[:8])
 
-        with pytest.raises(TypeError, match="Unknown constant array metadata type"):
-            program = Program(context.devices[[0, 1, 2]], src, constant_arrays=dict(cm1=1))
-
-        program = Program(context.devices[[0, 1, 2]], src, constant_arrays=dict(cm1=cm1))
+        program = Program(context.devices[[0, 1, 2]], src, constant_arrays=dict(cm1=cm1_dev))
         queue3 = Queue(context.devices[3])
 
         with pytest.raises(
@@ -441,7 +436,7 @@ def test_set_constant_array_errors(mock_4_device_context):
         with pytest.raises(
             ValueError, match="Compile-time constant arrays are only supported for CUDA API"
         ):
-            program = Program(context.devices, src, constant_arrays=dict(cm1=cm1))
+            program = Program(context.devices, src, constant_arrays=dict(cm1=cm1_dev))
 
         program = Program(context.devices, src)
         with pytest.raises(
