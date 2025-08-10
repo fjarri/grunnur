@@ -10,6 +10,7 @@ Changed
 
 * Removed ``ArrayMetadataLike``, use the strict ``ArrayMetadata`` instead. (PR_20_)
 * Removed ``None`` variant for ``compiler_options`` and ``constant_arrays``, use an empty list instead. (PR_20_)
+* Module discovery is now fully automatic and does not need ``__process_modules__()`` to be defined in user classes. (PR_21_)
 
 
 Added
@@ -22,6 +23,7 @@ Added
 
 
 .. _PR_20: https://github.com/fjarri/grunnur/pull/20
+.. _PR_21: https://github.com/fjarri/grunnur/pull/21
 
 
 0.5.0 (31 Jul 2024)
