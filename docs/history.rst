@@ -17,6 +17,7 @@ Added
 
 * Export ``DeviceParameters`` and ``BoundDevice``. (PR_20_)
 * ``AsArrayMetadata`` ABC. (PR_20_)
+* ``ArrayMetadata.with_()`` method. (PR_20_)
 
 
 .. _PR_20: https://github.com/fjarri/grunnur/pull/20

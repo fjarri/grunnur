@@ -112,6 +112,16 @@ class ArrayMetadata(AsArrayMetadata):
     def as_array_metadata(self) -> ArrayMetadata:
         return self
 
+    def with_(self, dtype: numpy.dtype[Any] | None = None) -> ArrayMetadata:
+        """Replaces a property of the metadata and returns a new metadata object."""
+        return ArrayMetadata(
+            shape=self.shape,
+            dtype=self.dtype if dtype is None else dtype,
+            strides=self.strides,
+            first_element_offset=self.first_element_offset,
+            buffer_size=self.buffer_size,
+        )
+
     def _basis(self) -> tuple[numpy.dtype[Any], tuple[int, ...], tuple[int, ...], int, int]:
         return (
             self.dtype,
