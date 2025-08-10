@@ -42,7 +42,7 @@ extensions = [
 
 autoclass_content = "both"
 autodoc_member_order = "groupwise"
-autodoc_type_aliases = dict(DTypeLike="DTypeLike")
+autodoc_type_aliases = dict(DTypeLike="DTypeLike", NDArray="NDArray")
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = []
@@ -55,7 +55,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # Note: set to the lower bound of `numpy` version in the dependencies;
 # must be kept synchronized.
 intersphinx_mapping = {
-    "numpy": ("https://numpy.org/doc/1.22", None),
+    "numpy": ("https://numpy.org/doc/2.3", None),
     "python": ("https://docs.python.org/3", None),
     "mako": ("https://docs.makotemplates.org/en/latest/", None),
 }

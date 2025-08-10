@@ -36,6 +36,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Mapping, Sequence
 
     import numpy
+    from numpy.typing import NDArray
 
     from .array_metadata import ArrayMetadata
 
@@ -487,7 +488,7 @@ class OclBufferAdapter(BufferAdapter):
     def set(
         self,
         queue_adapter: QueueAdapter,
-        source: numpy.ndarray[Any, numpy.dtype[Any]] | BufferAdapter,
+        source: NDArray[Any] | BufferAdapter,
         *,
         sync: bool = False,
     ) -> None:
@@ -516,7 +517,7 @@ class OclBufferAdapter(BufferAdapter):
     def get(
         self,
         queue_adapter: QueueAdapter,
-        host_array: numpy.ndarray[Any, numpy.dtype[Any]],
+        host_array: NDArray[Any],
         *,
         async_: bool = False,
     ) -> None:
@@ -580,7 +581,7 @@ class OclProgramAdapter(ProgramAdapter):
         self,
         _queue_adapter: QueueAdapter,
         _name: str,
-        _arr: BufferAdapter | numpy.ndarray[Any, numpy.dtype[Any]],
+        _arr: BufferAdapter | NDArray[Any],
     ) -> None:
         raise RuntimeError("OpenCL does not allow setting constant arrays externally")
 

@@ -187,7 +187,12 @@ Data type utilities
 .. py:class:: DTypeLike
 
     ``intersphinx`` fails to pick this up.
-    See `numpy.typing.DTypeLike <https://numpy.org/doc/1.22/reference/typing.html#numpy.typing.DTypeLike>`_ for the actual documentation.
+    See `numpy.typing.DTypeLike <https://numpy.org/doc/2.3/reference/typing.html#numpy.typing.DTypeLike>`_ for the actual documentation.
+
+.. py:class:: NDArray
+
+    ``intersphinx`` fails to pick this up.
+    See `numpy.typing.NDArray <https://numpy.org/doc/2.3/reference/typing.html#numpy.typing.NDArray>`_ for the actual documentation.
 
 .. module:: grunnur.dtypes
 

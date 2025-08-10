@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any
 import numpy
 
 if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray
+
     from .adapter_base import BufferAdapter
     from .context import BoundDevice
     from .queue import Queue
@@ -53,7 +55,7 @@ class Buffer:
     def set(
         self,
         queue: Queue,
-        buf: numpy.ndarray[Any, numpy.dtype[Any]] | Buffer,
+        buf: NDArray[Any] | Buffer,
         *,
         sync: bool = False,
     ) -> None:
@@ -70,7 +72,7 @@ class Buffer:
                 f"buffer on device {self.device}"
             )
 
-        buf_adapter: numpy.ndarray[Any, numpy.dtype[Any]] | BufferAdapter
+        buf_adapter: NDArray[Any] | BufferAdapter
         if isinstance(buf, numpy.ndarray):
             buf_adapter = numpy.ascontiguousarray(buf)
         elif isinstance(buf, Buffer):
@@ -83,7 +85,7 @@ class Buffer:
     def get(
         self,
         queue: Queue,
-        host_array: numpy.ndarray[Any, numpy.dtype[Any]],
+        host_array: NDArray[Any],
         *,
         async_: bool = False,
     ) -> None:

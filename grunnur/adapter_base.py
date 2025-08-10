@@ -8,6 +8,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Mapping, Sequence
 
     import numpy
+    from numpy.typing import NDArray
 
     from .array_metadata import ArrayMetadata
 
@@ -330,7 +331,7 @@ class BufferAdapter(ABC):
     def set(
         self,
         queue_adapter: QueueAdapter,
-        source: numpy.ndarray[Any, numpy.dtype[Any]] | BufferAdapter,
+        source: NDArray[Any] | BufferAdapter,
         *,
         sync: bool = False,
     ) -> None:
@@ -340,7 +341,7 @@ class BufferAdapter(ABC):
     def get(
         self,
         queue_adapter: QueueAdapter,
-        host_array: numpy.ndarray[Any, numpy.dtype[Any]],
+        host_array: NDArray[Any],
         *,
         async_: bool = False,
     ) -> None:
@@ -370,7 +371,7 @@ class ProgramAdapter(ABC):
         self,
         queue_adapter: QueueAdapter,
         name: str,
-        arr: BufferAdapter | numpy.ndarray[Any, numpy.dtype[Any]],
+        arr: BufferAdapter | NDArray[Any],
     ) -> None:
         pass
 

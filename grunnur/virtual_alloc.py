@@ -21,6 +21,7 @@ from .sorted_list import SortedList
 
 if TYPE_CHECKING:  # pragma: no cover
     import numpy
+    from numpy.typing import NDArray
 
     from .context import BoundDevice
     from .queue import Queue
@@ -94,7 +95,7 @@ class VirtualBufferAdapter(BufferAdapter):
     def get(
         self,
         queue_adapter: QueueAdapter,
-        host_array: numpy.ndarray[Any, numpy.dtype[Any]],
+        host_array: NDArray[Any],
         *,
         async_: bool = False,
     ) -> None:
@@ -103,7 +104,7 @@ class VirtualBufferAdapter(BufferAdapter):
     def set(
         self,
         queue_adapter: QueueAdapter,
-        source: numpy.ndarray[Any, numpy.dtype[Any]] | BufferAdapter,
+        source: NDArray[Any] | BufferAdapter,
         *,
         sync: bool = False,
     ) -> None:
