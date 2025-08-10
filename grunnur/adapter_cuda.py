@@ -398,7 +398,10 @@ class CuContextAdapter(ContextAdapter):
         # Will be checked in the higher levels
         assert isinstance(device_adapter, CuDeviceAdapter)  # noqa: S101
 
-        normalized_constant_arrays = normalize_constant_arrays(constant_arrays)
+        normalized_constant_arrays = {}
+        for name, metadata in constant_arrays.items():
+            normalized_constant_arrays[name] = (metadata.buffer_size, metadata.dtype)
+
         constant_arrays_src = _CONSTANT_ARRAYS_DEF.render(
             dtypes=dtypes, constant_arrays=normalized_constant_arrays
         )
@@ -539,19 +542,6 @@ class CuBufferAdapter(BufferAdapter):
             pycuda_driver.memcpy_dtoh_async(host_array, ptr, stream=queue_adapter._pycuda_stream)  # noqa: SLF001
         else:
             pycuda_driver.memcpy_dtoh(host_array, ptr)
-
-
-def normalize_constant_arrays(
-    constant_arrays: Mapping[str, ArrayMetadata] | None,
-) -> dict[str, tuple[int, numpy.dtype[Any]]]:
-    if constant_arrays is None:
-        constant_arrays = {}
-
-    normalized = {}
-    for name, metadata in constant_arrays.items():
-        normalized[name] = (metadata.buffer_size, metadata.dtype)
-
-    return normalized
 
 
 class CuQueueAdapter(QueueAdapter):
