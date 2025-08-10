@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
@@ -12,7 +13,16 @@ if TYPE_CHECKING:  # pragma: no cover
     from .array import Array
 
 
-class ArrayMetadata:
+class AsArrayMetadata(ABC):
+    """An abstract class for any object allowing conversion to :py:class:`ArrayMetadata`."""
+
+    @abstractmethod
+    def as_array_metadata(self) -> ArrayMetadata:
+        """Returns array metadata representing this object."""
+        ...
+
+
+class ArrayMetadata(AsArrayMetadata):
     """
     A helper object for array-like classes that handles shape/strides/buffer size checks
     without actual data attached to it.
@@ -44,10 +54,10 @@ class ArrayMetadata:
 
     @classmethod
     def from_arraylike(
-        cls, array_like: ArrayMetadata | numpy.ndarray[Any, numpy.dtype[Any]]
+        cls, array_like: AsArrayMetadata | numpy.ndarray[Any, numpy.dtype[Any]]
     ) -> ArrayMetadata:
-        if isinstance(array_like, ArrayMetadata):
-            return array_like
+        if isinstance(array_like, AsArrayMetadata):
+            return array_like.as_array_metadata()
 
         return cls(shape=array_like.shape, dtype=array_like.dtype, strides=array_like.strides)
 
@@ -98,6 +108,9 @@ class ArrayMetadata:
         self.is_contiguous = strides == default_strides
 
         self._default_strides = strides == default_strides
+
+    def as_array_metadata(self) -> ArrayMetadata:
+        return self
 
     def _basis(self) -> tuple[numpy.dtype[Any], tuple[int, ...], tuple[int, ...], int, int]:
         return (

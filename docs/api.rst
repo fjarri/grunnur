@@ -104,7 +104,11 @@ Buffers and arrays
 
 .. autoclass:: ArrayMetadata
     :members:
+    :show-inheritance:
     :special-members: __getitem__
+
+.. autoclass:: AsArrayMetadata()
+    :members:
 
 .. autoclass:: ArrayLike()
     :show-inheritance:
@@ -116,6 +120,7 @@ Buffers and arrays
 
 .. autoclass:: Array()
     :members:
+    :show-inheritance:
     :special-members: __getitem__
 
 .. autoclass:: grunnur.array.BaseSplay()

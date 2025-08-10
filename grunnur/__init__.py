@@ -7,7 +7,7 @@ from .api import (
     opencl_api_id,
 )
 from .array import Array, ArrayLike, MultiArray
-from .array_metadata import ArrayMetadata
+from .array_metadata import ArrayMetadata, AsArrayMetadata
 from .buffer import Buffer
 from .context import BoundDevice, Context
 from .device import Device, DeviceFilter

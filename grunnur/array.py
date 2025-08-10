@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast, runtime_checkabl
 
 import numpy
 
-from .array_metadata import ArrayMetadata
+from .array_metadata import ArrayMetadata, AsArrayMetadata
 from .buffer import Buffer
 from .context import BoundDevice, BoundMultiDevice, Context
 from .device import Device
@@ -18,7 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import DTypeLike
 
 
-class Array:
+class Array(AsArrayMetadata):
     """Array on a single device."""
 
     device: BoundDevice
@@ -94,18 +94,25 @@ class Array:
     def empty_like(
         cls,
         device: BoundDevice,
-        array_like: ArrayMetadata | Array | numpy.ndarray[Any, numpy.dtype[Any]],
+        array_like: AsArrayMetadata | numpy.ndarray[Any, numpy.dtype[Any]],
         allocator: Callable[[BoundDevice, int], Buffer] | None = None,
     ) -> Array:
-        """Creates an empty array with the same shape and dtype as ``array_like``."""
-        if isinstance(array_like, Array):
-            return cls.empty_like(device, array_like.metadata, allocator=allocator)
+        """
+        Creates an empty array with the same metadata as ``array_like``.
 
-        if isinstance(array_like, ArrayMetadata):
-            return cls.empty_with_metadata(device, array_like, allocator=allocator)
+        In case of a ``numpy`` array, uses its shape, dtype, and strides.
+        """
+        if isinstance(array_like, AsArrayMetadata):
+            return cls.empty_with_metadata(
+                device, array_like.as_array_metadata(), allocator=allocator
+            )
 
-        return cls.empty(
-            device, array_like.shape, array_like.dtype, array_like.strides, allocator=allocator
+        return cls.empty_with_metadata(
+            device,
+            ArrayMetadata(
+                shape=array_like.shape, dtype=array_like.dtype, strides=array_like.strides
+            ),
+            allocator=allocator,
         )
 
     def __init__(self, metadata: ArrayMetadata, data: Buffer):
@@ -123,6 +130,9 @@ class Array:
         self.strides = self.metadata.strides
 
         self.data = data
+
+    def as_array_metadata(self) -> ArrayMetadata:
+        return self.metadata
 
     def minimum_subregion(self) -> Array:
         """
