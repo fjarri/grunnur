@@ -175,29 +175,6 @@ Alternatively, one can create a snippet with no parameters or a module with a si
         render_globals=dict(num=1))
 
 
-Module and snippet discovery
-----------------------------
-
-Sometimes you may want to pass a module or a snippet inside a template as an attribute of a custom object.
-In order for ``grunnur`` to be able to discover and process it without modifying your original object, you need to make your object comply to a discovery protocol.
-The protocol method takes a processing function and is expected to return a **new object** of the same class with the processing function applied to all the attributes that may contain a module or a snippet.
-By default, objects of type ``tuple``, ``list``, and ``dict`` are discoverable.
-
-For example:
-
-::
-
-    class MyClass:
-
-        def __init__(self, coeff, mul_module, div_module):
-            self.coeff = coeff
-            self.mul = mul_module
-            self.div = div_module
-
-        def __process_modules__(self, process):
-            return MyClass(self.coeff, process(self.mul), process(self.div))
-
-
 Nontrivial example
 ------------------
 

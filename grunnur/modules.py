@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, overload
 
 from .template import DefTemplate, RenderError
@@ -7,6 +8,9 @@ from .utils import update_dict
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Mapping, Sequence
+
+
+SOURCE_COLLECTOR: ContextVar[SourceCollector] = ContextVar("SOURCE_COLLECTOR")
 
 
 class Snippet:
@@ -64,19 +68,6 @@ class Snippet:
         """
         template = DefTemplate.from_string(name, [], source)
         return cls(template, render_globals=render_globals)
-
-    def __process_modules__(
-        self, process: Callable[[Mapping[str, Any]], Mapping[str, Any]]
-    ) -> RenderableSnippet:
-        return RenderableSnippet(self.template, process(self.render_globals))
-
-
-class RenderableSnippet:
-    """A snippet with processed dependencies and ready to be rendered."""
-
-    def __init__(self, template: DefTemplate, render_globals: Mapping[str, Any]):
-        self.template = template
-        self.render_globals = render_globals
 
     def __call__(self, *args: Any) -> str:
         return self.template.render(*args, **self.render_globals)
@@ -140,29 +131,9 @@ class Module:
         self.template = template
         self.render_globals = render_globals
 
-    def process(self, collector: SourceCollector) -> RenderableModule:
-        return RenderableModule(
-            collector, id(self), self.template, process(self.render_globals, collector)
-        )
-
-
-class RenderableModule:
-    """A module with processed dependencies and ready to be rendered."""
-
-    def __init__(
-        self,
-        collector: SourceCollector,
-        module_id: int,
-        template: DefTemplate,
-        render_globals: Mapping[str, Any],
-    ):
-        self.module_id = module_id
-        self.collector = collector
-        self.template = template
-        self.render_globals = render_globals
-
     def __call__(self, *args: Any) -> str:
-        return self.collector.add_module(self.module_id, self.template, args, self.render_globals)
+        collector = SOURCE_COLLECTOR.get()
+        return collector.add_module(id(self), self.template, args, self.render_globals)
 
     def __str__(self) -> str:
         return self()
@@ -205,58 +176,15 @@ class SourceCollector:
         return "\n".join(self.sources)
 
 
-@overload
-def process(obj: Module, collector: SourceCollector) -> RenderableModule: ...
-
-
-@overload
-def process(obj: Snippet, collector: SourceCollector) -> RenderableSnippet: ...
-
-
-@overload
-def process(obj: Mapping[str, Any], collector: SourceCollector) -> dict[str, Any]: ...
-
-
-@overload
-def process(obj: list[Any], collector: SourceCollector) -> list[Any]: ...
-
-
-@overload
-def process(obj: tuple[Any, ...], collector: SourceCollector) -> tuple[Any, ...]: ...
-
-
-def process(obj: Any, collector: SourceCollector) -> Any:
-    if isinstance(obj, Module):
-        return obj.process(collector)
-    if hasattr(obj, "__process_modules__"):
-        return obj.__process_modules__(lambda x: process(x, collector))
-    # Since we can't guarantee that custom types derived from these ones
-    # will have the same constructors, we have to do strict type checking.
-    if type(obj) == dict:  # noqa: E721
-        return {k: process(v, collector) for k, v in obj.items()}
-    if type(obj) == tuple:  # noqa: E721
-        return tuple(process(v, collector) for v in obj)
-    if type(obj) == list:  # noqa: E721
-        return [process(v, collector) for v in obj]
-    return obj
-
-
 def render_with_modules(
     src: str | Callable[..., str] | DefTemplate | Snippet,
     render_args: Sequence[Any] = (),
     render_globals: Mapping[str, Any] = {},
 ) -> str:
     """
-    Renders the given source traversing the arguments and globals processing modules.
+    Renders the given source with given positional arguments and globals.
     If a module is attempted to be rendered, its source is prepended to the resulting source,
     and the caller receives the generated module prefix.
-
-    Nested arguments/globals of :py:class:`Module` and :py:class:`Snippet`
-    are traversed automatically. Also traversed are instances of `dict`, `list` and `tuple`.
-    Other classes must define a `__process_modules__(self, process)` method,
-    where `process` is a one-argument function traversing any of the supported objects
-    and returning the resulting object with all nested :py:class:`Module` objects
-    changed to :py:class:`RenderableModule`.
 
     If ``src`` is a string, a callable or a :py:class:`DefTemplate`,
     a :py:class:`Snippet` is created with a corresponding classmethod or the constructor.
@@ -272,9 +200,6 @@ def render_with_modules(
     :param render_args: a list of arguments to pass to the template def.
     :param render_globals: a dict of globals to render the template with.
     """
-    collector = SourceCollector()
-    render_args = process(tuple(render_args), collector)
-
     if isinstance(src, str):
         if len(render_args) > 0:
             raise ValueError("A textual source cannot have `render_args` set.")
@@ -288,15 +213,17 @@ def render_with_modules(
     else:
         raise TypeError(f"Cannot render an object of type {type(src)}")
 
-    main_renderable = process(snippet, collector)
-
+    collector = SourceCollector()
+    token = SOURCE_COLLECTOR.set(collector)
     try:
-        main_src = main_renderable(*render_args)
+        main_src = snippet(*render_args)
     except RenderError as e:
         # The error will come from a chain of modules and snippets rendering each other,
         # so it will be buried deep in the traceback.
         # Setting the cause to None to cut all the intermediate calls which don't carry
         # any important information.
         raise e from None
+    finally:
+        SOURCE_COLLECTOR.reset(token)
 
     return collector.get_source() + "\n" + main_src

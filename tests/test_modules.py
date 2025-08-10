@@ -108,14 +108,6 @@ class CustomObj:
     def __init__(self, module):
         self.module = module
 
-    def __process_modules__(self, process):
-        return RenderableCustomObj(process(self.module))
-
-
-class RenderableCustomObj:
-    def __init__(self, processed_module):
-        self.module = processed_module
-
 
 def test_process_objects():
     # Checks that all supported types of objects are correctly traversed
@@ -139,7 +131,7 @@ def test_process_objects():
         render_globals=dict(
             module_obj=m1,
             custom_obj=CustomObj(m2),
-            ref_type=RenderableCustomObj,
+            ref_type=CustomObj,
             dict_obj=dict(module=m3),
             list_obj=[m4],
             tuple_obj=(m5,),

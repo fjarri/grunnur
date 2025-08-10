@@ -5,7 +5,7 @@ from collections import Counter
 from math import ceil, floor, sqrt
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from .modules import Module, RenderableModule, Snippet
+from .modules import Module, Snippet
 from .template import Template
 from .utils import min_blocks, prod
 
@@ -371,21 +371,6 @@ class VsizeModules(NamedTuple):
     Usually one would write ``if (${skip}()) return;``.
     """
 
-    def __process_modules__(
-        self, process: Callable[[Module], RenderableModule]
-    ) -> VsizeRenderableModules:
-        return VsizeRenderableModules(
-            local_id=process(self.local_id),
-            local_size=process(self.local_size),
-            group_id=process(self.group_id),
-            num_groups=process(self.num_groups),
-            global_id=process(self.global_id),
-            global_size=process(self.global_size),
-            global_flat_id=process(self.global_flat_id),
-            global_flat_size=process(self.global_flat_size),
-            skip=process(self.skip),
-        )
-
     @classmethod
     def from_shape_data(
         cls,
@@ -478,18 +463,6 @@ class VsizeModules(NamedTuple):
             global_flat_size=global_flat_size_mod,
             skip=skip,
         )
-
-
-class VsizeRenderableModules(NamedTuple):
-    local_id: RenderableModule
-    local_size: RenderableModule
-    group_id: RenderableModule
-    num_groups: RenderableModule
-    global_id: RenderableModule
-    global_size: RenderableModule
-    global_flat_id: RenderableModule
-    global_flat_size: RenderableModule
-    skip: RenderableModule
 
 
 class VirtualSizeError(Exception):
