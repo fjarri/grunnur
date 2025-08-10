@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import os
 from pathlib import Path
 from tempfile import mkdtemp
@@ -568,6 +569,9 @@ class OclProgramAdapter(ProgramAdapter):
     def source(self) -> str:
         return self._source
 
+    # Note that `pyopencl.Program` does not cache kernels because in PyOpenCL they are mutable.
+    # We don't use any of their mutable capabilities, so it is safe for us to cache them.
+    @functools.cache  # noqa: B019
     def __getattr__(self, kernel_name: str) -> OclKernelAdapter:
         pyopencl_kernel = getattr(self._pyopencl_program, kernel_name)
         return OclKernelAdapter(self, self._device_adapter, pyopencl_kernel)
