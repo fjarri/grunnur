@@ -5,7 +5,7 @@
 groups = ["default", "docs", "lint", "pycuda", "pyopencl", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:ebe8fcf860607f16ffb4ce5323db10262006da32b5e7bd984c543234eb49ac80"
+content_hash = "sha256:83f9f74ac0453cd9587cc0314816bd47adf5d85dc08b7da92c6e7e24d69b9f2b"
 
 [[metadata.targets]]
 requires_python = ">=3.10"

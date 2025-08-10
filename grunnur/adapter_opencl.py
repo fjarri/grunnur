@@ -438,7 +438,7 @@ class OclContextAdapter(ContextAdapter):
         # Will be checked in the upper levels.
         assert isinstance(device_adapter, OclDeviceAdapter)  # noqa: S101
 
-        flags = pyopencl.mem_flags.READ_WRITE
+        flags: int = pyopencl.mem_flags.READ_WRITE
         if self._buffers_host_allocation:
             flags |= pyopencl.mem_flags.ALLOC_HOST_PTR
 
@@ -493,25 +493,25 @@ class OclBufferAdapter(BufferAdapter):
     ) -> None:
         # Will be checked in the upper levels.
         assert isinstance(queue_adapter, OclQueueAdapter)  # noqa: S101
-        buf_data: pyopencl.Buffer | numpy.ndarray[Any, numpy.dtype[Any]]
+
+        pyopencl_queue = queue_adapter._pyopencl_queue  # noqa: SLF001
+
         if isinstance(source, BufferAdapter):
             # Will be checked in the upper levels.
             assert isinstance(source, OclBufferAdapter)  # noqa: S101
-            buf_data = source._pyopencl_buffer  # noqa: SLF001
+
+            pyopencl.enqueue_copy(
+                pyopencl_queue,
+                self._pyopencl_buffer,
+                source._pyopencl_buffer,  # noqa: SLF001
+            )
         else:
-            buf_data = source
-
-        # This keyword is only supported for transfers involving hosts in PyOpenCL
-        kwds = {}
-        if not isinstance(source, OclBufferAdapter):
-            kwds["is_blocking"] = sync
-
-        pyopencl.enqueue_copy(
-            queue_adapter._pyopencl_queue,  # noqa: SLF001
-            self._pyopencl_buffer,
-            buf_data,
-            **kwds,
-        )
+            pyopencl.enqueue_copy(
+                pyopencl_queue,
+                self._pyopencl_buffer,
+                source,
+                is_blocking=sync,
+            )
 
     def get(
         self,
@@ -607,12 +607,9 @@ class OclKernelAdapter(KernelAdapter):
 
     @property
     def max_total_local_size(self) -> int:
-        return cast(
-            int,
-            self._pyopencl_kernel.get_work_group_info(
-                pyopencl.kernel_work_group_info.WORK_GROUP_SIZE,
-                self._device_adapter._pyopencl_device,  # noqa: SLF001
-            ),
+        return self._pyopencl_kernel.get_work_group_info(
+            pyopencl.kernel_work_group_info.WORK_GROUP_SIZE,
+            self._device_adapter._pyopencl_device,  # noqa: SLF001
         )
 
 
@@ -624,8 +621,8 @@ class OclPreparedKernelAdapter(PreparedKernelAdapter):
         local_size: Sequence[int] | None = None,
     ):
         self._kernel_adapter = kernel_adapter
-        self._local_size = local_size
-        self._global_size = global_size
+        self._local_size = tuple(local_size) if local_size is not None else None
+        self._global_size = tuple(global_size)
         self._device_adapter = kernel_adapter._device_adapter  # noqa: SLF001
         self._pyopencl_kernel = kernel_adapter._pyopencl_kernel  # noqa: SLF001
 

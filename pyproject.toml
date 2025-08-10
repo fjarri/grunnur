@@ -18,7 +18,7 @@ homepage = "https://github.com/fjarri/grunnur"
 
 [project.optional-dependencies]
 pyopencl = [
-    "pyopencl>=2019.1.1",
+    "pyopencl>=2025.2.6",
 ]
 pycuda = [
     "pycuda>=2019.1.1",
