@@ -16,6 +16,8 @@ from .mock_base import MockKernel, MockSource
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
 
+    from numpy.typing import NDArray
+
 
 class MemFlags(IntEnum):
     READ_WRITE = 1
@@ -94,8 +96,8 @@ class MockPyOpenCLModule:
     def enqueue_copy(
         self,
         queue: CommandQueue,
-        dest: Buffer | numpy.ndarray[Any, numpy.dtype[Any]],
-        src: Buffer | numpy.ndarray[Any, numpy.dtype[Any]],
+        dest: Buffer | NDArray[Any],
+        src: Buffer | NDArray[Any],
         *,
         # Unused in the mock since everything is blocking
         is_blocking: bool = False,  # noqa: ARG002
@@ -314,7 +316,7 @@ class Buffer:
             self._buffer = b"\xef" * size
         self._base_buffer = _base_buffer
 
-    def _set(self, arr: Buffer | numpy.ndarray[Any, numpy.dtype[Any]]) -> None:
+    def _set(self, arr: Buffer | NDArray[Any]) -> None:
         if isinstance(arr, numpy.ndarray):
             data = arr.tobytes()
         else:
@@ -328,7 +330,7 @@ class Buffer:
         else:
             self._base_buffer._buffer = insert_data(self._base_buffer._buffer, self.offset, data)
 
-    def _get(self, arr: numpy.ndarray[Any, numpy.dtype[Any]]) -> None:
+    def _get(self, arr: NDArray[Any]) -> None:
         data = arr.tobytes()
         assert len(data) <= self.size
 

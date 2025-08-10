@@ -22,6 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Iterable, Mapping, Sequence
 
     import numpy
+    from numpy.typing import NDArray
 
     from .array import Array
     from .array_metadata import ArrayMetadata
@@ -177,9 +178,7 @@ class StaticKernel:
         """
         return self._prepared_kernel(queue, *args)
 
-    def set_constant_array(
-        self, queue: Queue, name: str, arr: Array | numpy.ndarray[Any, numpy.dtype[Any]]
-    ) -> None:
+    def set_constant_array(self, queue: Queue, name: str, arr: Array | NDArray[Any]) -> None:
         """
         Uploads a constant array to the context's devices (**CUDA only**).
 

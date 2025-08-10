@@ -39,6 +39,8 @@ from .utils import get_launch_size, normalize_object_sequence, prod
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Mapping, Sequence
 
+    from numpy.typing import NDArray
+
     from .array_metadata import ArrayMetadata
 
 
@@ -490,7 +492,7 @@ class CuBufferAdapter(BufferAdapter):
     def set(
         self,
         queue_adapter: QueueAdapter,
-        source: numpy.ndarray[Any, numpy.dtype[Any]] | BufferAdapter,
+        source: NDArray[Any] | BufferAdapter,
         *,
         sync: bool = False,
     ) -> None:
@@ -525,7 +527,7 @@ class CuBufferAdapter(BufferAdapter):
     def get(
         self,
         queue_adapter: QueueAdapter,
-        host_array: numpy.ndarray[Any, numpy.dtype[Any]],
+        host_array: NDArray[Any],
         *,
         async_: bool = False,
     ) -> None:
@@ -585,7 +587,7 @@ class CuProgramAdapter(ProgramAdapter):
         self,
         queue_adapter: QueueAdapter,
         name: str,
-        arr: BufferAdapter | numpy.ndarray[Any, numpy.dtype[Any]],
+        arr: BufferAdapter | NDArray[Any],
     ) -> None:
         """Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context."""
         # Will be checked in the upper levels

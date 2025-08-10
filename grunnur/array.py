@@ -15,7 +15,7 @@ from .utils import min_blocks
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Iterable, Mapping, Sequence
 
-    from numpy.typing import DTypeLike
+    from numpy.typing import DTypeLike, NDArray
 
 
 class Array(AsArrayMetadata):
@@ -40,7 +40,7 @@ class Array(AsArrayMetadata):
     def from_host(
         cls,
         queue_or_device: Queue | BoundDevice,
-        host_arr: numpy.ndarray[Any, numpy.dtype[Any]],
+        host_arr: NDArray[Any],
     ) -> Array:
         """
         Creates an array object from a host array.
@@ -94,7 +94,7 @@ class Array(AsArrayMetadata):
     def empty_like(
         cls,
         device: BoundDevice,
-        array_like: AsArrayMetadata | numpy.ndarray[Any, numpy.dtype[Any]],
+        array_like: AsArrayMetadata | NDArray[Any],
         allocator: Callable[[BoundDevice, int], Buffer] | None = None,
     ) -> Array:
         """
@@ -154,7 +154,7 @@ class Array(AsArrayMetadata):
     def set(
         self,
         queue: Queue,
-        array: numpy.ndarray[Any, numpy.dtype[Any]] | Array,
+        array: NDArray[Any] | Array,
         *,
         sync: bool = False,
     ) -> None:
@@ -165,7 +165,7 @@ class Array(AsArrayMetadata):
         :param array: the source array.
         :param sync: if `True`, the transfer blocks until completion.
         """
-        array_data: numpy.ndarray[Any, numpy.dtype[Any]] | Buffer
+        array_data: NDArray[Any] | Buffer
         if isinstance(array, numpy.ndarray):
             array_data = array
         elif isinstance(array, Array):
@@ -185,10 +185,10 @@ class Array(AsArrayMetadata):
     def get(
         self,
         queue: Queue,
-        dest: numpy.ndarray[Any, numpy.dtype[Any]] | None = None,
+        dest: NDArray[Any] | None = None,
         *,
         async_: bool = False,
-    ) -> numpy.ndarray[Any, numpy.dtype[Any]]:
+    ) -> NDArray[Any]:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -304,7 +304,7 @@ class MultiArray:
     def from_host(
         cls,
         mqueue: MultiQueue,
-        host_arr: numpy.ndarray[Any, numpy.dtype[Any]],
+        host_arr: NDArray[Any],
         splay: BaseSplay | None = None,
     ) -> MultiArray:
         """
@@ -378,10 +378,10 @@ class MultiArray:
     def get(
         self,
         mqueue: MultiQueue,
-        dest: numpy.ndarray[Any, numpy.dtype[Any]] | None = None,
+        dest: NDArray[Any] | None = None,
         *,
         async_: bool = False,
-    ) -> numpy.ndarray[Any, numpy.dtype[Any]]:
+    ) -> NDArray[Any]:
         """
         Copies the contents of the array to the host array and returns it.
 
@@ -404,7 +404,7 @@ class MultiArray:
     def set(
         self,
         mqueue: MultiQueue,
-        array: numpy.ndarray[Any, numpy.dtype[Any]] | MultiArray,
+        array: NDArray[Any] | MultiArray,
         *,
         sync: bool = False,
     ) -> None:
@@ -415,7 +415,7 @@ class MultiArray:
         :param array: the source array.
         :param sync: if `True`, the transfer blocks until completion.
         """
-        subarrays: Mapping[BoundDevice, Array | numpy.ndarray[Any, numpy.dtype[Any]]]
+        subarrays: Mapping[BoundDevice, Array | NDArray[Any]]
         if isinstance(array, numpy.ndarray):
             # This is to satisfy Mypy. Numpy arrays satisfy this protocol by default.
             assert isinstance(array, ArrayLike)  # noqa: S101

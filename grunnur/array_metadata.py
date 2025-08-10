@@ -8,7 +8,7 @@ from .dtypes import _normalize_type
 
 if TYPE_CHECKING:  # pragma: no cover
     import numpy
-    from numpy.typing import DTypeLike
+    from numpy.typing import DTypeLike, NDArray
 
     from .array import Array
 
@@ -53,9 +53,7 @@ class ArrayMetadata(AsArrayMetadata):
     """If ``True``, means that array's data forms a continuous chunk of memory."""
 
     @classmethod
-    def from_arraylike(
-        cls, array_like: AsArrayMetadata | numpy.ndarray[Any, numpy.dtype[Any]]
-    ) -> ArrayMetadata:
+    def from_arraylike(cls, array_like: AsArrayMetadata | NDArray[Any]) -> ArrayMetadata:
         if isinstance(array_like, AsArrayMetadata):
             return array_like.as_array_metadata()
 

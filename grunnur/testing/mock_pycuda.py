@@ -21,6 +21,8 @@ from .mock_base import MockKernel, MockSource
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
 
+    from numpy.typing import NDArray
+
 
 class ConvertibleToInt(Protocol):
     def __int__(self) -> int:  # pragma: no cover
@@ -242,15 +244,13 @@ class MockPyCUDADriverModule:
     def mem_alloc(self, size: int) -> BaseDeviceAllocation:
         return self.DeviceAllocation._allocate(size)
 
-    def memcpy_htod(
-        self, dest: BaseDeviceAllocation, src: numpy.ndarray[Any, numpy.dtype[Any]]
-    ) -> None:
+    def memcpy_htod(self, dest: BaseDeviceAllocation, src: NDArray[Any]) -> None:
         self.memcpy_htod_async(dest, src)
 
     def memcpy_htod_async(
         self,
         dest: BaseDeviceAllocation,
-        src: numpy.ndarray[Any, numpy.dtype[Any]],
+        src: NDArray[Any],
         stream: BaseStream | None = None,
     ) -> None:
         backend = self._backend_ref()
@@ -263,14 +263,12 @@ class MockPyCUDADriverModule:
         assert dest._size >= src.size * src.dtype.itemsize
         dest._set(src)
 
-    def memcpy_dtoh(
-        self, dest: numpy.ndarray[Any, numpy.dtype[Any]], src: BaseDeviceAllocation
-    ) -> None:
+    def memcpy_dtoh(self, dest: NDArray[Any], src: BaseDeviceAllocation) -> None:
         self.memcpy_dtoh_async(dest, src)
 
     def memcpy_dtoh_async(
         self,
-        dest: numpy.ndarray[Any, numpy.dtype[Any]],
+        dest: NDArray[Any],
         src: BaseDeviceAllocation,
         stream: BaseStream | None = None,
     ) -> None:
@@ -305,9 +303,7 @@ class MockPyCUDADriverModule:
         assert src._size >= size
         dest._set(src)
 
-    def pagelocked_empty(
-        self, shape: Sequence[int], dtype: numpy.dtype[Any]
-    ) -> numpy.ndarray[Any, numpy.dtype[Any]]:
+    def pagelocked_empty(self, shape: Sequence[int], dtype: numpy.dtype[Any]) -> NDArray[Any]:
         return numpy.empty(shape, dtype)
 
 
@@ -534,10 +530,10 @@ class BaseDeviceAllocation(ABC):
     ): ...
 
     @abstractmethod
-    def _set(self, arr: numpy.ndarray[Any, numpy.dtype[Any]] | BaseDeviceAllocation) -> None: ...
+    def _set(self, arr: NDArray[Any] | BaseDeviceAllocation) -> None: ...
 
     @abstractmethod
-    def _get(self, arr: numpy.ndarray[Any, numpy.dtype[Any]]) -> None: ...
+    def _get(self, arr: NDArray[Any]) -> None: ...
 
     @abstractmethod
     def __int__(self) -> int: ...
@@ -588,7 +584,7 @@ def make_device_allocation_class(backend: MockPyCUDA) -> type[BaseDeviceAllocati
             self._size = size
             self._owns_buffer = owns_buffer
 
-        def _set(self, arr: numpy.ndarray[Any, numpy.dtype[Any]] | BaseDeviceAllocation) -> None:
+        def _set(self, arr: NDArray[Any] | BaseDeviceAllocation) -> None:
             backend = self._backend_ref()
             assert backend is not None
             if isinstance(arr, numpy.ndarray):
@@ -598,7 +594,7 @@ def make_device_allocation_class(backend: MockPyCUDA) -> type[BaseDeviceAllocati
             assert len(data) <= self._size
             backend.set_allocation_buffer(self._idx, self._offset, data)
 
-        def _get(self, arr: numpy.ndarray[Any, numpy.dtype[Any]]) -> None:
+        def _get(self, arr: NDArray[Any]) -> None:
             backend = self._backend_ref()
             assert backend is not None
             data = arr.tobytes()

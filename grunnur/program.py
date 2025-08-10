@@ -25,6 +25,8 @@ from .utils import update_dict
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
 
+    from numpy.typing import NDArray
+
     from .array_metadata import ArrayMetadata
     from .template import DefTemplate
 
@@ -48,12 +50,12 @@ def _set_constant_array(
     queue: Queue,
     program_adapter: ProgramAdapter,
     name: str,
-    arr: Array | Buffer | numpy.ndarray[Any, numpy.dtype[Any]],
+    arr: Array | Buffer | NDArray[Any],
 ) -> None:
     """Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context."""
     queue_adapter = queue._queue_adapter  # noqa: SLF001
 
-    constant_data: BufferAdapter | numpy.ndarray[Any, numpy.dtype[Any]]
+    constant_data: BufferAdapter | NDArray[Any]
 
     if isinstance(arr, Array):
         constant_data = arr.data._buffer_adapter  # noqa: SLF001
@@ -155,7 +157,7 @@ class SingleDeviceProgram:
         self,
         queue: Queue,
         name: str,
-        arr: Array | Buffer | numpy.ndarray[Any, numpy.dtype[Any]],
+        arr: Array | Buffer | NDArray[Any],
     ) -> None:
         """Uploads a constant array ``arr`` corresponding to the symbol ``name`` to the context."""
         _set_constant_array(queue, self._sd_program_adapter, name, arr)
@@ -229,9 +231,7 @@ class Program:
         # discard this Program object
         self.kernel = KernelHub(self)
 
-    def set_constant_array(
-        self, queue: Queue, name: str, arr: Array | numpy.ndarray[Any, numpy.dtype[Any]]
-    ) -> None:
+    def set_constant_array(self, queue: Queue, name: str, arr: Array | NDArray[Any]) -> None:
         """
         Uploads a constant array to the context's devices (**CUDA only**).
 

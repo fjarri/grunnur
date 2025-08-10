@@ -13,7 +13,7 @@ from .modules import Module
 from .utils import bounding_power_of_2, log2, min_blocks, prod
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import DTypeLike
+    from numpy.typing import DTypeLike, NDArray
 
 
 _DTYPE_TO_BUILTIN_CTYPE = {
@@ -134,7 +134,7 @@ def _c_constant_arr(val: Any, shape: Sequence[int]) -> str:
 
 
 def c_constant(
-    val: complex | numpy.generic | numpy.ndarray[Any, numpy.dtype[Any]],
+    val: complex | numpy.generic | NDArray[Any],
     dtype: DTypeLike | None = None,
 ) -> str:
     """
@@ -149,7 +149,7 @@ def c_constant(
     else:
         dtype = _promote_type(val.dtype)
 
-    numpy_val: numpy.generic | numpy.ndarray[Any, numpy.dtype[Any]]
+    numpy_val: numpy.generic | NDArray[Any]
     if isinstance(val, numpy.ndarray):
         numpy_val = numpy.asarray(val, dtype)
     else:
@@ -578,8 +578,8 @@ def flatten_dtype(dtype: DTypeLike) -> list[FieldInfo]:
 
 
 def _extract_field(
-    arr: numpy.ndarray[Any, numpy.dtype[Any]], path: list[str | int], array_idxs: list[int]
-) -> numpy.generic | numpy.ndarray[Any, numpy.dtype[Any]]:
+    arr: NDArray[Any], path: list[str | int], array_idxs: list[int]
+) -> numpy.generic | NDArray[Any]:
     """
     A helper function for ``extract_field``.
     Need to collect array indices for dtype sub-array fields since they are attached to the end
@@ -601,9 +601,7 @@ def _extract_field(
     return _extract_field(arr, path[1:], [*array_idxs, path[0]])
 
 
-def extract_field(
-    arr: numpy.ndarray[Any, numpy.dtype[Any]], path: list[str | int]
-) -> numpy.generic | numpy.ndarray[Any, numpy.dtype[Any]]:
+def extract_field(arr: NDArray[Any], path: list[str | int]) -> numpy.generic | NDArray[Any]:
     """
     Extracts an element from an array of struct dtype.
     The ``path`` is the sequence of field names/array indices returned from

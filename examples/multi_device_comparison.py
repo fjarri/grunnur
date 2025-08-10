@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from typing import Any
 
 import numpy
+from numpy.typing import NDArray
 
 from grunnur import Array, Context, MultiArray, MultiQueue, Program, Queue
 from grunnur import opencl_api as api
@@ -33,9 +34,7 @@ KERNEL void sum(GLOBAL_MEM unsigned long *a, int pwr)
 """
 
 
-def calc_ref(
-    x: "numpy.ndarray[Any, numpy.dtype[Any]]", pwr: int
-) -> "numpy.ndarray[Any, numpy.dtype[Any]]":
+def calc_ref(x: NDArray[Any], pwr: int) -> NDArray[Any]:
     """Reference function for the kernel."""
     m = numpy.uint64(2**32 - 65)
     res = x.copy()
