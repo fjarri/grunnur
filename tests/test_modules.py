@@ -14,11 +14,12 @@ def test_snippet_from_callable() -> None:
 
 
 def test_snippet_from_string() -> None:
-    snippet = Snippet.from_string("${z}", render_globals=dict(z=3))
+    snippet = Snippet.from_string([], "${z}", render_globals=dict(z=3))
     assert render_with_modules(snippet).strip() == "3"
 
-    res = render_with_modules("${s}", render_globals=dict(s=snippet)).strip()
-    assert res == "3"
+    snippet = Snippet.from_string(["x", "y"], "${x} + ${y} + ${z}", render_globals=dict(z=3))
+    res = render_with_modules("${s(1, 2)}", render_globals=dict(s=snippet)).strip()
+    assert res == "1 + 2 + 3"
 
 
 def test_module_from_callable() -> None:

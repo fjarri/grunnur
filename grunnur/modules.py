@@ -7,7 +7,7 @@ from .template import DefTemplate, RenderError
 from .utils import update_dict
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterable, Mapping, Sequence
 
 
 SOURCE_COLLECTOR: ContextVar[SourceCollector] = ContextVar("SOURCE_COLLECTOR")
@@ -56,17 +56,21 @@ class Snippet:
 
     @classmethod
     def from_string(
-        cls, source: str, name: str = "_snippet", render_globals: Mapping[str, Any] = {}
+        cls,
+        argnames: Iterable[str],
+        source: str,
+        name: str = "_snippet",
+        render_globals: Mapping[str, Any] = {},
     ) -> Snippet:
         """
-        Creates a snippet from a template source, treated as a body of a
-        template def with no arguments.
+        Creates a snippet from a template source and a list of arguments.
 
+        :param argnames: names of the arguments for the created template.
         :param source: a string with the template source.
         :param name: the snippet's name (will simplify debugging)
         :param render_globals: a dictionary of "globals" to be used when rendering the template.
         """
-        template = DefTemplate.from_string(name, [], source)
+        template = DefTemplate.from_string(name, argnames, source)
         return cls(template, render_globals=render_globals)
 
     def __call__(self, *args: Any) -> str:
@@ -203,7 +207,7 @@ def render_with_modules(
     if isinstance(src, str):
         if len(render_args) > 0:
             raise ValueError("A textual source cannot have `render_args` set.")
-        snippet = Snippet.from_string(src, name="_main_", render_globals=render_globals)
+        snippet = Snippet.from_string([], src, name="_main_", render_globals=render_globals)
     elif isinstance(src, DefTemplate):
         snippet = Snippet(src, render_globals=render_globals)
     elif isinstance(src, Snippet):
