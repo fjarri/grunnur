@@ -45,7 +45,7 @@ class MockPyOpenCL:
         return platform
 
     def add_platform_with_devices(
-        self, platform_name: str | None, device_infos: Sequence[PyOpenCLDeviceInfo | str]
+        self, platform_name: str | None, device_infos: Sequence[str | PyOpenCLDeviceInfo]
     ) -> Platform:
         platform = self.add_platform(platform_name)
         for device_info in device_infos:
@@ -56,7 +56,7 @@ class MockPyOpenCL:
             platform.add_device(typed_device_info)
         return platform
 
-    def add_devices(self, device_infos: Sequence[PyOpenCLDeviceInfo]) -> Platform:
+    def add_devices(self, device_infos: Sequence[str | PyOpenCLDeviceInfo]) -> Platform:
         # Prevent incorrect usage - this method is added to be similar to that of PyCUDA mock,
         # so it can only be used once.
         assert len(self.platforms) == 0
@@ -280,9 +280,7 @@ class Kernel:
             else:
                 raise TypeError(f"Incorrect argument type: {type(arg)}")
 
-    def get_work_group_info(
-        self, attribute: KernelWorkGroupInfo, device: Device
-    ) -> tuple[int, ...]:
+    def get_work_group_info(self, attribute: KernelWorkGroupInfo, device: Device) -> int:
         if attribute == KernelWorkGroupInfo.WORK_GROUP_SIZE:
             device_idx = device.platform.get_devices().index(device)
             return self._kernel.max_total_local_sizes[device_idx]

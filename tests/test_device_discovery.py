@@ -1,11 +1,15 @@
 import pytest
 
 from grunnur import DeviceFilter, PlatformFilter
-from grunnur.testing import PyOpenCLDeviceInfo
-from utils import check_select_devices
+from grunnur.testing import MockBackendFactory, PyOpenCLDeviceInfo
+from utils import MockStdin, check_select_devices
 
 
-def test_platform_take_single(mock_stdin, mock_backend_factory, capsys):
+def test_platform_take_single(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Test that if only one platform is available, it is selected automatically
 
     platforms_devices = [("Platform1", ["Device1", "Device2"])]
@@ -18,7 +22,11 @@ def test_platform_take_single(mock_stdin, mock_backend_factory, capsys):
     assert devices[0].name == "Device2"
 
 
-def test_platform_choose(mock_stdin, mock_backend_factory, capsys):
+def test_platform_choose(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Test selecting one of several available platforms
 
     platforms_devices = [
@@ -34,7 +42,11 @@ def test_platform_choose(mock_stdin, mock_backend_factory, capsys):
     assert devices[0].name == "Device3"
 
 
-def test_platform_take_default(mock_stdin, mock_backend_factory, capsys):
+def test_platform_take_default(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Test that just pressing enter gives the default (first) platform
 
     platforms_devices = [
@@ -50,7 +62,11 @@ def test_platform_take_default(mock_stdin, mock_backend_factory, capsys):
     assert devices[0].name == "Device1"
 
 
-def test_device_take_single(mock_stdin, mock_backend_factory, capsys):
+def test_device_take_single(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Test that if only one device is available, it is selected automatically
 
     platforms_devices = [("Platform1", ["Device1", "Device2"]), ("Platform2", ["Device3"])]
@@ -63,7 +79,11 @@ def test_device_take_single(mock_stdin, mock_backend_factory, capsys):
     assert devices[0].name == "Device3"
 
 
-def test_device_take_multiple(mock_stdin, mock_backend_factory, capsys):
+def test_device_take_multiple(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Test the case when several devices are requested,
     # and that's exactly how many the chosen platform has.
     # Technically it's the same as a single device and quantity=1, but testing just in case.
@@ -80,7 +100,11 @@ def test_device_take_multiple(mock_stdin, mock_backend_factory, capsys):
     assert [device.name for device in devices] == ["Device3", "Device4", "Device5"]
 
 
-def test_device_choose_single(mock_stdin, mock_backend_factory, capsys):
+def test_device_choose_single(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Test that if only one device is available, it is selected automatically
 
     platforms_devices = [
@@ -96,7 +120,11 @@ def test_device_choose_single(mock_stdin, mock_backend_factory, capsys):
     assert devices[0].name == "Device4"
 
 
-def test_device_choose_multiple(mock_stdin, mock_backend_factory, capsys):
+def test_device_choose_multiple(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Test that if only one device is available, it is selected automatically
 
     platforms_devices = [
@@ -118,7 +146,11 @@ def test_device_choose_multiple(mock_stdin, mock_backend_factory, capsys):
     assert [device.name for device in devices] == ["Device3", "Device5"]
 
 
-def test_device_choose_multiple_wrong_quantity(mock_stdin, mock_backend_factory, capsys):
+def test_device_choose_multiple_wrong_quantity(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Test error in the case when the user selects a number of devices not equal to `quantity`
 
     platforms_devices = [
@@ -139,7 +171,11 @@ def test_device_choose_multiple_wrong_quantity(mock_stdin, mock_backend_factory,
         )
 
 
-def test_device_take_default_single(mock_stdin, mock_backend_factory, capsys):
+def test_device_take_default_single(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Test that just pressing enter gives the default (first) device
 
     platforms_devices = [
@@ -155,7 +191,11 @@ def test_device_take_default_single(mock_stdin, mock_backend_factory, capsys):
     assert devices[0].name == "Device3"
 
 
-def test_device_take_default_multiple(mock_stdin, mock_backend_factory, capsys):
+def test_device_take_default_multiple(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Test that just pressing enter gives the first `quantity` devices
 
     platforms_devices = [
@@ -177,7 +217,11 @@ def test_device_take_default_multiple(mock_stdin, mock_backend_factory, capsys):
     assert [device.name for device in devices] == ["Device3", "Device4"]
 
 
-def test_device_take_all_available(mock_stdin, mock_backend_factory, capsys):
+def test_device_take_all_available(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Test that `quantity=None` returns all suitable devices.
 
     platforms_devices = [
@@ -199,7 +243,11 @@ def test_device_take_all_available(mock_stdin, mock_backend_factory, capsys):
     assert [device.name for device in devices] == ["Device3", "Device4", "Device5"]
 
 
-def test_filter_include_platforms(mock_stdin, mock_backend_factory, capsys):
+def test_filter_include_platforms(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     platforms_devices = [
         ("PlatformFoo", ["Device1", "Device2"]),
         ("PlatformBar", ["Device3", "Device4", "Device5"]),
@@ -216,7 +264,11 @@ def test_filter_include_platforms(mock_stdin, mock_backend_factory, capsys):
     assert devices[0].name == "Device3"
 
 
-def test_filter_exclude_platforms(mock_stdin, mock_backend_factory, capsys):
+def test_filter_exclude_platforms(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     platforms_devices = [
         ("PlatformFoo", ["Device1", "Device2"]),
         ("PlatformBar", ["Device3", "Device4", "Device5"]),
@@ -233,7 +285,11 @@ def test_filter_exclude_platforms(mock_stdin, mock_backend_factory, capsys):
     assert devices[0].name == "Device3"
 
 
-def test_filter_include_devices(mock_stdin, mock_backend_factory, capsys):
+def test_filter_include_devices(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     platforms_devices = [
         ("PlatformFoo", ["DeviceFoo", "DeviceBar"]),
         ("PlatformBar", ["DeviceFoo", "DeviceBar", "DeviceBaz"]),
@@ -253,7 +309,11 @@ def test_filter_include_devices(mock_stdin, mock_backend_factory, capsys):
     assert devices[0].platform.name == "PlatformBar"
 
 
-def test_filter_exclude_devices(mock_stdin, mock_backend_factory, capsys):
+def test_filter_exclude_devices(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     platforms_devices = [
         ("PlatformFoo", ["DeviceFoo", "DeviceBar"]),
         ("PlatformBar", ["DeviceFoo", "DeviceBar", "DeviceBaz"]),
@@ -272,7 +332,11 @@ def test_filter_exclude_devices(mock_stdin, mock_backend_factory, capsys):
     assert devices[0].name == "DeviceBaz"
 
 
-def test_filter_exclude_all_devices(mock_stdin, mock_backend_factory, capsys):
+def test_filter_exclude_all_devices(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     platforms_devices = [
         ("PlatformFoo", ["DeviceFoo", "DeviceBar"]),
         ("PlatformBar", ["DeviceFoo", "DeviceBar", "DeviceBaz"]),
@@ -294,7 +358,13 @@ def test_filter_exclude_all_devices(mock_stdin, mock_backend_factory, capsys):
 @pytest.mark.parametrize(
     "unique_only", [False, True], ids=["unique_only=False", "unique_only=True"]
 )
-def test_unique_devices_only(mock_stdin, mock_backend_factory, capsys, unique_only):
+def test_unique_devices_only(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+    *,
+    unique_only: bool,
+) -> None:
     platforms_devices = [
         ("PlatformFoo", ["DeviceFoo", "DeviceFoo"]),
         ("PlatformBar", ["DeviceBar", "DeviceBar", "DeviceBaz"]),
@@ -315,10 +385,16 @@ def test_unique_devices_only(mock_stdin, mock_backend_factory, capsys, unique_on
 
 
 @pytest.mark.parametrize("exclude_pp", [False, True], ids=["exclude_pp=False", "exclude_pp=True"])
-def test_include_pure_parallel_devices(mock_stdin, mock_backend_factory, capsys, exclude_pp):
+def test_include_pure_parallel_devices(
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+    *,
+    exclude_pp: bool,
+) -> None:
     # `check_select_devices()` mocks OpenCL, so we can use multiple platforms
     # and OpenCL-specific device info
-    platforms_devices = [
+    platforms_devices: list[tuple[str, list[str | PyOpenCLDeviceInfo]]] = [
         ("PlatformFoo", ["Device1", "Device2"]),
         (
             "PlatformBar",

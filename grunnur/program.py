@@ -27,7 +27,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray
 
-    from .array_metadata import ArrayMetadata
+    from .array_metadata import AsArrayMetadata
     from .template import DefTemplate
 
 
@@ -85,7 +85,7 @@ class SingleDeviceProgram:
         fast_math: bool = False,
         render_args: Sequence[Any] = [],
         render_globals: Mapping[str, Any] = {},
-        constant_arrays: Mapping[str, Array | ArrayMetadata] = {},
+        constant_arrays: Mapping[str, AsArrayMetadata] = {},
         keep: bool = False,
         compiler_options: Iterable[str] = [],
     ):
@@ -120,8 +120,7 @@ class SingleDeviceProgram:
         prelude = "" if no_prelude else context_adapter.render_prelude(fast_math=fast_math)
 
         constant_arrays_metadata = {
-            name: array.metadata if isinstance(array, Array) else array
-            for name, array in constant_arrays.items()
+            name: array.as_array_metadata() for name, array in constant_arrays.items()
         }
 
         try:
@@ -189,7 +188,7 @@ class Program:
         render_globals: Mapping[str, Any] = {},
         compiler_options: Sequence[str] = [],
         keep: bool = False,
-        constant_arrays: Mapping[str, Array | ArrayMetadata] = {},
+        constant_arrays: Mapping[str, AsArrayMetadata] = {},
     ):
         """
         :param devices: a single- or a multi-device object on which to compile this program.
@@ -231,7 +230,9 @@ class Program:
         # discard this Program object
         self.kernel = KernelHub(self)
 
-    def set_constant_array(self, queue: Queue, name: str, arr: Array | NDArray[Any]) -> None:
+    def set_constant_array(
+        self, queue: Queue, name: str, arr: Array | Buffer | NDArray[Any]
+    ) -> None:
         """
         Uploads a constant array to the context's devices (**CUDA only**).
 
@@ -320,7 +321,11 @@ class PreparedKernel:
     def __call__(
         self,
         queue: Queue | MultiQueue,
-        *args: MultiArray | Array | Buffer | numpy.generic,
+        *args: Mapping[BoundDevice, Array | Buffer | numpy.generic]
+        | MultiArray
+        | Array
+        | Buffer
+        | numpy.generic,
         cu_dynamic_local_mem: int = 0,
     ) -> Any:
         """
@@ -466,7 +471,11 @@ class Kernel:
         queue: Queue | MultiQueue,
         global_size: Sequence[int] | Mapping[BoundDevice, Sequence[int]],
         local_size: Sequence[int] | None | Mapping[BoundDevice, Sequence[int] | None] = None,
-        *args: MultiArray | Array | Buffer | numpy.generic,
+        *args: Mapping[BoundDevice, Array | Buffer | numpy.generic]
+        | MultiArray
+        | Array
+        | Buffer
+        | numpy.generic,
         cu_dynamic_local_mem: int = 0,
     ) -> Any:
         """

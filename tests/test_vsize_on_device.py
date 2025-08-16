@@ -1,14 +1,22 @@
 import itertools
 
 import numpy
+import pytest
+from numpy.typing import NDArray
 
-from grunnur import Array, Program, Queue
+from grunnur import Array, Context, Program, Queue
 from grunnur.utils import min_blocks, prod
 from grunnur.vsize import VirtualSizes
 
 
 class VirtualSizesTest:
-    def __init__(self, global_size, local_size, max_num_groups, max_local_sizes):
+    def __init__(
+        self,
+        global_size: tuple[int, ...],
+        local_size: tuple[int, ...] | None,
+        max_num_groups: tuple[int, ...],
+        max_local_sizes: tuple[int, ...],
+    ):
         self.global_size = global_size
         self.local_size = local_size
         if local_size is not None:
@@ -20,7 +28,7 @@ class VirtualSizesTest:
         self.max_local_sizes = max_local_sizes
         self.max_total_local_size = prod(max_local_sizes)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"{self.global_size}-{self.local_size}-"
             f"limited-by-{self.max_num_groups}-{self.max_local_sizes}"
@@ -45,13 +53,13 @@ _VSTESTS = [
 ]
 
 
-def pytest_generate_tests(metafunc):
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     if "vstest" in metafunc.fixturenames:
         metafunc.parametrize("vstest", _VSTESTS, ids=[str(x) for x in _VSTESTS])
 
 
 class ReferenceIds:
-    def __init__(self, global_size, local_size):
+    def __init__(self, global_size: tuple[int, ...], local_size: tuple[int, ...] | None):
         self.global_size = global_size
         if local_size is not None:
             self.local_size = local_size
@@ -59,7 +67,9 @@ class ReferenceIds:
                 min_blocks(gs, ls) for gs, ls in zip(global_size, local_size, strict=True)
             )
 
-    def _tile_pattern(self, pattern, axis, full_shape):
+    def _tile_pattern(
+        self, pattern: NDArray[numpy.int64], axis: int, full_shape: tuple[int, ...]
+    ) -> NDArray[numpy.int32]:
         pattern_shape = [x if i == axis else 1 for i, x in enumerate(full_shape)]
         pattern = pattern.reshape(*pattern_shape)
 
@@ -68,7 +78,7 @@ class ReferenceIds:
 
         return pattern.astype(numpy.int32)
 
-    def predict_local_ids(self, dim):
+    def predict_local_ids(self, dim: int) -> NDArray[numpy.int32]:
         global_len = self.global_size[dim]
         local_len = self.local_size[dim]
         repetitions = min_blocks(global_len, local_len)
@@ -76,7 +86,7 @@ class ReferenceIds:
         pattern = numpy.tile(numpy.arange(local_len), repetitions)[:global_len]
         return self._tile_pattern(pattern, dim, self.global_size)
 
-    def predict_group_ids(self, dim):
+    def predict_group_ids(self, dim: int) -> NDArray[numpy.int32]:
         global_len = self.global_size[dim]
         local_len = self.local_size[dim]
         repetitions = min_blocks(global_len, local_len)
@@ -84,14 +94,14 @@ class ReferenceIds:
         pattern = numpy.repeat(numpy.arange(repetitions), local_len)[:global_len]
         return self._tile_pattern(pattern, dim, self.global_size)
 
-    def predict_global_ids(self, dim):
+    def predict_global_ids(self, dim: int) -> NDArray[numpy.int32]:
         global_len = self.global_size[dim]
 
         pattern = numpy.arange(global_len)
         return self._tile_pattern(pattern, dim, self.global_size)
 
 
-def test_ids(context, vstest):
+def test_ids(context: Context, vstest: VirtualSizesTest) -> None:
     """Test that virtual IDs are correct for each thread."""
     ref = ReferenceIds(vstest.global_size, vstest.local_size)
 
@@ -147,7 +157,7 @@ def test_ids(context, vstest):
             assert (group_ids.get(queue) == ref.predict_group_ids(vdim)).all()
 
 
-def test_sizes(context, vstest):
+def test_sizes(context: Context, vstest: VirtualSizesTest) -> None:
     """Test that virtual sizes are correct."""
     vs = VirtualSizes(
         max_total_local_size=vstest.max_total_local_size,
@@ -182,10 +192,10 @@ def test_sizes(context, vstest):
     get_sizes = program.kernel.get_sizes
 
     queue = Queue(context.device)
-    sizes = Array.empty(context.device, [vdims * 3 + 1], numpy.int32)
-    get_sizes(queue, vs.real_global_size, vs.real_local_size, sizes)
+    sizes_dev = Array.empty(context.device, [vdims * 3 + 1], numpy.int32)
+    get_sizes(queue, vs.real_global_size, vs.real_local_size, sizes_dev)
 
-    sizes = sizes.get(queue)
+    sizes = sizes_dev.get(queue)
     local_sizes = sizes[0:vdims]
     grid_sizes = sizes[vdims : vdims * 2]
     global_sizes = sizes[vdims * 2 : vdims * 3]

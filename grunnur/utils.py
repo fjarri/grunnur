@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Mapping, Sequence
 
+    from numpy.typing import NDArray
+
 
 _T = TypeVar("_T")
 
@@ -47,7 +49,15 @@ def bounding_power_of_2(num: int) -> int:
     return 1 << (log2(num - 1) + 1)
 
 
-def prod(seq: Iterable[int]) -> int:
+@overload
+def prod(seq: Iterable[int]) -> int: ...
+
+
+@overload
+def prod(seq: Iterable[NDArray[Any]]) -> NDArray[Any]: ...
+
+
+def prod(seq: Iterable[int] | Iterable[NDArray[Any]]) -> int | NDArray[Any]:
     # Integer product. `numpy.prod` returns a float when given an empty sequence.
     return reduce(lambda x, y: x * y, seq, 1)
 

@@ -143,7 +143,7 @@ class BaseSourceModule(ABC):
     ): ...
 
     @abstractmethod
-    def test_get_options(self) -> Sequence[str] | None: ...
+    def test_get_options(self) -> list[str]: ...
 
     @abstractmethod
     def get_function(self, name: str) -> BaseFunction: ...
@@ -184,7 +184,7 @@ def make_source_module_class(backend: MockPyCUDA) -> type[BaseSourceModule]:
             self._kernels = {kernel.name: function_cls(self, kernel) for kernel in src.kernels}
             self._constant_mem = src.constant_mem
 
-            self._options = options
+            self._options = list(options) if options is not None else []
 
             # See the note in compile_single_device(). Apparently that's how PyCUDA operates.
             if keep and cache_dir is not None:
@@ -194,7 +194,7 @@ def make_source_module_class(backend: MockPyCUDA) -> type[BaseSourceModule]:
                     f.write(str(src))
                 print(f"*** compiler output in {temp_dir}")  # noqa: T201
 
-        def test_get_options(self) -> Sequence[str] | None:
+        def test_get_options(self) -> list[str]:
             return self._options
 
         def get_function(self, name: str) -> BaseFunction:
@@ -631,7 +631,7 @@ class BaseFunction(ABC):
     ) -> None: ...
 
     @abstractmethod
-    def get_attribute(self, attribute: FunctionAttribute) -> tuple[int, ...]: ...
+    def get_attribute(self, attribute: FunctionAttribute) -> int: ...
 
 
 @lru_cache
@@ -689,7 +689,7 @@ def make_function_class(backend: MockPyCUDA) -> type[BaseFunction]:
             assert all(isinstance(x, int) for x in block)
             assert all(b <= max_b for b, max_b in zip(block, max_block, strict=True))
 
-        def get_attribute(self, attribute: FunctionAttribute) -> tuple[int, ...]:
+        def get_attribute(self, attribute: FunctionAttribute) -> int:
             if attribute == FunctionAttribute.MAX_THREADS_PER_BLOCK:
                 device_idx = self._source_module._context._device_idx
                 return self._kernel.max_total_local_sizes[device_idx]

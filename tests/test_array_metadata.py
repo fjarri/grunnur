@@ -13,7 +13,7 @@ from grunnur.array_metadata import (
 )
 
 
-def test_normalize_slice():
+def test_normalize_slice() -> None:
     # default slice - returns zero offset and unchanged length/stride
     assert _normalize_slice(10, 4, slice(None)) == (0, 10, 4)
     # a slice with end-based limits
@@ -24,7 +24,7 @@ def test_normalize_slice():
     assert _normalize_slice(5, 4, slice(1, 4, 2)) == (1 * 4, 2, 8)
 
 
-def test_get_view():
+def test_get_view() -> None:
     ref = numpy.empty((5, 6), numpy.int32)
     slices = (slice(1, 4, 2), slice(-5, -1, 2))
     ref_v = ref[slices]
@@ -41,16 +41,19 @@ def test_get_view():
         _get_view(ref.shape, ref.strides, slices[:-1])
 
 
-def ref_range(shape, itemsize, strides):
+def ref_range(shape: tuple[int, ...], itemsize: int, strides: tuple[int, ...]) -> tuple[int, int]:
     # Reference range calculation - simply find the minimum and the maximum across all indices.
     indices = numpy.meshgrid(*[numpy.arange(length) for length in shape], indexing="ij")
-    addresses = sum(idx * stride for idx, stride in zip(indices, strides, strict=True))
+    addresses = sum(
+        (idx * stride for idx, stride in zip(indices, strides, strict=True)),
+        start=numpy.zeros(shape),
+    )
     min_offset = addresses.min()
     max_offset = addresses.max() + itemsize
     return min_offset, max_offset
 
 
-def test_get_range():
+def test_get_range() -> None:
     min_offset, max_offset = _get_range((3, 4, 5), 4, (100, -30, -5))
     ref_min_offset, ref_max_offset = ref_range((3, 4, 5), 4, (100, -30, -5))
     assert min_offset == ref_min_offset
@@ -60,13 +63,13 @@ def test_get_range():
         _get_range((3, 4, 5), 4, (100, -30))
 
 
-def test_get_strides():
+def test_get_strides() -> None:
     ref = numpy.empty((5, 6), numpy.int32)
     strides = _get_strides((5, 6), ref.dtype.itemsize)
     assert strides == ref.strides
 
 
-def check_metadata(meta):
+def check_metadata(meta: ArrayMetadata) -> None:
     """
     Checks array metadata by testing that address of every element of the array
     lies within the range specified in the metadata.
@@ -78,14 +81,14 @@ def check_metadata(meta):
         for indices in itertools.product(*[range(length) for length in meta.shape])
     ]
 
-    addresses = numpy.array(addresses)
+    addresses_array = numpy.array(addresses)
 
-    assert addresses.max() + itemsize - addresses.min() == meta.span
-    assert meta.first_element_offset + addresses.min() == meta.min_offset
-    assert meta.first_element_offset + addresses.max() + itemsize <= meta.buffer_size
+    assert addresses_array.max() + itemsize - addresses_array.min() == meta.span
+    assert meta.first_element_offset + addresses_array.min() == meta.min_offset
+    assert meta.first_element_offset + addresses_array.max() + itemsize <= meta.buffer_size
 
 
-def test_metadata_constructor():
+def test_metadata_constructor() -> None:
     # a scalar shape is converted into a tuple
     check_metadata(ArrayMetadata([5], numpy.float64))
 
@@ -106,7 +109,7 @@ def test_metadata_constructor():
         ArrayMetadata((5, 6), numpy.int32, buffer_size=5 * 6 * 4 - 1)
 
 
-def test_eq():
+def test_eq() -> None:
     meta1 = ArrayMetadata((5, 6), numpy.int32)
     meta2 = ArrayMetadata((5, 6), numpy.int32)
     meta3 = ArrayMetadata((5, 6), numpy.int32, strides=(48, 4))
@@ -114,7 +117,7 @@ def test_eq():
     assert meta1 != meta3
 
 
-def test_hash():
+def test_hash() -> None:
     meta1 = ArrayMetadata((5, 6), numpy.int32)
     meta2 = ArrayMetadata((5, 6), numpy.int32)
     meta3 = ArrayMetadata((5, 6), numpy.int32, strides=(48, 4))
@@ -122,7 +125,7 @@ def test_hash():
     assert hash(meta1) != hash(meta3)
 
 
-def test_repr():
+def test_repr() -> None:
     meta = ArrayMetadata((5, 6), numpy.int32)
     assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6))"
 
@@ -142,7 +145,7 @@ def test_repr():
     assert repr(meta) == "ArrayMetadata(dtype=int32, shape=(5, 6), buffer_size=512)"
 
 
-def test_from_arraylike():
+def test_from_arraylike() -> None:
     meta = ArrayMetadata.from_arraylike(numpy.empty((5, 6), numpy.int32))
     assert meta.shape == (5, 6)
     assert meta.dtype == numpy.int32
@@ -156,7 +159,7 @@ def test_from_arraylike():
     assert meta.strides == (48, 4)
 
 
-def test_view():
+def test_view() -> None:
     meta = ArrayMetadata((5, 6), numpy.int32)
     view = meta[1:4, -1:-5:-2]
     ref_view = numpy.empty(meta.shape, meta.dtype)[1:4, -1:-5:-2]
@@ -187,12 +190,12 @@ def test_view():
     assert view.span == 3 * 4 * 6
 
 
-def test_empty_shape():
+def test_empty_shape() -> None:
     with pytest.raises(ValueError, match="Array shape cannot be an empty sequence"):
         ArrayMetadata((), numpy.int32)
 
 
-def test_get_sub_region():
+def test_get_sub_region() -> None:
     meta = ArrayMetadata((5, 6), numpy.int32)
     view = meta[1:4]
 
@@ -207,7 +210,7 @@ def test_get_sub_region():
     assert view_region.buffer_size == 16 + span + 1
 
 
-def test_with():
+def test_with() -> None:
     meta = ArrayMetadata(
         (5, 6), numpy.int32, strides=(1, 2), first_element_offset=8, buffer_size=1000
     )

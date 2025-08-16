@@ -2,10 +2,12 @@ import numpy
 import pytest
 
 from grunnur import API, Buffer, Context, Queue, cuda_api_id, opencl_api_id
+from grunnur.adapter_opencl import OclBufferAdapter
+from grunnur.testing import MockPyOpenCL
 
 
 @pytest.mark.parametrize("sync", [False, True], ids=["async", "sync"])
-def test_transfer(mock_or_real_context, sync):
+def test_transfer(mock_or_real_context: tuple[Context, bool], *, sync: bool) -> None:
     context, mocked = mock_or_real_context
 
     length = 100
@@ -44,7 +46,7 @@ def test_transfer(mock_or_real_context, sync):
 
 
 @pytest.mark.parametrize("sync", [False, True], ids=["async", "sync"])
-def test_subregion(mock_or_real_context, sync):
+def test_subregion(mock_or_real_context: tuple[Context, bool], *, sync: bool) -> None:
     context, mocked = mock_or_real_context
 
     length = 200
@@ -84,7 +86,7 @@ def test_subregion(mock_or_real_context, sync):
 
 
 @pytest.mark.parametrize("sync", [False, True], ids=["async", "sync"])
-def test_subregion_copy(mock_or_real_context, sync):
+def test_subregion_copy(mock_or_real_context: tuple[Context, bool], *, sync: bool) -> None:
     context, mocked = mock_or_real_context
 
     length = 100
@@ -115,7 +117,7 @@ def test_subregion_copy(mock_or_real_context, sync):
     assert (res2[region_offset + region_length :] == 1).all()
 
 
-def test_subregion_of_subregion(mock_or_real_context):
+def test_subregion_of_subregion(mock_or_real_context: tuple[Context, bool]) -> None:
     context, mocked = mock_or_real_context
 
     length = 200
@@ -156,7 +158,7 @@ def test_subregion_of_subregion(mock_or_real_context):
     assert (res == arr).all()
 
 
-def test_subregion_overflow(mock_context):
+def test_subregion_overflow(mock_context: Context) -> None:
     buf = Buffer.allocate(mock_context.device, 100)
     with pytest.raises(
         ValueError, match="The requested subregion extends beyond the buffer length"
@@ -164,7 +166,7 @@ def test_subregion_overflow(mock_context):
         buf.get_sub_region(50, 70)
 
 
-def test_migrate_on_copy(monkeypatch, mock_4_device_context):
+def test_migrate_on_copy(monkeypatch: pytest.MonkeyPatch, mock_4_device_context: Context) -> None:
     context = mock_4_device_context
     size = 100
     src = Buffer.allocate(context.devices[0], size)
@@ -189,7 +191,7 @@ def test_migrate_on_copy(monkeypatch, mock_4_device_context):
         dest.set(queue1, src)
 
 
-def test_flags(mock_backend_pyopencl):
+def test_flags(mock_backend_pyopencl: MockPyOpenCL) -> None:
     backend = mock_backend_pyopencl
 
     normal_flags = backend.pyopencl.mem_flags.READ_WRITE
@@ -203,32 +205,36 @@ def test_flags(mock_backend_pyopencl):
     api = API.from_api_id(backend.api_id)
     context = Context.from_devices([api.platforms[0].devices[0], api.platforms[0].devices[1]])
     buf = Buffer.allocate(context.devices[0], 100)
+    assert isinstance(buf._buffer_adapter, OclBufferAdapter)
     assert buf._buffer_adapter._pyopencl_buffer.flags == special_flags
 
     # None of the devices is GeForce
     context = Context.from_devices([api.platforms[0].devices[1], api.platforms[0].devices[2]])
     buf = Buffer.allocate(context.devices[0], 100)
+    assert isinstance(buf._buffer_adapter, OclBufferAdapter)
     assert buf._buffer_adapter._pyopencl_buffer.flags == normal_flags
 
     # Only one device
     context = Context.from_devices([api.platforms[0].devices[0]])
     buf = Buffer.allocate(context.device, 100)
+    assert isinstance(buf._buffer_adapter, OclBufferAdapter)
     assert buf._buffer_adapter._pyopencl_buffer.flags == normal_flags
 
     # Not an Apple platform
     context = Context.from_devices([api.platforms[1].devices[0], api.platforms[1].devices[1]])
     buf = Buffer.allocate(context.devices[0], 100)
+    assert isinstance(buf._buffer_adapter, OclBufferAdapter)
     assert buf._buffer_adapter._pyopencl_buffer.flags == normal_flags
 
 
-def test_set_from_wrong_type(mock_context):
+def test_set_from_wrong_type(mock_context: Context) -> None:
     buf = Buffer.allocate(mock_context.device, 100)
     queue = Queue(mock_context.device)
     with pytest.raises(TypeError, match="Cannot set from an object of type <class 'int'>"):
-        buf.set(queue, 1)
+        buf.set(queue, 1)  # type: ignore[arg-type]
 
 
-def test_mismatched_devices(mock_4_device_context):
+def test_mismatched_devices(mock_4_device_context: Context) -> None:
     context = mock_4_device_context
     buf = Buffer.allocate(context.devices[0], 100)
     queue = Queue(context.devices[1])

@@ -1,9 +1,10 @@
 import pytest
 
 from grunnur import API, Platform, PlatformFilter, cuda_api_id, opencl_api_id
+from grunnur.testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
 
 
-def test_all(mock_backend_pyopencl):
+def test_all(mock_backend_pyopencl: MockPyOpenCL) -> None:
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1"])
     mock_backend_pyopencl.add_platform_with_devices("Platform2", ["Device2"])
     api = API.from_api_id(mock_backend_pyopencl.api_id)
@@ -12,7 +13,7 @@ def test_all(mock_backend_pyopencl):
     assert platform_names == {"Platform1", "Platform2"}
 
 
-def test_all_filtered(mock_backend_pyopencl):
+def test_all_filtered(mock_backend_pyopencl: MockPyOpenCL) -> None:
     mock_backend_pyopencl.add_platform_with_devices("foo-bar", ["Device1"])
     mock_backend_pyopencl.add_platform_with_devices("bar-baz", ["Device2"])
     mock_backend_pyopencl.add_platform_with_devices("foo-baz", ["Device3"])
@@ -24,8 +25,9 @@ def test_all_filtered(mock_backend_pyopencl):
     assert platforms[0].name == "foo-baz"
 
 
-def test_from_backend_platform(mock_backend_factory):
+def test_from_backend_platform(mock_backend_factory: MockBackendFactory) -> None:
     mock_backend_pyopencl = mock_backend_factory.mock(opencl_api_id())
+    assert isinstance(mock_backend_pyopencl, MockPyOpenCL)
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1"])
     mock_backend_pyopencl.add_platform_with_devices("Platform2", ["Device2"])
 
@@ -44,7 +46,7 @@ def test_from_backend_platform(mock_backend_factory):
     assert platform.name == "Platform1"
 
 
-def test_from_index(mock_backend_pyopencl):
+def test_from_index(mock_backend_pyopencl: MockPyOpenCL) -> None:
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1"])
     mock_backend_pyopencl.add_platform_with_devices("Platform2", ["Device2"])
     api = API.from_api_id(mock_backend_pyopencl.api_id)
@@ -53,8 +55,8 @@ def test_from_index(mock_backend_pyopencl):
     assert platform.name == "Platform2"
 
 
-def test_eq(mock_backend):
-    if mock_backend.api_id == cuda_api_id():
+def test_eq(mock_backend: MockPyOpenCL | MockPyCUDA) -> None:
+    if isinstance(mock_backend, MockPyCUDA):
         mock_backend.add_devices(["Device1"])
         api = API.from_api_id(mock_backend.api_id)
 
@@ -78,8 +80,8 @@ def test_eq(mock_backend):
         assert p0_v1 != p1
 
 
-def test_hash(mock_backend):
-    if mock_backend.api_id == cuda_api_id():
+def test_hash(mock_backend: MockPyOpenCL | MockPyCUDA) -> None:
+    if isinstance(mock_backend, MockPyCUDA):
         mock_backend.add_devices(["Device1"])
         api = API.from_api_id(mock_backend.api_id)
 
@@ -101,7 +103,7 @@ def test_hash(mock_backend):
         assert d[p1] == 1
 
 
-def test_getitem(mock_backend_pyopencl):
+def test_getitem(mock_backend_pyopencl: MockPyOpenCL) -> None:
     mock_backend_pyopencl.add_platform_with_devices("Platform0", ["Device0"])
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2"])
     api = API.from_api_id(mock_backend_pyopencl.api_id)
@@ -112,7 +114,7 @@ def test_getitem(mock_backend_pyopencl):
     assert p1.devices[1].name == "Device2"
 
 
-def test_attributes(mock_backend):
+def test_attributes(mock_backend: MockPyOpenCL | MockPyCUDA) -> None:
     mock_backend.add_devices(["Device1"])
     api = API.from_api_id(mock_backend.api_id)
     p = Platform.from_index(api, 0)

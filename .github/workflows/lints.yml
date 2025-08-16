@@ -32,7 +32,7 @@ jobs:
       run: curl -sSL https://raw.githubusercontent.com/pdm-project/pdm/main/install-pdm.py | python3
     - name: Install dependencies
       run: |
-        pdm sync -G lint,pyopencl
+        pdm sync -G lint,pyopencl,tests
     - name: Run mypy
       run: |
-        pdm run mypy examples grunnur
+        pdm run mypy examples grunnur tests
