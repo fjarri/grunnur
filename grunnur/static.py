@@ -24,11 +24,12 @@ if TYPE_CHECKING:  # pragma: no cover
     import numpy
     from numpy.typing import NDArray
 
-    from .array import Array
-    from .array_metadata import ArrayMetadata
+    from .array import Array, MultiArray
+    from .array_metadata import AsArrayMetadata
+    from .buffer import Buffer
     from .context import BoundDevice, BoundMultiDevice
     from .modules import Snippet
-    from .queue import Queue
+    from .queue import MultiQueue, Queue
     from .template import DefTemplate
 
 
@@ -60,7 +61,7 @@ class StaticKernel:
         local_size: Sequence[int] | None | Mapping[BoundDevice, Sequence[int] | None] = None,
         render_args: Sequence[Any] = (),
         render_globals: Mapping[str, Any] = {},
-        constant_arrays: Mapping[str, Array | ArrayMetadata] = {},
+        constant_arrays: Mapping[str, AsArrayMetadata] = {},
         keep: bool = False,
         fast_math: bool = False,
         compiler_options: Iterable[str] = [],
@@ -168,7 +169,15 @@ class StaticKernel:
             multi_device, kernel_adapters, global_sizes, local_sizes
         )
 
-    def __call__(self, queue: Queue, *args: Array | numpy.generic) -> Any:
+    def __call__(
+        self,
+        queue: Queue | MultiQueue,
+        *args: Mapping[BoundDevice, Array | Buffer | numpy.generic]
+        | MultiArray
+        | Array
+        | Buffer
+        | numpy.generic,
+    ) -> Any:
         """
         Execute the kernel.
         In case of the OpenCL backend, returns a ``pyopencl.Event`` object.
@@ -178,7 +187,9 @@ class StaticKernel:
         """
         return self._prepared_kernel(queue, *args)
 
-    def set_constant_array(self, queue: Queue, name: str, arr: Array | NDArray[Any]) -> None:
+    def set_constant_array(
+        self, queue: Queue, name: str, arr: Array | Buffer | NDArray[Any]
+    ) -> None:
         """
         Uploads a constant array to the context's devices (**CUDA only**).
 

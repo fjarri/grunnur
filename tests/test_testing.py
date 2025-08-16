@@ -1,31 +1,47 @@
+import re
+
 import pytest
 
 import grunnur
 from grunnur import cuda_api_id, opencl_api_id
+from grunnur.adapter_base import APIID
 from grunnur.testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
 
 
-def test_mock_backend_factory(monkeypatch):
+def test_mock_pyopencl(monkeypatch: pytest.MonkeyPatch) -> None:
     fac = MockBackendFactory(monkeypatch)
 
     backend = fac.mock(opencl_api_id())
     assert isinstance(backend, MockPyOpenCL)
-    assert grunnur.adapter_opencl.pyopencl._backend is backend
+    assert grunnur.adapter_opencl.pyopencl._backend is backend  # type: ignore[attr-defined]
 
     fac.disable(opencl_api_id())
     assert grunnur.adapter_opencl.pyopencl is None
 
+
+def test_mock_pycuda(monkeypatch: pytest.MonkeyPatch) -> None:
+    fac = MockBackendFactory(monkeypatch)
+
     backend = fac.mock(cuda_api_id())
     assert isinstance(backend, MockPyCUDA)
-    assert grunnur.adapter_cuda.pycuda_driver is backend.pycuda_driver
-    assert grunnur.adapter_cuda.pycuda_compiler is backend.pycuda_compiler
+    assert grunnur.adapter_cuda.pycuda_driver is backend.pycuda_driver  # type: ignore[comparison-overlap]
+    assert grunnur.adapter_cuda.pycuda_compiler is backend.pycuda_compiler  # type: ignore[comparison-overlap]
 
     fac.disable(cuda_api_id())
-    assert grunnur.adapter_cuda.pycuda_driver is None
+    # `mypy` assumes `grunnur.adapter_cuda.pycuda_driver` is always imported, so it's never `None`,
+    # so it considers the second assertion unreachable.
+    # `getattr()` circumvents the static check (which makes `ruff` unhappy, but we ignore that).
+    assert getattr(grunnur.adapter_cuda, "pycuda_driver") is None  # noqa: B009
     assert grunnur.adapter_cuda.pycuda_compiler is None
 
-    with pytest.raises(ValueError, match="Unknown API ID: foo"):
-        fac.mock("foo")
 
-    with pytest.raises(ValueError, match="Unknown API ID: foo"):
-        fac.disable("foo")
+def test_unknown_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    fac = MockBackendFactory(monkeypatch)
+
+    foo_id = APIID("foo")
+
+    with pytest.raises(ValueError, match=re.escape("Unknown API ID: id(foo)")):
+        fac.mock(foo_id)
+
+    with pytest.raises(ValueError, match=re.escape("Unknown API ID: id(foo)")):
+        fac.disable(foo_id)

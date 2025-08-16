@@ -1,32 +1,38 @@
+import io
+from collections.abc import Iterable, Sequence
+from typing import Any
+
 import numpy
+import pytest
+from numpy.typing import DTypeLike, NDArray
 
-from grunnur import API, dtypes
-from grunnur.device_discovery import select_devices
+from grunnur import API, Device, DeviceFilter, PlatformFilter, dtypes, select_devices
+from grunnur.testing import MockBackendFactory, MockPyOpenCL, PyOpenCLDeviceInfo
 
 
-def get_test_array(shape, dtype, *, strides=None, offset=0, no_zeros=False, high=None):
+def get_test_array(
+    shape: Sequence[int],
+    dtype: DTypeLike,
+    *,
+    strides: None | Sequence[int] = None,
+    no_zeros: bool = False,
+    high: float | None = None,
+) -> NDArray[Any]:
     dtype = numpy.dtype(dtype)  # normalize to access the fields
 
     rng = numpy.random.default_rng()
 
-    if offset != 0:
-        raise NotImplementedError
-
-    if dtype.names is not None:
-        result = numpy.empty(shape, dtype)
-        for name in dtype.names:
-            result[name] = get_test_array(shape, dtype[name], no_zeros=no_zeros, high=high)
+    if numpy.issubdtype(dtype, numpy.integer):
+        low_int = 1 if no_zeros else 0
+        # `100` will work even with signed chars
+        high_int = 100 if high is None else int(high)
+        result = rng.integers(low_int, high=high_int, size=shape).astype(dtype)
     else:
-        if dtypes.is_integer(dtype):
-            low = 1 if no_zeros else 0
-            if high is None:
-                high = 100  # will work even with signed chars
-            get_arr = lambda: rng.integers(low, high, shape, dtype)
-        else:
-            low = 0.01 if no_zeros else 0
-            if high is None:
-                high = 1.0
-            get_arr = lambda: rng.uniform(low, high, shape).astype(dtype)
+        low_float = 0.01 if no_zeros else 0
+        high_float = 1.0 if high is None else float(high)
+
+        def get_arr() -> NDArray[Any]:
+            return rng.uniform(low_float, high_float, size=shape).astype(dtype)
 
         result = (get_arr() + 1j * get_arr()) if dtypes.is_complex(dtype) else get_arr()
 
@@ -36,20 +42,42 @@ def get_test_array(shape, dtype, *, strides=None, offset=0, no_zeros=False, high
     return result
 
 
+class MockStdin:
+    def __init__(self) -> None:
+        self.stream = io.StringIO()
+        self.lines = 0
+
+    def line(self, s: str) -> None:
+        pos = self.stream.tell()  # preserve the current read pointer
+        self.stream.seek(0, io.SEEK_END)
+        self.stream.write(s + "\n")
+        self.stream.seek(pos)
+        self.lines += 1
+
+    def readline(self) -> str:
+        assert self.lines > 0
+        self.lines -= 1
+        return self.stream.readline()
+
+    def empty(self) -> bool:
+        return self.lines == 0
+
+
 def check_select_devices(
-    mock_stdin,
-    mock_backend_factory,
-    capsys,
-    platforms_devices,
+    mock_stdin: MockStdin,
+    mock_backend_factory: MockBackendFactory,
+    capsys: pytest.CaptureFixture[str],
+    platforms_devices: Iterable[tuple[str, Sequence[str | PyOpenCLDeviceInfo]]],
     *,
-    inputs=None,
-    interactive=False,
-    quantity=1,
-    device_filter=None,
-    platform_filter=None,
-):
+    inputs: Iterable[str] | None = None,
+    interactive: bool = False,
+    quantity: int | None = 1,
+    device_filter: DeviceFilter | None = None,
+    platform_filter: PlatformFilter | None = None,
+) -> list[Device]:
     # CUDA API has a single fixed platform, so using the OpenCL one
     backend = mock_backend_factory.mock_pyopencl()
+    assert isinstance(backend, MockPyOpenCL)
 
     for platform_name, device_infos in platforms_devices:
         backend.add_platform_with_devices(platform_name, device_infos)

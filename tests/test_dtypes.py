@@ -1,4 +1,5 @@
 import re
+from collections.abc import Mapping
 
 import numpy
 import pytest
@@ -8,37 +9,37 @@ from grunnur.dtypes import FieldInfo, _WrappedType
 from grunnur.modules import render_with_modules
 
 
-def test_ctype_builtin():
+def test_ctype_builtin() -> None:
     assert dtypes.ctype(numpy.int32) == "int"
 
     with pytest.raises(ValueError, match="object is not a built-in data type"):
         dtypes.ctype(numpy.object_)
 
 
-def test_is_complex():
+def test_is_complex() -> None:
     assert dtypes.is_complex(numpy.complex64)
     assert dtypes.is_complex(numpy.complex128)
     assert not dtypes.is_complex(numpy.float64)
 
 
-def test_is_double():
+def test_is_double() -> None:
     assert dtypes.is_double(numpy.float64)
     assert dtypes.is_double(numpy.complex128)
     assert not dtypes.is_double(numpy.complex64)
 
 
-def test_is_integer():
+def test_is_integer() -> None:
     assert dtypes.is_integer(numpy.int32)
     assert not dtypes.is_integer(numpy.float32)
 
 
-def test_is_real():
+def test_is_real() -> None:
     assert dtypes.is_real(numpy.float32)
     assert not dtypes.is_real(numpy.complex64)
     assert not dtypes.is_real(numpy.int32)
 
 
-def test_promote_type():
+def test_promote_type() -> None:
     assert dtypes._promote_type(numpy.dtype("int8")) == numpy.int32
     assert dtypes._promote_type(numpy.dtype("uint8")) == numpy.uint32
     assert dtypes._promote_type(numpy.dtype("float16")) == numpy.float32
@@ -47,18 +48,18 @@ def test_promote_type():
     assert dtypes._promote_type(numpy.dtype("int64")) == numpy.int64
 
 
-def test_result_type():
+def test_result_type() -> None:
     assert dtypes.result_type(numpy.int32, numpy.float32) == numpy.float64
 
 
-def test_min_scalar_type():
+def test_min_scalar_type() -> None:
     assert dtypes.min_scalar_type(1) == numpy.uint32
     assert dtypes.min_scalar_type(-1) == numpy.int32
     assert dtypes.min_scalar_type(1.0) == numpy.float32
     assert dtypes.min_scalar_type(1 + 2j) == numpy.complex64
 
 
-def test_complex_for():
+def test_complex_for() -> None:
     assert dtypes.complex_for(numpy.float32) == numpy.complex64
     assert dtypes.complex_for(numpy.float64) == numpy.complex128
     with pytest.raises(ValueError, match="complex64 does not have a corresponding complex type"):
@@ -67,7 +68,7 @@ def test_complex_for():
         assert dtypes.complex_for(numpy.int32)
 
 
-def test_real_for():
+def test_real_for() -> None:
     assert dtypes.real_for(numpy.complex64) == numpy.float32
     assert dtypes.real_for(numpy.complex128) == numpy.float64
     with pytest.raises(ValueError, match="float32 does not have a corresponding real type"):
@@ -76,11 +77,11 @@ def test_real_for():
         assert dtypes.real_for(numpy.int32)
 
 
-def test_complex_ctr():
+def test_complex_ctr() -> None:
     assert dtypes.complex_ctr(numpy.complex64) == "COMPLEX_CTR(float2)"
 
 
-def test_c_constant():
+def test_c_constant() -> None:
     # scalar values
     assert dtypes.c_constant(1) == "1"
     assert dtypes.c_constant(numpy.uint64(1)) == "1UL"
@@ -108,12 +109,12 @@ def test_c_constant():
         dtypes.c_constant(numpy.array(["a", "b"]))
 
 
-def test_align_builtin():
+def test_align_builtin() -> None:
     dtype = numpy.dtype("int32")
     assert dtypes.align(dtype) == dtype
 
 
-def test_wrap_builtin():
+def test_wrap_builtin() -> None:
     dtype = numpy.dtype("int32")
     ref = _WrappedType(
         dtype=dtype,
@@ -125,13 +126,13 @@ def test_wrap_builtin():
     assert _WrappedType.wrap(dtype) == ref
 
 
-def test_align_array():
+def test_align_array() -> None:
     dtype = numpy.dtype("int32")
     dtype_arr = numpy.dtype((dtype, 3))
     assert dtypes.align(dtype_arr) == dtype_arr
 
 
-def test_wrap_array():
+def test_wrap_array() -> None:
     dtype = numpy.dtype("int32")
     dtype_arr = numpy.dtype((dtype, 3))
     ref = _WrappedType(
@@ -144,17 +145,22 @@ def test_wrap_array():
     assert _WrappedType.wrap(dtype_arr) == ref
 
 
-def test_align_sets_aligned_attribute():
+def test_align_sets_aligned_attribute() -> None:
     dtype = numpy.dtype(dict(names=["x", "y", "z"], formats=[numpy.int8, numpy.int16, numpy.int32]))
     res = dtypes.align(dtype)
 
     assert res.isalignedstruct
-    assert dict(res.fields) == dict(x=(numpy.int8, 0), y=(numpy.int16, 2), z=(numpy.int32, 4))
+    assert isinstance(res.fields, Mapping)
+    assert dict(res.fields) == dict(
+        x=(numpy.dtype(numpy.int8), 0),
+        y=(numpy.dtype(numpy.int16), 2),
+        z=(numpy.dtype(numpy.int32), 4),
+    )
     assert res.itemsize == 8
     assert res.alignment == 4
 
 
-def test_wrap_aligned_struct():
+def test_wrap_aligned_struct() -> None:
     dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],
@@ -178,7 +184,7 @@ def test_wrap_aligned_struct():
     assert _WrappedType.wrap(dtype) == ref
 
 
-def test_align_ignores_offsets_and_itemsize():
+def test_align_ignores_offsets_and_itemsize() -> None:
     dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],
@@ -194,12 +200,17 @@ def test_align_ignores_offsets_and_itemsize():
     res = dtypes.align(dtype)
 
     assert res.isalignedstruct
-    assert dict(res.fields) == dict(x=(numpy.int8, 0), y=(numpy.int16, 2), z=(numpy.int32, 4))
+    assert isinstance(res.fields, Mapping)
+    assert dict(res.fields) == dict(
+        x=(numpy.dtype(numpy.int8), 0),
+        y=(numpy.dtype(numpy.int16), 2),
+        z=(numpy.dtype(numpy.int32), 4),
+    )
     assert res.itemsize == 8
     assert res.alignment == 4
 
 
-def test_wrap_custom_offsets_and_itemsize():
+def test_wrap_custom_offsets_and_itemsize() -> None:
     dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],
@@ -227,7 +238,7 @@ def test_wrap_custom_offsets_and_itemsize():
     assert res == ref
 
 
-def test_wrap_invalid_itemsize():
+def test_wrap_invalid_itemsize() -> None:
     dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],
@@ -247,7 +258,7 @@ def test_wrap_invalid_itemsize():
         _WrappedType.wrap(dtype)
 
 
-def test_align_nested():
+def test_align_nested() -> None:
     dtype_nested = numpy.dtype(dict(names=["val1", "pad"], formats=[numpy.int8, numpy.int8]))
 
     dtype = numpy.dtype(
@@ -272,7 +283,7 @@ def test_align_nested():
     assert dtype_aligned == dtype_ref
 
 
-def test_align_nested_ignores_itemsize():
+def test_align_nested_ignores_itemsize() -> None:
     dtype_int3 = numpy.dtype(
         dict(names=["x"], formats=[(numpy.int32, 3)], itemsize=16, aligned=True)
     )
@@ -300,13 +311,13 @@ def test_align_nested_ignores_itemsize():
     assert dtype_aligned == dtype_ref
 
 
-def test_lcm():
+def test_lcm() -> None:
     assert dtypes._lcm(10) == 10
     assert dtypes._lcm(15, 20) == 60
     assert dtypes._lcm(16, 32, 24) == 96
 
 
-def test_find_minimum_alignment():
+def test_find_minimum_alignment() -> None:
     # simple case: base alignment is enough because 12 is the next multiple of 4 after 9
     assert dtypes._find_minimum_alignment(12, 4, 9) == 4
     # the next multiple of 4 is 12, but we want offset 16 - this means we need to set
@@ -328,7 +339,7 @@ def test_find_minimum_alignment():
         dtypes._find_minimum_alignment(24, 4, 9)
 
 
-def test_ctype_struct():
+def test_ctype_struct() -> None:
     dtype = dtypes.align(numpy.dtype([("val1", numpy.int32), ("val2", numpy.float32)]))
     ctype = dtypes.ctype(dtype)
     src = render_with_modules("${ctype}", render_globals=dict(ctype=ctype)).strip()
@@ -342,7 +353,7 @@ def test_ctype_struct():
     )
 
 
-def test_ctype_struct_nested():
+def test_ctype_struct_nested() -> None:
     dtype_nested = numpy.dtype(dict(names=["val1", "pad"], formats=[numpy.int8, numpy.int8]))
 
     dtype = numpy.dtype(
@@ -370,7 +381,7 @@ def test_ctype_struct_nested():
     )
 
 
-def test_ctype_struct_aligned():
+def test_ctype_struct_aligned() -> None:
     dtype = numpy.dtype(
         dict(
             names=["x", "y", "z"],
@@ -392,7 +403,7 @@ def test_ctype_struct_aligned():
     )
 
 
-def test_ctype_checks_alignment():
+def test_ctype_checks_alignment() -> None:
     dtype = numpy.dtype(dict(names=["x", "y", "z"], formats=[numpy.int8, numpy.int16, numpy.int32]))
     message = re.escape(
         "Failed to find alignment for field `y`: "
@@ -402,13 +413,13 @@ def test_ctype_checks_alignment():
         dtypes.ctype(dtype)
 
 
-def test_ctype_for_array():
+def test_ctype_for_array() -> None:
     dtype = numpy.dtype((numpy.int32, 3))
     with pytest.raises(ValueError, match="The data type cannot be an array"):
         dtypes.ctype(dtype)
 
 
-def test_flatten_dtype():
+def test_flatten_dtype() -> None:
     dtype_nested = numpy.dtype(dict(names=["val1", "pad"], formats=[numpy.int8, numpy.int8]))
 
     dtype = numpy.dtype(
@@ -433,17 +444,17 @@ def test_flatten_dtype():
     assert res == ref
 
 
-def test_c_path():
-    field_info = FieldInfo(path=["struct_arr", 0, "val1"], dtype=numpy.int8, offset=0)
+def test_c_path() -> None:
+    field_info = FieldInfo(path=["struct_arr", 0, "val1"], dtype=numpy.dtype(numpy.int8), offset=0)
     assert field_info.c_path == ".struct_arr[0].val1"
 
 
-def test_c_path_primitive_type():
+def test_c_path_primitive_type() -> None:
     flat_dtype = dtypes.flatten_dtype(numpy.int32)
     assert flat_dtype[0].c_path == ""
 
 
-def test_extract_field():
+def test_extract_field() -> None:
     dtype_nested = numpy.dtype(dict(names=["val1", "pad"], formats=[numpy.int8, numpy.int8]))
 
     dtype = numpy.dtype(

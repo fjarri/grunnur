@@ -14,12 +14,12 @@ from grunnur.vsize import (
 )
 
 
-def test_factorize():
+def test_factorize() -> None:
     assert factorize(2**10) == [2] * 10
     assert factorize(2**3 * 3**2 * 7 * 13 * 251) == [2, 2, 2, 3, 3, 7, 13, 251]
 
 
-def test_prime_factors():
+def test_prime_factors() -> None:
     val = 2**3 * 3**2 * 7 * 13 * 251
     pf = PrimeFactors.decompose(val)
 
@@ -33,7 +33,7 @@ def test_prime_factors():
     assert pf.div_by(pf2) == PrimeFactors.decompose(val // val2)
 
 
-def test_get_decompositions():
+def test_get_decompositions() -> None:
     val = 2**3 * 3**2 * 7 * 13
     parts = 3
     decomps = list(get_decompositions(val, parts))
@@ -43,10 +43,10 @@ def test_get_decompositions():
     assert all(len(decomp) == parts for decomp in decomps)
 
 
-def test_find_local_size_decomposition():
+def test_find_local_size_decomposition() -> None:
     # Main pathway: the algorithm can find a local size
     # with less than `threshold` ratio of empty threads
-    global_size = (128, 200, 300)
+    global_size = [128, 200, 300]
     flat_local_size = 1024
     threshold = 0.05
     local_size = find_local_size_decomposition(global_size, flat_local_size, threshold=threshold)
@@ -80,7 +80,7 @@ def test_find_local_size_decomposition():
         find_local_size_decomposition([10, 10, 10], 1024)
 
 
-def test_group_dimensions():
+def test_group_dimensions() -> None:
     # more virtual dimensions than available dimensions
     vgroups, agroups = group_dimensions((8, 8, 8, 8), (32, 32, 32))
     assert vgroups == [[0], [1, 2, 3]]
@@ -97,12 +97,12 @@ def test_group_dimensions():
     assert agroups == [[0], [1]]
 
 
-def test_find_bounding_shape():
+def test_find_bounding_shape() -> None:
     assert find_bounding_shape(100, (8, 16)) == [8, 13]
     assert find_bounding_shape(120, (11, 11)) == [11, 11]
 
 
-def test_shape_groups():
+def test_shape_groups() -> None:
     sg = ShapeGroups((8, 8, 8, 8), (32, 32, 32))
     assert sg.real_dims == {0: [0], 1: [1, 2], 2: [1, 2], 3: [1, 2]}
     assert sg.real_strides == {0: [1], 1: [1, 23], 2: [1, 23], 3: [1, 23]}
@@ -122,7 +122,7 @@ def test_shape_groups():
     assert sg.skip_thresholds == []
 
 
-def test_virtual_sizes():
+def test_virtual_sizes() -> None:
     vs = VirtualSizes(
         max_total_local_size=1024,
         max_local_sizes=(1024, 1024, 64),
@@ -174,7 +174,7 @@ def test_virtual_sizes():
     assert vs.real_global_size == (345, 130)
 
 
-def test_vsize_errors():
+def test_vsize_errors() -> None:
     with pytest.raises(
         ValueError, match="Global size and local size must have the same number of dimensions"
     ):

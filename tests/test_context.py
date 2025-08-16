@@ -11,9 +11,10 @@ from grunnur import (
     opencl_api_id,
 )
 from grunnur.context import BoundMultiDevice
+from grunnur.testing import MockPyCUDA, MockPyOpenCL
 
 
-def test_from_devices(mock_backend):
+def test_from_devices(mock_backend: MockPyOpenCL | MockPyCUDA) -> None:
     mock_backend.add_devices(["Device2", "Device3"])
 
     api = API.from_api_id(mock_backend.api_id)
@@ -25,7 +26,7 @@ def test_from_devices(mock_backend):
     assert [device.as_unbound() for device in context.devices] == devices
 
 
-def test_from_devices_different_platforms(mock_backend_pyopencl):
+def test_from_devices_different_platforms(mock_backend_pyopencl: MockPyOpenCL) -> None:
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2"])
     mock_backend_pyopencl.add_platform_with_devices("Platform2", ["Device3", "Device4"])
 
@@ -35,7 +36,7 @@ def test_from_devices_different_platforms(mock_backend_pyopencl):
         Context.from_devices([api.platforms[0].devices[0], api.platforms[1].devices[0]])
 
 
-def test_from_backend_devices_opencl(mock_backend_pyopencl):
+def test_from_backend_devices_opencl(mock_backend_pyopencl: MockPyOpenCL) -> None:
     backend = mock_backend_pyopencl
 
     backend.add_platform_with_devices("Platform1", ["Device1"])
@@ -48,7 +49,7 @@ def test_from_backend_devices_opencl(mock_backend_pyopencl):
     assert [device.name for device in context.devices] == ["Device2", "Device3"]
 
 
-def test_from_backend_contexts_opencl(mock_backend_pyopencl):
+def test_from_backend_contexts_opencl(mock_backend_pyopencl: MockPyOpenCL) -> None:
     # OpenCL style - one context, many devices
 
     backend = mock_backend_pyopencl
@@ -75,7 +76,7 @@ def test_from_backend_contexts_opencl(mock_backend_pyopencl):
 
 
 @pytest.mark.usefixtures("mock_backend_pycuda")
-def test_from_backend_contexts_several_apis(mock_backend_pyopencl):
+def test_from_backend_contexts_several_apis(mock_backend_pyopencl: MockPyOpenCL) -> None:
     backend = mock_backend_pyopencl
     backend.add_platform_with_devices("Platform1", ["Device1"])
 
@@ -91,7 +92,9 @@ def test_from_backend_contexts_several_apis(mock_backend_pyopencl):
 
 
 @pytest.mark.parametrize("take_ownership", [False, True], ids=["no ownership", "take ownership"])
-def test_from_backend_contexts_cuda_single_device(mock_backend_pycuda, take_ownership):
+def test_from_backend_contexts_cuda_single_device(
+    mock_backend_pycuda: MockPyCUDA, *, take_ownership: bool
+) -> None:
     # CUDA style - a context per device
 
     backend = mock_backend_pycuda
@@ -122,7 +125,7 @@ def test_from_backend_contexts_cuda_single_device(mock_backend_pycuda, take_owne
         backend.pycuda_driver.Context.pop()
 
 
-def test_from_backend_contexts_cuda_multi_device(mock_backend_pycuda):
+def test_from_backend_contexts_cuda_multi_device(mock_backend_pycuda: MockPyCUDA) -> None:
     # CUDA style - a context per device
 
     backend = mock_backend_pycuda
@@ -150,7 +153,7 @@ def test_from_backend_contexts_cuda_multi_device(mock_backend_pycuda):
     assert [device.name for device in context.devices] == ["Device1", "Device2"]
 
 
-def test_from_criteria(mock_backend_pyopencl):
+def test_from_criteria(mock_backend_pyopencl: MockPyOpenCL) -> None:
     backend = mock_backend_pyopencl
 
     backend.add_platform_with_devices("foo-bar", ["Device1"])
@@ -179,7 +182,7 @@ def test_from_criteria(mock_backend_pyopencl):
     assert [device.name for device in context.devices] == ["foo-baz-1", "foo-baz-2"]
 
 
-def test_bound_device_eq(mock_backend_pyopencl):
+def test_bound_device_eq(mock_backend_pyopencl: MockPyOpenCL) -> None:
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
@@ -196,14 +199,14 @@ def test_bound_device_eq(mock_backend_pyopencl):
     assert context2.devices[0] != context.devices[0]
 
 
-def test_bound_device_str(mock_context):
+def test_bound_device_str(mock_context: Context) -> None:
     s = str(mock_context.device)
     assert mock_context.api.id.shortcut in s
     assert "0,0" in s
     assert "Context" in s
 
 
-def test_bound_multi_device_creation(mock_backend_pyopencl):
+def test_bound_multi_device_creation(mock_backend_pyopencl: MockPyOpenCL) -> None:
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2", "Device3"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
@@ -227,7 +230,7 @@ def test_bound_multi_device_creation(mock_backend_pyopencl):
     assert sub_device[1].name == "Device2"
 
 
-def test_bound_multi_device_eq(mock_backend_pyopencl):
+def test_bound_multi_device_eq(mock_backend_pyopencl: MockPyOpenCL) -> None:
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2", "Device3"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
@@ -237,7 +240,7 @@ def test_bound_multi_device_eq(mock_backend_pyopencl):
     assert context.devices[[2, 1]] != context.devices[[1, 2]]
 
 
-def test_bound_multi_device_issubset(mock_backend_pyopencl):
+def test_bound_multi_device_issubset(mock_backend_pyopencl: MockPyOpenCL) -> None:
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2", "Device3"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
@@ -246,7 +249,7 @@ def test_bound_multi_device_issubset(mock_backend_pyopencl):
     assert context.devices[[2, 1]].issubset(context.devices)
 
 
-def test_device_shortcut(mock_backend_pyopencl):
+def test_device_shortcut(mock_backend_pyopencl: MockPyOpenCL) -> None:
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1", "Device2", "Device3"])
 
     api = API.from_api_id(mock_backend_pyopencl.api_id)
@@ -261,7 +264,7 @@ def test_device_shortcut(mock_backend_pyopencl):
     assert context.device.name == "Device3"
 
 
-def test_deactivate(mock_backend_pyopencl, mock_backend_pycuda):
+def test_deactivate(mock_backend_pyopencl: MockPyOpenCL, mock_backend_pycuda: MockPyCUDA) -> None:
     mock_backend_pyopencl.add_platform_with_devices("Platform1", ["Device1"])
     mock_backend_pycuda.add_devices(["Device1"])
 

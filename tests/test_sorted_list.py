@@ -3,21 +3,21 @@ import pytest
 from grunnur.sorted_list import SortedList
 
 
-def test_basics():
+def test_basics() -> None:
     s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     assert len(s) == 6
     assert s[3] == 4
     assert list(s) == [1, 2, 3, 4, 6, 9]
 
 
-def test_index():
+def test_index() -> None:
     s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     assert s.index(4) == 3
     with pytest.raises(ValueError, match="0 is not in list"):
         s.index(0)
 
 
-def test_insert():
+def test_insert() -> None:
     s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     s.insert(5)
     assert list(s) == [1, 2, 3, 4, 5, 6, 9]
@@ -29,13 +29,13 @@ def test_insert():
     assert list(s) == [1, 2, 5, 4, 5, 6, 9]
 
 
-def test_remove():
+def test_remove() -> None:
     s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     s.remove(3)
     assert list(s) == [1, 2, 4, 6, 9]
 
 
-def test_argfind_ge():
+def test_argfind_ge() -> None:
     s = SortedList([2, 4, 6, 1, 3, 9], key=lambda x: x)
     assert s.argfind_ge(8) == 5
     with pytest.raises(ValueError, match="No item found with key at or above: 10"):

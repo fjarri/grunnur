@@ -1,9 +1,11 @@
+from typing import Any
+
 import numpy
 
-from grunnur import Array, Program, Queue, dtypes
+from grunnur import Array, Context, Program, Queue, dtypes
 
 
-def check_offsets_on_device(queue, dtype):
+def check_offsets_on_device(queue: Queue, dtype: numpy.dtype[Any]) -> None:
     flat_dtype = dtypes.flatten_dtype(dtype)
 
     program = Program(
@@ -28,19 +30,19 @@ def check_offsets_on_device(queue, dtype):
     test = program.kernel.test
     test(queue, [1], None, offsets_dev)
     offsets = offsets_dev.get(queue)
-    offsets = [int(offset) for offset in offsets]
+    offsets_int = [int(offset) for offset in offsets]
 
-    for field_info, device_offset in zip(flat_dtype, offsets[:-1], strict=True):
+    for field_info, device_offset in zip(flat_dtype, offsets_int[:-1], strict=True):
         message = (
             f"offset for {field_info.c_path} is different: {field_info.offset} in numpy, "
             f"{device_offset} on device"
         )
         assert field_info.offset == device_offset, message
 
-    assert offsets[-1] == dtype.itemsize
+    assert offsets_int[-1] == dtype.itemsize
 
 
-def test_offsets_simple(context):
+def test_offsets_simple(context: Context) -> None:
     queue = Queue(context.device)
     dtype = numpy.dtype(
         dict(
@@ -54,7 +56,7 @@ def test_offsets_simple(context):
     check_offsets_on_device(queue, dtype)
 
 
-def test_offsets_nested(context):
+def test_offsets_nested(context: Context) -> None:
     queue = Queue(context.device)
     dtype_nested = numpy.dtype(
         dict(
@@ -77,7 +79,7 @@ def test_offsets_nested(context):
     check_offsets_on_device(queue, dtype)
 
 
-def test_offsets_arrays(context):
+def test_offsets_arrays(context: Context) -> None:
     queue = Queue(context.device)
     dtype = numpy.dtype(
         dict(
@@ -91,7 +93,7 @@ def test_offsets_arrays(context):
     check_offsets_on_device(queue, dtype)
 
 
-def test_offsets_nested_arrays(context):
+def test_offsets_nested_arrays(context: Context) -> None:
     queue = Queue(context.device)
     dtype_nested = numpy.dtype(dict(names=["val1", "pad"], formats=[numpy.int8, numpy.int8]))
     dtype = numpy.dtype(
@@ -104,7 +106,7 @@ def test_offsets_nested_arrays(context):
     check_offsets_on_device(queue, dtype_aligned)
 
 
-def test_offsets_custom_itemsize(context):
+def test_offsets_custom_itemsize(context: Context) -> None:
     queue = Queue(context.device)
     dtype = numpy.dtype(
         dict(
@@ -118,7 +120,7 @@ def test_offsets_custom_itemsize(context):
     check_offsets_on_device(queue, dtype)
 
 
-def test_offsets_custom_itemsize_nested(context):
+def test_offsets_custom_itemsize_nested(context: Context) -> None:
     queue = Queue(context.device)
     dtype_nested = numpy.dtype(
         dict(

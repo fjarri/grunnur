@@ -7,13 +7,13 @@ from grunnur.modules import Module, Snippet, render_with_modules
 from grunnur.template import DefTemplate, RenderError
 
 
-def test_snippet_from_callable():
+def test_snippet_from_callable() -> None:
     snippet = Snippet.from_callable(lambda x, y: "${x} + ${y} + ${z}", render_globals=dict(z=3))
     res = render_with_modules("${s(1, 2)}", render_globals=dict(s=snippet)).strip()
     assert res == "1 + 2 + 3"
 
 
-def test_snippet_from_string():
+def test_snippet_from_string() -> None:
     snippet = Snippet.from_string("${z}", render_globals=dict(z=3))
     assert render_with_modules(snippet).strip() == "3"
 
@@ -21,7 +21,7 @@ def test_snippet_from_string():
     assert res == "3"
 
 
-def test_module_from_callable():
+def test_module_from_callable() -> None:
     module = Module.from_callable(
         lambda prefix, y: "${prefix} + ${y} + ${z}", render_globals=dict(z=3), name="foo"
     )
@@ -31,7 +31,7 @@ def test_module_from_callable():
     assert res == "_mod_foo_0_ + 4 + 3\n\n\nmodule call: _mod_foo_0_"
 
 
-def test_module_from_string():
+def test_module_from_string() -> None:
     module = Module.from_string("${prefix} + ${z}", render_globals=dict(z=3), name="foo")
     res = render_with_modules("module call: ${m}", render_globals=dict(m=module)).strip()
     # The module's source gets rendered and attached at the beginning of the main template,
@@ -39,12 +39,12 @@ def test_module_from_string():
     assert res == "_mod_foo_0_ + 3\n\n\nmodule call: _mod_foo_0_"
 
 
-def test_render_snippet():
+def test_render_snippet() -> None:
     snippet = Snippet.from_callable(lambda x, y: "${x} + ${y} + ${z}", render_globals=dict(z=3))
     assert render_with_modules(snippet, render_args=[1, 2]).strip() == "1 + 2 + 3"
 
 
-def test_render_snippet_with_render_globals():
+def test_render_snippet_with_render_globals() -> None:
     # Check that provided render globals are added to those of the snippet
     snippet = Snippet.from_callable(
         lambda x, y: "${x} + ${y} + ${z} + ${q}", render_globals=dict(z=3)
@@ -57,34 +57,34 @@ def test_render_snippet_with_render_globals():
         render_with_modules(snippet, render_args=[1, 2], render_globals=dict(z=5, q=4))
 
 
-def test_render_string():
+def test_render_string() -> None:
     assert render_with_modules("abcde").strip() == "abcde"
 
 
-def test_render_string_with_args():
+def test_render_string_with_args() -> None:
     with pytest.raises(ValueError, match="A textual source cannot have `render_args` set."):
         render_with_modules("abcde", render_args=[1, 2])
 
 
-def test_render_callable():
+def test_render_callable() -> None:
     res = render_with_modules(
         lambda x, y: "${x} + ${y} + ${z}", render_args=[1, 2], render_globals=dict(z=3)
     ).strip()
     assert res == "1 + 2 + 3"
 
 
-def test_render_def_template():
+def test_render_def_template() -> None:
     tmpl = DefTemplate.from_callable("test", lambda x, y: "${x} + ${y} + ${z}")
     res = render_with_modules(tmpl, render_args=[1, 2], render_globals=dict(z=3)).strip()
     assert res == "1 + 2 + 3"
 
 
-def test_render_unknown_type():
+def test_render_unknown_type() -> None:
     with pytest.raises(TypeError):
-        render_with_modules(1)
+        render_with_modules(1)  # type: ignore[arg-type]
 
 
-def test_render_error():
+def test_render_error() -> None:
     module = Module.from_callable(
         lambda prefix, x: "${prefix} + ${x} + ${bar}", render_globals=dict(baz=3), name="foo"
     )
@@ -105,11 +105,11 @@ def test_render_error():
 class CustomObj:
     """A class supporting custom module processing."""
 
-    def __init__(self, module):
+    def __init__(self, module: Module):
         self.module = module
 
 
-def test_process_objects():
+def test_process_objects() -> None:
     # Checks that all supported types of objects are correctly traversed
     # in search for Modules.
 
@@ -154,7 +154,7 @@ def test_process_objects():
     )
 
 
-def test_module_cache():
+def test_module_cache() -> None:
     # a module with no parameters
     m1 = Module.from_callable(lambda prefix: "m1: ${prefix}", name="m1")
 

@@ -110,7 +110,7 @@ class ArrayMetadata(AsArrayMetadata):
     def as_array_metadata(self) -> ArrayMetadata:
         return self
 
-    def with_(self, dtype: numpy.dtype[Any] | None = None) -> ArrayMetadata:
+    def with_(self, dtype: DTypeLike | None = None) -> ArrayMetadata:
         """Replaces a property of the metadata and returns a new metadata object."""
         return ArrayMetadata(
             shape=self.shape,

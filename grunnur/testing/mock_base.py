@@ -19,7 +19,7 @@ class MockKernel:
         self,
         name: str,
         parameters: Sequence[Any] = (),
-        max_total_local_sizes: Mapping[int, tuple[int, ...]] = {},
+        max_total_local_sizes: Mapping[int, int] = {},
     ):
         self.name = name
         self.parameters = parameters
@@ -65,6 +65,9 @@ class MockSource:
 
     def __str__(self) -> str:
         return self.name
+
+    def __contains__(self, substr: str) -> bool:
+        return False if self.source is None else substr in self.source
 
     def render(self, *args: Any, **kwds: Any) -> MockSource:
         if self.source_template is None:

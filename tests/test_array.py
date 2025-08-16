@@ -1,13 +1,19 @@
 import re
+import typing
 
 import numpy
 import pytest
 
-from grunnur import Array, Buffer, MultiArray, MultiQueue, Queue
+from grunnur import Array, BoundDevice, Buffer, Context, MultiArray, MultiQueue, Queue
 from grunnur.array_metadata import ArrayMetadata
 
 
-def _check_array_operations(queue, array_cls):
+# TODO: The `array_cls` choice inside confuses `mypy`.
+# Can be solved by introducing an ABC for `Array`/`MultiArray` handling these operations.
+@typing.no_type_check
+def _check_array_operations(queue: Queue | MultiQueue) -> None:
+    array_cls = Array if isinstance(queue, Queue) else MultiArray
+
     arr = numpy.arange(100)
     arr_dev = array_cls.from_host(queue, arr)
 
@@ -47,12 +53,12 @@ def _check_array_operations(queue, array_cls):
     assert (arr_dev.get(queue) == arr2).all()
 
 
-def test_single_device(mock_or_real_context):
+def test_single_device(mock_or_real_context: tuple[Context, bool]) -> None:
     context, _mocked = mock_or_real_context
-    _check_array_operations(Queue(context.device), Array)
+    _check_array_operations(Queue(context.device))
 
 
-def test_set_from_non_contiguous(mock_or_real_context):
+def test_set_from_non_contiguous(mock_or_real_context: tuple[Context, bool]) -> None:
     context, _mocked = mock_or_real_context
 
     queue = Queue(context.device)
@@ -69,7 +75,7 @@ def test_set_from_non_contiguous(mock_or_real_context):
     assert (arr.get(queue) == 1).all()
 
 
-def test_from_host(mock_or_real_context):
+def test_from_host(mock_or_real_context: tuple[Context, bool]) -> None:
     context, _mocked = mock_or_real_context
     queue = Queue(context.device)
     arr = numpy.arange(100)
@@ -81,7 +87,7 @@ def test_from_host(mock_or_real_context):
     assert (arr_dev.get(queue) == arr).all()
 
 
-def test_empty(mock_or_real_context):
+def test_empty(mock_or_real_context: tuple[Context, bool]) -> None:
     context, _mocked = mock_or_real_context
     queue = Queue(context.device)
     arr_dev = Array.empty(context.device, [100], numpy.int32)
@@ -90,7 +96,7 @@ def test_empty(mock_or_real_context):
     assert arr.dtype == numpy.int32
 
 
-def test_empty_like(mock_or_real_context):
+def test_empty_like(mock_or_real_context: tuple[Context, bool]) -> None:
     context, _mocked = mock_or_real_context
     arr = numpy.arange(100).reshape(5, 20).astype(numpy.int32)
     arr_dev = Array.empty_like(context.device, arr)
@@ -102,12 +108,12 @@ def test_empty_like(mock_or_real_context):
     assert arr_dev2.metadata == arr_dev.metadata
 
 
-def test_multi_device(mock_or_real_multi_device_context):
+def test_multi_device(mock_or_real_multi_device_context: tuple[Context, bool]) -> None:
     context, _mocked = mock_or_real_multi_device_context
-    _check_array_operations(MultiQueue.on_devices([context.devices[0]]), MultiArray)
+    _check_array_operations(MultiQueue.on_devices([context.devices[0]]))
 
 
-def test_multi_device_from_host(mock_or_real_multi_device_context):
+def test_multi_device_from_host(mock_or_real_multi_device_context: tuple[Context, bool]) -> None:
     context, _mocked = mock_or_real_multi_device_context
     mqueue = MultiQueue.on_devices(context.devices)
     arr = numpy.arange(100)
@@ -115,7 +121,7 @@ def test_multi_device_from_host(mock_or_real_multi_device_context):
     assert (arr_dev.get(mqueue) == arr).all()
 
 
-def test_multi_device_empty(mock_or_real_multi_device_context):
+def test_multi_device_empty(mock_or_real_multi_device_context: tuple[Context, bool]) -> None:
     context, _mocked = mock_or_real_multi_device_context
     mqueue = MultiQueue.on_devices(context.devices)
 
@@ -142,7 +148,9 @@ def test_multi_device_empty(mock_or_real_multi_device_context):
     assert (arr_dev.subarrays[device1].get(mqueue.queues[device1]) == arr[50:]).all()
 
 
-def test_multi_device_mismatched_set(mock_or_real_multi_device_context):
+def test_multi_device_mismatched_set(
+    mock_or_real_multi_device_context: tuple[Context, bool],
+) -> None:
     context, _mocked = mock_or_real_multi_device_context
     mqueue = MultiQueue.on_devices(context.devices)
     arr_dev = MultiArray.empty(context.devices, [100], numpy.int32)
@@ -153,7 +161,7 @@ def test_multi_device_mismatched_set(mock_or_real_multi_device_context):
         arr_dev.set(mqueue, arr_dev2)
 
 
-def test_equal_splay(mock_or_real_multi_device_context):
+def test_equal_splay(mock_or_real_multi_device_context: tuple[Context, bool]) -> None:
     context, _mocked = mock_or_real_multi_device_context
     mqueue = MultiQueue.on_devices(context.devices)
     arr = numpy.arange(101)
@@ -176,7 +184,7 @@ def test_equal_splay(mock_or_real_multi_device_context):
         )
 
 
-def test_clone_splay(mock_or_real_multi_device_context):
+def test_clone_splay(mock_or_real_multi_device_context: tuple[Context, bool]) -> None:
     context, _mocked = mock_or_real_multi_device_context
     mqueue = MultiQueue.on_devices(context.devices)
     arr = numpy.arange(101)
@@ -186,12 +194,12 @@ def test_clone_splay(mock_or_real_multi_device_context):
     assert (arr_dev.subarrays[device1].get(mqueue.queues[device1]) == arr).all()
 
 
-def test_custom_allocator(mock_context):
+def test_custom_allocator(mock_context: Context) -> None:
     context = mock_context
     queue = Queue(context.device)
     allocated = []
 
-    def allocator(device, size):
+    def allocator(device: BoundDevice, size: int) -> Buffer:
         allocated.append(size)
         return Buffer.allocate(device, size)
 
@@ -202,7 +210,7 @@ def test_custom_allocator(mock_context):
     assert allocated == [arr.size * arr.dtype.itemsize]
 
 
-def test_custom_buffer(mock_context):
+def test_custom_buffer(mock_context: Context) -> None:
     context = mock_context
     queue = Queue(context.device)
 
@@ -225,7 +233,7 @@ def test_custom_buffer(mock_context):
     assert (res == arr).all()
 
 
-def test_minimum_subregion(mock_context):
+def test_minimum_subregion(mock_context: Context) -> None:
     context = mock_context
     arr = Array.empty(context.device, (5, 6), numpy.int32)
     arr_view = arr[1:4]
@@ -237,7 +245,7 @@ def test_minimum_subregion(mock_context):
     assert arr_view_min.data.size == 3 * 6 * 4
 
 
-def test_set_checks_shape(mock_context):
+def test_set_checks_shape(mock_context: Context) -> None:
     context = mock_context
     queue = Queue(context.device)
     arr = Array.empty(context.device, (10, 20), numpy.int32)
@@ -249,9 +257,9 @@ def test_set_checks_shape(mock_context):
         arr.set(queue, numpy.zeros((10, 20), numpy.int64))
 
 
-def test_set_from_wrong_type(mock_context):
+def test_set_from_wrong_type(mock_context: Context) -> None:
     context = mock_context
     queue = Queue(context.device)
     arr = Array.empty(context.device, (10, 20), numpy.int32)
     with pytest.raises(TypeError, match="Cannot set from an object of type <class 'int'>"):
-        arr.set(queue, 1)
+        arr.set(queue, 1)  # type: ignore[arg-type]

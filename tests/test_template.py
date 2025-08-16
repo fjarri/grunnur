@@ -8,7 +8,7 @@ from mako.template import Template as MakoTemplate
 from grunnur.template import DefTemplate, RenderError, Template, _extract_def_source
 
 
-def test_extract_def_source():
+def test_extract_def_source() -> None:
     src = """
         <%def name="add(varname)">
         ${varname} + ${num}
@@ -20,17 +20,17 @@ def test_extract_def_source():
     """
 
     def_src = _extract_def_source(src, "add")
-    template = MakoTemplate(def_src)
+    template = MakoTemplate(text=def_src)
     assert "add" in template.list_defs()
     assert "sub" not in template.list_defs()
 
     def_src = _extract_def_source(src, "sub")
-    template = MakoTemplate(def_src)
+    template = MakoTemplate(text=def_src)
     assert "sub" in template.list_defs()
     assert "add" not in template.list_defs()
 
 
-def test_extract_def_source_missing_def():
+def test_extract_def_source_missing_def() -> None:
     src = """
         <%def name="add(varname)">
         ${varname} + ${num}
@@ -49,12 +49,12 @@ def test_extract_def_source_missing_def():
     assert def_src == src
 
 
-def test_template_from_associated_file():
+def test_template_from_associated_file() -> None:
     template = Template.from_associated_file(__file__)
     assert template.get_def("test").render().strip() == "template body"
 
 
-def test_template_from_string():
+def test_template_from_string() -> None:
     src = """
         <%def name="test()">
         template body
@@ -64,7 +64,7 @@ def test_template_from_string():
     assert template.get_def("test").render().strip() == "template body"
 
 
-def test_missing_def():
+def test_missing_def() -> None:
     src = """
         <%def name="test()">
         template body
@@ -75,7 +75,7 @@ def test_missing_def():
         template.get_def("foo")
 
 
-def test_template_caching():
+def test_template_caching() -> None:
     src = """
         <%def name="test()">
         template body
@@ -87,17 +87,17 @@ def test_template_caching():
     assert def1 is def2
 
 
-def test_def_template_from_callable():
+def test_def_template_from_callable() -> None:
     template = DefTemplate.from_callable("test", lambda x, y: "${x} + ${y}")
     assert template.render(1, 2).strip() == "1 + 2"
 
 
-def test_def_template_from_string():
+def test_def_template_from_string() -> None:
     template = DefTemplate.from_string("test", ["x", "y"], "${x} + ${y}")
     assert template.render(1, 2).strip() == "1 + 2"
 
 
-def test_render_error():
+def test_render_error() -> None:
     template = DefTemplate.from_callable("test", lambda x, y: "${x} + ${y} + ${z}")
     with pytest.raises(RenderError) as e:
         template.render(1, 2, kwd=3)
@@ -108,7 +108,7 @@ def test_render_error():
     assert str(e.value.exception) in str(e.value)
 
 
-def test_render_error_pass_through():
+def test_render_error_pass_through() -> None:
     # check that if one template tries to render another, the inner RenderError gets propagated
     template1 = DefTemplate.from_callable("test1", lambda x, y: "${x} + ${y} + ${z}")
     template2 = DefTemplate.from_callable("test2", lambda a, t1: "${a} + ${t1.render(a, 1)}")
@@ -121,13 +121,13 @@ def test_render_error_pass_through():
     assert str(e.value.exception) in str(e.value)
 
 
-def test_template_builtins():
+def test_template_builtins() -> None:
     # Check for the builtins we add to every template
-    template = DefTemplate.from_callable("test", lambda numpy_ref: "${numpy == numpy_ref}")
-    assert template.render(numpy).strip() == "True"
+    template_def = DefTemplate.from_callable("test", lambda numpy_ref: "${numpy == numpy_ref}")
+    assert template_def.render(numpy).strip() == "True"
 
-    template = DefTemplate.from_string("test", ["numpy_ref"], "${numpy == numpy_ref}")
-    assert template.render(numpy).strip() == "True"
+    template_def = DefTemplate.from_string("test", ["numpy_ref"], "${numpy == numpy_ref}")
+    assert template_def.render(numpy).strip() == "True"
 
     template = Template.from_string('<%def name="test(numpy_ref)">${numpy == numpy_ref}</%def>')
     template_def = template.get_def("test")

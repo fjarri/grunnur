@@ -1,15 +1,30 @@
 import weakref
 from collections import Counter
+from collections.abc import Callable
+from typing import TypeVar
 
 import numpy
 import pytest
 
 from grunnur import Array, Buffer, Context, MultiQueue, Program, Queue, dtypes
 from grunnur.adapter_base import APIID
-from grunnur.virtual_alloc import TrivialManager, ZeroOffsetManager, extract_dependencies
+from grunnur.testing import MockPyCUDA
+from grunnur.virtual_alloc import (
+    TrivialManager,
+    VirtualAllocationStatistics,
+    VirtualAllocator,
+    VirtualBufferAdapter,
+    VirtualManager,
+    ZeroOffsetManager,
+    extract_dependencies,
+)
+
+_T = TypeVar("_T")
 
 
-def allocate_test_set(virtual_alloc, allocate_callable):
+def allocate_test_set(
+    virtual_alloc: VirtualManager, allocate_callable: Callable[[VirtualAllocator, int], _T]
+) -> tuple[list[tuple[int, int, list[int]]], dict[int, _T]]:
     # Allocate virtual buffers with dependencies
 
     buffers_metadata = [
@@ -25,7 +40,7 @@ def allocate_test_set(virtual_alloc, allocate_callable):
         (9, 20, [2, 4, 8]),
     ]
 
-    buffers = {}
+    buffers: dict[int, _T] = {}
     for name, size, deps in buffers_metadata:
         allocator = virtual_alloc.allocator([buffers[d] for d in deps])
         buffers[name] = allocate_callable(allocator, size)
@@ -34,7 +49,7 @@ def allocate_test_set(virtual_alloc, allocate_callable):
 
 
 @pytest.mark.parametrize("pack", [False, True], ids=["no_pack", "pack"])
-def test_contract(context, valloc_cls, pack):
+def test_contract(context: Context, valloc_cls: type[VirtualManager], *, pack: bool) -> None:
     dtype = numpy.int32
 
     program = Program(
@@ -80,7 +95,13 @@ def test_contract(context, valloc_cls, pack):
 
 
 @pytest.mark.parametrize("pack", [False, True], ids=["no_pack", "pack"])
-def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, pack):
+def test_contract_mocked(
+    mock_backend_pycuda: MockPyCUDA,
+    mock_context_pycuda: Context,
+    valloc_cls: type[VirtualManager],
+    *,
+    pack: bool,
+) -> None:
     # Using PyCUDA backend here because it tracks the allocations.
 
     context = mock_context_pycuda
@@ -95,7 +116,10 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
         # Virtual buffer size should be exactly as requested
         assert buffers[name].size == size
         # The real buffer behind the virtual buffer may be larger
-        assert buffers[name]._buffer_adapter._real_buffer_adapter.size >= size
+        buffer_adapter = buffers[name]._buffer_adapter
+        assert isinstance(buffer_adapter, VirtualBufferAdapter)
+        assert buffer_adapter._real_buffer_adapter.size >= size
+        del buffer_adapter  # don't hold the reference to the buffer, or the later check will fail
 
     if pack:
         virtual_alloc.pack(queue)
@@ -116,32 +140,40 @@ def test_contract_mocked(mock_backend_pycuda, mock_context_pycuda, valloc_cls, p
     assert mock_backend_pycuda.allocation_count() == 0
 
 
-def test_extract_dependencies(mock_context):
+def test_extract_dependencies(mock_context: Context) -> None:
     virtual_alloc = TrivialManager(mock_context.device).allocator()
 
     vbuf = virtual_alloc(mock_context.device, 100)
     varr = Array.empty(mock_context.device, [100], numpy.int32, allocator=virtual_alloc)
 
-    assert extract_dependencies(vbuf) == {vbuf._buffer_adapter._id}
-    assert extract_dependencies(varr) == {varr.data._buffer_adapter._id}
+    buffer_adapter1 = vbuf._buffer_adapter
+    assert isinstance(buffer_adapter1, VirtualBufferAdapter)
+    assert extract_dependencies(vbuf) == {buffer_adapter1._id}
+
+    buffer_adapter2 = varr.data._buffer_adapter
+    assert isinstance(buffer_adapter2, VirtualBufferAdapter)
+    assert extract_dependencies(varr) == {buffer_adapter2._id}
+
     assert extract_dependencies([vbuf, varr]) == {
-        vbuf._buffer_adapter._id,
-        varr.data._buffer_adapter._id,
+        buffer_adapter1._id,
+        buffer_adapter2._id,
     }
 
     class DependencyHolder:
         __virtual_allocations__ = (vbuf, varr)
 
     assert extract_dependencies(DependencyHolder()) == {
-        vbuf._buffer_adapter._id,
-        varr.data._buffer_adapter._id,
+        buffer_adapter1._id,
+        buffer_adapter2._id,
     }
 
     # An object not having any dependencies
     assert extract_dependencies(123) == set()
 
 
-def check_statistics(buffers_metadata, stats):
+def check_statistics(
+    buffers_metadata: list[tuple[int, int, list[int]]], stats: VirtualAllocationStatistics
+) -> None:
     virtual_sizes = [size for _, size, _ in buffers_metadata]
     assert stats.virtual_size_total == sum(virtual_sizes)
     assert stats.virtual_num == len(virtual_sizes)
@@ -151,7 +183,7 @@ def check_statistics(buffers_metadata, stats):
     assert stats.real_num <= len(virtual_sizes)
 
 
-def test_statistics(mock_context, valloc_cls):
+def test_statistics(mock_context: Context, valloc_cls: type[VirtualManager]) -> None:
     context = mock_context
     queue = Queue(context.device)
     virtual_alloc = valloc_cls(context.device)
@@ -175,14 +207,14 @@ def test_statistics(mock_context, valloc_cls):
     assert str(stats.virtual_num) in s
 
 
-def test_non_existent_dependencies(mock_context, valloc_cls):
+def test_non_existent_dependencies(mock_context: Context, valloc_cls: type[VirtualManager]) -> None:
     context = mock_context
     virtual_alloc = valloc_cls(context.device)
     with pytest.raises(ValueError, match="12345"):
         virtual_alloc._allocate_virtual(100, {12345})
 
 
-def test_virtual_buffer(mock_4_device_context_pyopencl):
+def test_virtual_buffer(mock_4_device_context_pyopencl: Context) -> None:
     # Using an OpenCL mock context here because it keeps track of buffer migrations
 
     context = mock_4_device_context_pyopencl
@@ -208,7 +240,7 @@ def test_virtual_buffer(mock_4_device_context_pyopencl):
     assert (arr == res).all()
 
 
-def test_virtual_alloc_device_check(mock_4_device_context_pyopencl):
+def test_virtual_alloc_device_check(mock_4_device_context_pyopencl: Context) -> None:
     context = mock_4_device_context_pyopencl
     virtual_alloc = TrivialManager(context.devices[0])
     alloc = virtual_alloc.allocator()

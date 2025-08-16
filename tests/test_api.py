@@ -2,9 +2,10 @@ import pytest
 
 from grunnur import API
 from grunnur.api import all_api_ids
+from grunnur.testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
 
 
-def test_all(mock_backend_factory):
+def test_all(mock_backend_factory: MockBackendFactory) -> None:
     api_id = all_api_ids()[0]
     mock_backend_factory.mock(api_id)
 
@@ -13,7 +14,7 @@ def test_all(mock_backend_factory):
     assert apis[0].id == api_id
 
 
-def test_all_by_shortcut(mock_backend):
+def test_all_by_shortcut(mock_backend: MockPyCUDA | MockPyOpenCL) -> None:
     api_id = mock_backend.api_id
     mock_backend.add_devices(["Device1", "Device2"])
 
@@ -22,7 +23,7 @@ def test_all_by_shortcut(mock_backend):
     assert apis[0].id == api_id
 
 
-def test_all_by_shortcut_none(mock_backend_factory):
+def test_all_by_shortcut_none(mock_backend_factory: MockBackendFactory) -> None:
     api_ids = all_api_ids()
     for api_id in api_ids:
         backend = mock_backend_factory.mock(api_id)
@@ -34,18 +35,18 @@ def test_all_by_shortcut_none(mock_backend_factory):
 
 
 @pytest.mark.usefixtures("mock_backend_factory")
-def test_all_by_shortcut_not_available():
+def test_all_by_shortcut_not_available() -> None:
     api_id = all_api_ids()[0]
     with pytest.raises(ValueError, match="cuda API is not available"):
         API.all_by_shortcut(api_id.shortcut)
 
 
-def test_all_by_shortcut_not_found():
+def test_all_by_shortcut_not_found() -> None:
     with pytest.raises(ValueError, match="Invalid API shortcut: something non-existent"):
         API.all_by_shortcut("something non-existent")
 
 
-def test_from_api_id(mock_backend_factory):
+def test_from_api_id(mock_backend_factory: MockBackendFactory) -> None:
     for api_id in all_api_ids():
         with pytest.raises(ImportError):
             API.from_api_id(api_id)
@@ -55,7 +56,7 @@ def test_from_api_id(mock_backend_factory):
         assert api.id == api_id
 
 
-def test_eq(mock_backend_factory):
+def test_eq(mock_backend_factory: MockBackendFactory) -> None:
     api_id0 = all_api_ids()[0]
     api_id1 = all_api_ids()[1]
 
@@ -71,7 +72,7 @@ def test_eq(mock_backend_factory):
     assert api0_v1 != api1
 
 
-def test_hash(mock_backend_factory):
+def test_hash(mock_backend_factory: MockBackendFactory) -> None:
     api_id0 = all_api_ids()[0]
     api_id1 = all_api_ids()[1]
 
@@ -86,7 +87,7 @@ def test_hash(mock_backend_factory):
     assert d[api1] == 1
 
 
-def test_getitem(mock_backend_pyopencl):
+def test_getitem(mock_backend_pyopencl: MockPyOpenCL) -> None:
     api_id = mock_backend_pyopencl.api_id
 
     mock_backend_pyopencl.add_platform_with_devices("Platform0", ["Device0"])
@@ -97,7 +98,7 @@ def test_getitem(mock_backend_pyopencl):
     assert api.platforms[1].name == "Platform1"
 
 
-def test_attributes(mock_backend):
+def test_attributes(mock_backend: MockPyCUDA | MockPyOpenCL) -> None:
     api = API.from_api_id(mock_backend.api_id)
     assert str(mock_backend.api_id) == "id(" + api.shortcut + ")"
     assert api.id == mock_backend.api_id

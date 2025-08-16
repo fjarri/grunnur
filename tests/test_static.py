@@ -14,7 +14,13 @@ from grunnur import (
     opencl_api_id,
 )
 from grunnur.template import DefTemplate
-from grunnur.testing import MockDefTemplate, MockKernel, PyCUDADeviceInfo, PyOpenCLDeviceInfo
+from grunnur.testing import (
+    MockDefTemplate,
+    MockKernel,
+    MockPyCUDA,
+    PyCUDADeviceInfo,
+    PyOpenCLDeviceInfo,
+)
 from test_program import _test_constant_memory
 
 SRC = """
@@ -29,9 +35,10 @@ KERNEL void multiply(GLOBAL_MEM int *dest, GLOBAL_MEM int *a, GLOBAL_MEM int *b)
 """
 
 
-def test_compile_static(mock_or_real_context):
+def test_compile_static(mock_or_real_context: tuple[Context, bool]) -> None:
     context, mocked = mock_or_real_context
 
+    src: str | MockDefTemplate
     if mocked:
         kernel = MockKernel("multiply", [None, None, None], max_total_local_sizes={0: 1024})
         src = MockDefTemplate(kernels=[kernel])
@@ -58,9 +65,12 @@ def test_compile_static(mock_or_real_context):
         assert (res == ref).all()
 
 
-def test_compile_static_multi_device(mock_or_real_multi_device_context):
+def test_compile_static_multi_device(
+    mock_or_real_multi_device_context: tuple[Context, bool],
+) -> None:
     context, mocked = mock_or_real_multi_device_context
 
+    src: str | MockDefTemplate
     if mocked:
         kernel = MockKernel("multiply", [None, None, None], max_total_local_sizes={0: 1024, 1: 512})
         src = MockDefTemplate(kernels=[kernel])
@@ -86,12 +96,12 @@ def test_compile_static_multi_device(mock_or_real_multi_device_context):
         assert (res == ref).all()
 
 
-def test_constant_memory(mock_or_real_context):
+def test_constant_memory(mock_or_real_context: tuple[Context, bool]) -> None:
     context, mocked = mock_or_real_context
     _test_constant_memory(context=context, mocked=mocked, is_static=True)
 
 
-def test_find_local_size(mock_context):
+def test_find_local_size(mock_context: Context) -> None:
     kernel = MockKernel("multiply", [None], max_total_local_sizes={0: 64})
     src = MockDefTemplate(kernels=[kernel])
     multiply = StaticKernel([mock_context.device], src, "multiply", (11, 15))
@@ -99,14 +109,14 @@ def test_find_local_size(mock_context):
     assert multiply._vs_metadata[mock_context.devices[0]].real_local_size == (16, 4)
 
 
-def test_reserved_names(mock_context):
+def test_reserved_names(mock_context: Context) -> None:
     kernel = MockKernel("test", [None])
     src = MockDefTemplate(kernels=[kernel])
     with pytest.raises(ValueError, match="The global name 'static' is reserved in static kernels"):
         StaticKernel([mock_context.device], src, "test", (1024,), render_globals=dict(static=1))
 
 
-def test_zero_max_total_local_size(mock_context):
+def test_zero_max_total_local_size(mock_context: Context) -> None:
     kernel = MockKernel("test", [None], max_total_local_sizes={0: 0})
     src = MockDefTemplate(kernels=[kernel])
     with pytest.raises(
@@ -116,7 +126,7 @@ def test_zero_max_total_local_size(mock_context):
         StaticKernel([mock_context.device], src, "test", (1024,))
 
 
-def test_virtual_sizes_error_propagated(mock_backend_pycuda):
+def test_virtual_sizes_error_propagated(mock_backend_pycuda: MockPyCUDA) -> None:
     # Testing for PyCUDA backend only since mocked PyOpenCL backend does not have a way
     # to set maximum global sizes (PyOpenCL devices don't have a corresponding parameter),
     # and PyCUDA is enough to test the required code path.
@@ -149,7 +159,7 @@ def test_virtual_sizes_error_propagated(mock_backend_pycuda):
         StaticKernel([context.device], src, "test", (2**14, 2**11, 2**8), local_size=(2**4, 1, 1))
 
 
-def test_builtin_globals(mock_backend_pycuda):
+def test_builtin_globals(mock_backend_pycuda: MockPyCUDA) -> None:
     mock_backend_pycuda.add_devices(
         [PyCUDADeviceInfo(max_threads_per_block=1024), PyCUDADeviceInfo(max_threads_per_block=512)]
     )
@@ -175,5 +185,5 @@ def test_builtin_globals(mock_backend_pycuda):
 
     kernel = StaticKernel(context.devices, src, "test", (1024,))
 
-    assert "max_total_local_size = 1024" in kernel.sources[context.devices[0]].source
-    assert "max_total_local_size = 512" in kernel.sources[context.devices[1]].source
+    assert "max_total_local_size = 1024" in kernel.sources[context.devices[0]]
+    assert "max_total_local_size = 512" in kernel.sources[context.devices[1]]

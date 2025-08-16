@@ -2,10 +2,10 @@ import pytest
 
 from grunnur import API, Device, DeviceFilter, Platform, cuda_api_id, opencl_api_id
 from grunnur.adapter_base import DeviceType
-from grunnur.testing import PyCUDADeviceInfo, PyOpenCLDeviceInfo
+from grunnur.testing import MockPyCUDA, MockPyOpenCL, PyCUDADeviceInfo, PyOpenCLDeviceInfo
 
 
-def test_all(mock_backend):
+def test_all(mock_backend: MockPyCUDA | MockPyOpenCL) -> None:
     mock_backend.add_devices(["Device2", "Device3"])
     api = API.from_api_id(mock_backend.api_id)
     platform = Platform.from_index(api, 0)
@@ -15,7 +15,7 @@ def test_all(mock_backend):
 
 
 @pytest.mark.parametrize("unique_only", [False, True], ids=["all", "unique"])
-def test_all_filtered(mock_backend, unique_only):
+def test_all_filtered(mock_backend: MockPyCUDA | MockPyOpenCL, *, unique_only: bool) -> None:
     mock_backend.add_devices(["foo-bar", "foo-baz", "bar-baz", "foo-baz"])
     api = API.from_api_id(mock_backend.api_id)
     platform = Platform.from_index(api, 0)
@@ -33,29 +33,28 @@ def test_all_filtered(mock_backend, unique_only):
         assert devices[0] != devices[1]
 
 
-def test_from_backend_device(mock_backend):
+def test_from_backend_device(mock_backend: MockPyCUDA | MockPyOpenCL) -> None:
     mock_backend.add_devices(["Device1"])
 
     api = API.from_api_id(mock_backend.api_id)
 
-    if api.id == opencl_api_id():
-        backend_device = mock_backend.pyopencl.get_platforms()[0].get_devices()[0]
-    elif api.id == cuda_api_id():
-        backend_device = mock_backend.pycuda_driver.Device(0)
+    if isinstance(mock_backend, MockPyOpenCL):
+        backend_device_ocl = mock_backend.pyopencl.get_platforms()[0].get_devices()[0]
+        device = Device.from_backend_device(backend_device_ocl)
     else:
-        raise NotImplementedError
+        backend_device_cu = mock_backend.pycuda_driver.Device(0)
+        device = Device.from_backend_device(backend_device_cu)
 
     with pytest.raises(TypeError, match="was not recognized as a device object"):
         Device.from_backend_device(1)
 
-    device = Device.from_backend_device(backend_device)
     assert device.platform.api == api
     if api.id != cuda_api_id():
         assert device.platform.name == "Platform0"
     assert device.name == "Device1"
 
 
-def test_from_index(mock_backend):
+def test_from_index(mock_backend: MockPyCUDA | MockPyOpenCL) -> None:
     mock_backend.add_devices(["Device1", "Device2"])
     api = API.from_api_id(mock_backend.api_id)
     platform = Platform.from_index(api, 0)
@@ -63,7 +62,7 @@ def test_from_index(mock_backend):
     assert device.name == "Device2"
 
 
-def test_params(mock_backend):
+def test_params(mock_backend: MockPyCUDA | MockPyOpenCL) -> None:
     mock_backend.add_devices(["Device1"])
     api = API.from_api_id(mock_backend.api_id)
     platform = Platform.from_index(api, 0)
@@ -74,7 +73,7 @@ def test_params(mock_backend):
     assert params1 is params2  # check caching
 
 
-def test_eq(mock_backend):
+def test_eq(mock_backend: MockPyCUDA | MockPyOpenCL) -> None:
     mock_backend.add_devices(["Device0", "Device1"])
     api = API.from_api_id(mock_backend.api_id)
 
@@ -88,7 +87,7 @@ def test_eq(mock_backend):
     assert d0_v1 != d1
 
 
-def test_hash(mock_backend):
+def test_hash(mock_backend: MockPyCUDA | MockPyOpenCL) -> None:
     mock_backend.add_devices(["Device0", "Device1"])
     api = API.from_api_id(mock_backend.api_id)
 
@@ -101,7 +100,7 @@ def test_hash(mock_backend):
     assert d[d1] == 1
 
 
-def test_attributes(mock_backend):
+def test_attributes(mock_backend: MockPyCUDA | MockPyOpenCL) -> None:
     mock_backend.add_devices(["Device1"])
     api = API.from_api_id(mock_backend.api_id)
     p = Platform.from_index(api, 0)
@@ -113,7 +112,7 @@ def test_attributes(mock_backend):
     assert str(d) == "device(" + d.shortcut + ")"
 
 
-def test_device_parameters_opencl(mock_backend_pyopencl):
+def test_device_parameters_opencl(mock_backend_pyopencl: MockPyOpenCL) -> None:
     device_info = PyOpenCLDeviceInfo(
         type_=DeviceType.GPU,
         max_work_group_size=512,
@@ -141,7 +140,7 @@ def test_device_parameters_opencl(mock_backend_pyopencl):
     assert d.params.align_words(16) >= 1
 
 
-def test_device_parameters_opencl_apple_cpu(mock_backend_pyopencl):
+def test_device_parameters_opencl_apple_cpu(mock_backend_pyopencl: MockPyOpenCL) -> None:
     device_info = PyOpenCLDeviceInfo(type_=DeviceType.CPU, max_work_group_size=512)
 
     mock_backend_pyopencl.add_platform_with_devices("Apple", [device_info])
@@ -152,7 +151,7 @@ def test_device_parameters_opencl_apple_cpu(mock_backend_pyopencl):
     assert d.params.max_local_sizes == (1, 1, 1)
 
 
-def test_device_parameters_opencl_cpu(mock_backend_pyopencl):
+def test_device_parameters_opencl_cpu(mock_backend_pyopencl: MockPyOpenCL) -> None:
     device_info = PyOpenCLDeviceInfo(type_=DeviceType.CPU)
 
     mock_backend_pyopencl.add_devices([device_info])
@@ -163,7 +162,7 @@ def test_device_parameters_opencl_cpu(mock_backend_pyopencl):
     assert d.params.warp_size == 1
 
 
-def test_device_parameters_opencl_cuda1(mock_backend_pyopencl):
+def test_device_parameters_opencl_cuda1(mock_backend_pyopencl: MockPyOpenCL) -> None:
     # CUDA 1.x
 
     device_info = PyOpenCLDeviceInfo(
@@ -178,7 +177,7 @@ def test_device_parameters_opencl_cuda1(mock_backend_pyopencl):
     assert d.params.warp_size == device_info.warp_size_nv
 
 
-def test_device_parameters_opencl_cuda2(mock_backend_pyopencl):
+def test_device_parameters_opencl_cuda2(mock_backend_pyopencl: MockPyOpenCL) -> None:
     # CUDA 2.x+
 
     device_info = PyOpenCLDeviceInfo(
@@ -193,7 +192,7 @@ def test_device_parameters_opencl_cuda2(mock_backend_pyopencl):
     assert d.params.warp_size == device_info.warp_size_nv
 
 
-def test_device_parameters_opencl_unknown_nv(mock_backend_pyopencl):
+def test_device_parameters_opencl_unknown_nv(mock_backend_pyopencl: MockPyOpenCL) -> None:
     # Unknown nVidia device
 
     device_info = PyOpenCLDeviceInfo(vendor="NVIDIA")
@@ -206,7 +205,7 @@ def test_device_parameters_opencl_unknown_nv(mock_backend_pyopencl):
     assert d.params.warp_size == 32
 
 
-def test_device_parameters_cuda(mock_backend_pycuda):
+def test_device_parameters_cuda(mock_backend_pycuda: MockPyCUDA) -> None:
     device_info = PyCUDADeviceInfo(
         max_threads_per_block=512,
         max_block_dim_x=512,
@@ -246,7 +245,7 @@ def test_device_parameters_cuda(mock_backend_pycuda):
     assert d.params.align_words(16) >= 1
 
 
-def test_device_parameters_cuda_1(mock_backend_pycuda):
+def test_device_parameters_cuda_1(mock_backend_pycuda: MockPyCUDA) -> None:
     # CUDA 1.x
 
     device_info = PyCUDADeviceInfo(compute_capability=1)
