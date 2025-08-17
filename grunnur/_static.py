@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .api import cuda_api_id
-from .context import Context
-from .device import Device
-from .program import (
+from ._api import cuda_api_id
+from ._context import Context
+from ._device import Device
+from ._program import (
     PreparedKernel,
     SingleDeviceProgram,
     _check_set_constant_array,
     _set_constant_array,
     normalize_sizes,
 )
-from .utils import prod, update_dict
-from .vsize import VirtualSizeError, VirtualSizes
+from ._utils import prod, update_dict
+from ._vsize import VirtualSizeError, VirtualSizes
 
 # the name of the global in the template containing static kernel modules
 _STATIC_MODULES_GLOBAL = "static"
@@ -24,13 +24,13 @@ if TYPE_CHECKING:  # pragma: no cover
     import numpy
     from numpy.typing import NDArray
 
-    from .array import Array, MultiArray
-    from .array_metadata import AsArrayMetadata
-    from .buffer import Buffer
-    from .context import BoundDevice, BoundMultiDevice
-    from .modules import Snippet
-    from .queue import MultiQueue, Queue
-    from .template import DefTemplate
+    from ._array import Array, MultiArray
+    from ._array_metadata import AsArrayMetadata
+    from ._buffer import Buffer
+    from ._context import BoundDevice, BoundMultiDevice
+    from ._modules import Snippet
+    from ._queue import MultiQueue, Queue
+    from ._template import DefTemplate
 
 
 class StaticKernel:
@@ -38,7 +38,7 @@ class StaticKernel:
     An object containing a GPU kernel with fixed call sizes.
 
     The globals for the source template will contain an object with the name ``static``
-    of the type :py:class:`~grunnur.vsize.VsizeModules` containing the id/size functions
+    of the type :py:class:`~grunnur._vsize.VsizeModules` containing the id/size functions
     to be used instead of regular ones.
     """
 
@@ -70,8 +70,8 @@ class StaticKernel:
         :param devices: a single- or a multi-device object on which to compile this program.
         :param template_src: a string with the source code, or a Mako template source to render.
         :param name: the kernel's name.
-        :param global_size: see :py:meth:`~grunnur.program.Kernel.prepare`.
-        :param local_size: see :py:meth:`~grunnur.program.Kernel.prepare`.
+        :param global_size: see :py:meth:`~grunnur._program.Kernel.prepare`.
+        :param local_size: see :py:meth:`~grunnur._program.Kernel.prepare`.
         :param render_globals: a dictionary of globals to pass to the template.
         :param constant_arrays: (**CUDA only**) a dictionary ``name: (size, dtype)``
             of global constant arrays to be declared in the program.
@@ -183,7 +183,7 @@ class StaticKernel:
         In case of the OpenCL backend, returns a ``pyopencl.Event`` object.
 
         :param queue: the multi-device queue to use.
-        :param args: kernel arguments. See :py:meth:`grunnur.program.PreparedKernel.__call__`.
+        :param args: kernel arguments. See :py:meth:`grunnur._program.PreparedKernel.__call__`.
         """
         return self._prepared_kernel(queue, *args)
 

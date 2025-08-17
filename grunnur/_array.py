@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast, runtime_checkabl
 
 import numpy
 
-from .array_metadata import ArrayMetadata, AsArrayMetadata
-from .buffer import Buffer
-from .context import BoundDevice, BoundMultiDevice, Context
-from .device import Device
-from .queue import MultiQueue, Queue
-from .utils import min_blocks
+from ._array_metadata import ArrayMetadata, AsArrayMetadata
+from ._buffer import Buffer
+from ._context import BoundDevice, BoundMultiDevice, Context
+from ._device import Device
+from ._queue import MultiQueue, Queue
+from ._utils import min_blocks
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Iterable, Mapping, Sequence

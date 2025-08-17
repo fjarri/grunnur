@@ -4,8 +4,8 @@ import re
 import numpy
 import pytest
 
-from grunnur.array_metadata import (
-    ArrayMetadata,
+from grunnur import ArrayMetadata
+from grunnur._array_metadata import (
     _get_range,
     _get_strides,
     _get_view,

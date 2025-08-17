@@ -5,8 +5,8 @@ import pytest
 from numpy.typing import NDArray
 
 from grunnur import Array, Context, Program, Queue
-from grunnur.utils import min_blocks, prod
-from grunnur.vsize import VirtualSizes
+from grunnur._utils import min_blocks, prod
+from grunnur._vsize import VirtualSizes
 
 
 class VirtualSizesTest:

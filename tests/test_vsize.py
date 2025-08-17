@@ -1,7 +1,7 @@
 import pytest
 
-from grunnur.utils import min_blocks, prod
-from grunnur.vsize import (
+from grunnur._utils import min_blocks, prod
+from grunnur._vsize import (
     PrimeFactors,
     ShapeGroups,
     VirtualSizeError,

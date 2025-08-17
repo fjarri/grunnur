@@ -4,8 +4,16 @@ import typing
 import numpy
 import pytest
 
-from grunnur import Array, BoundDevice, Buffer, Context, MultiArray, MultiQueue, Queue
-from grunnur.array_metadata import ArrayMetadata
+from grunnur import (
+    Array,
+    ArrayMetadata,
+    BoundDevice,
+    Buffer,
+    Context,
+    MultiArray,
+    MultiQueue,
+    Queue,
+)
 
 
 # TODO: The `array_cls` choice inside confuses `mypy`.

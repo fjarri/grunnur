@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from grunnur.utils import (
+from grunnur._utils import (
     all_different,
     all_same,
     bounding_power_of_2,

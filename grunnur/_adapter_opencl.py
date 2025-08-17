@@ -13,7 +13,7 @@ except ImportError:  # pragma: no cover
     pyopencl = None  # type: ignore[assignment]
 
 from . import dtypes
-from .adapter_base import (
+from ._adapter_base import (
     APIID,
     AdapterCompilationError,
     APIAdapter,
@@ -29,8 +29,8 @@ from .adapter_base import (
     ProgramAdapter,
     QueueAdapter,
 )
-from .template import Template
-from .utils import normalize_object_sequence
+from ._template import Template
+from ._utils import normalize_object_sequence
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Mapping, Sequence
@@ -38,7 +38,7 @@ if TYPE_CHECKING:  # pragma: no cover
     import numpy
     from numpy.typing import NDArray
 
-    from .array_metadata import ArrayMetadata
+    from ._array_metadata import ArrayMetadata
 
 
 _API_ID = APIID("opencl")

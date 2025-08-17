@@ -7,7 +7,7 @@ import pytest
 from numpy.typing import DTypeLike, NDArray
 
 from grunnur import API, Device, DeviceFilter, PlatformFilter, dtypes, select_devices
-from grunnur.testing import MockBackendFactory, MockPyOpenCL, PyOpenCLDeviceInfo
+from grunnur._testing import MockBackendFactory, MockPyOpenCL, PyOpenCLDeviceInfo
 
 
 def get_test_array(

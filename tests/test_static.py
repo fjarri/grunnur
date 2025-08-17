@@ -5,6 +5,7 @@ from grunnur import (
     API,
     Array,
     Context,
+    DefTemplate,
     MultiArray,
     MultiQueue,
     Queue,
@@ -13,8 +14,7 @@ from grunnur import (
     cuda_api_id,
     opencl_api_id,
 )
-from grunnur.template import DefTemplate
-from grunnur.testing import (
+from grunnur._testing import (
     MockDefTemplate,
     MockKernel,
     MockPyCUDA,

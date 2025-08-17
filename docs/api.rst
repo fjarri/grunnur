@@ -10,27 +10,12 @@ Public API
 API discovery
 -------------
 
-In many applications it would be enough to use dynamic module attributes to get an :py:class:`API` object:
-
-.. code::
-
-    from grunnur import cuda_api
-    from grunnur import opencl_api
-    from grunnur import any_api
-
-For a finer programmatic control one can use the methods of the :py:class:`API` class:
-
 .. autoclass:: API()
     :members:
 
-.. autoclass:: grunnur.adapter_base.APIID()
+.. autoclass:: grunnur._adapter_base.APIID()
     :members:
 
-.. autofunction:: cuda_api_id
-
-.. autofunction:: opencl_api_id
-
-.. autofunction:: all_api_ids
 
 
 Platforms
@@ -59,7 +44,7 @@ Devices
 .. autoclass:: DeviceParameters()
     :members:
 
-.. autoclass:: grunnur.adapter_base.DeviceType()
+.. autoclass:: grunnur._adapter_base.DeviceType()
     :members:
 
 
@@ -80,7 +65,7 @@ Contexts
 .. autoclass:: BoundDevice()
     :members:
 
-.. autoclass:: grunnur.context.BoundMultiDevice()
+.. autoclass:: grunnur._context.BoundMultiDevice()
     :show-inheritance:
     :members:
     :special-members: __iter__, __getitem__, __len__
@@ -115,7 +100,7 @@ Buffers and arrays
     :members:
     :special-members: __getitem__
 
-.. autoclass:: grunnur.array._ArrayLike()
+.. autoclass:: grunnur._array._ArrayLike()
     :members:
 
 .. autoclass:: Array()
@@ -123,7 +108,7 @@ Buffers and arrays
     :show-inheritance:
     :special-members: __getitem__
 
-.. autoclass:: grunnur.array.BaseSplay()
+.. autoclass:: grunnur._array.BaseSplay()
     :members:
     :special-members: __call__
 
@@ -137,14 +122,14 @@ Programs and kernels
 .. autoclass:: Program
     :members:
 
-.. autoclass:: grunnur.program.KernelHub()
+.. autoclass:: grunnur._program.KernelHub()
     :special-members: __getattr__
 
-.. autoclass:: grunnur.program.Kernel()
+.. autoclass:: grunnur._program.Kernel()
     :members:
     :special-members: __call__
 
-.. autoclass:: grunnur.program.PreparedKernel()
+.. autoclass:: grunnur._program.PreparedKernel()
     :members:
     :special-members: __call__
 
@@ -156,7 +141,7 @@ Static kernels
     :members:
     :special-members: __call__
 
-.. autoclass:: grunnur.vsize.VsizeModules
+.. autoclass:: grunnur._vsize.VsizeModules
     :members:
 
 
@@ -253,7 +238,7 @@ Allocating them each time they are used may involve too much overhead; allocatin
 A possible middle ground is using virtual allocations, where several of them can use the samy physical allocation.
 The virtual allocation manager will make sure that two virtual buffers that are used simultaneously (as declared by the user) will not share the same physical space.
 
-.. py:module:: grunnur.virtual_alloc
+.. currentmodule:: grunnur
 
 .. autoclass:: VirtualManager
     :members:

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .adapter_cuda import CuAPIAdapterFactory
-from .adapter_opencl import OclAPIAdapterFactory
+from ._adapter_cuda import CuAPIAdapterFactory
+from ._adapter_opencl import OclAPIAdapterFactory
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .adapter_base import APIID, APIAdapter
-    from .platform import Platform
+    from ._adapter_base import APIID, APIAdapter
+    from ._platform import Platform
 
 
 def cuda_api_id() -> APIID:
@@ -30,7 +30,10 @@ _ALL_API_ADAPTER_FACTORIES = {
 
 
 def all_api_ids() -> list[APIID]:
-    """Returns a list of identifiers for all APIs available."""
+    """
+    Returns a list of identifiers for all APIs
+    (not necessarily available in the current system).
+    """
     return list(_ALL_API_ADAPTER_FACTORIES.keys())
 
 
@@ -64,7 +67,7 @@ class API:
         """
         If ``shortcut`` is a string, returns a list of one :py:class:`~grunnur.API` object
         whose :py:attr:`~API.id` attribute has its
-        :py:attr:`~grunnur.adapter_base.APIID.shortcut` attribute equal to it
+        :py:attr:`~grunnur._adapter_base.APIID.shortcut` attribute equal to it
         (or raises an error if it was not found, or its backend is not available).
 
         If ``shortcut`` is ``None``, returns a list of all available
@@ -96,6 +99,31 @@ class API:
         api_adapter = _ALL_API_ADAPTER_FACTORIES[api_id].make_api_adapter()
         return cls(api_adapter)
 
+    @staticmethod
+    def cuda() -> API:
+        """Returns a CUDA API object, if CUDA backend (that is, ``pycuda`` package) is available."""
+        return API.from_api_id(cuda_api_id())
+
+    @staticmethod
+    def opencl() -> API:
+        """
+        Returns an OpenCL API object, if OpenCL backend
+        (that is, ``pyopencl`` package) is available.
+        """
+        return API.from_api_id(opencl_api_id())
+
+    @staticmethod
+    def any() -> API:
+        """
+        Returns an API object for some available backend.
+
+        Raises ``RuntimeError`` if no backends are available.
+        """
+        apis = API.all_available()
+        if len(apis) == 0:
+            raise RuntimeError("No APIs are available. Please install either PyCUDA or PyOpenCL")
+        return apis[0]
+
     def __init__(self, api_adapter: APIAdapter):
         self._api_adapter = api_adapter
         self.id = api_adapter.id
@@ -104,7 +132,7 @@ class API:
     @property
     def platforms(self) -> list[Platform]:
         """A list of this API's :py:class:`Platform` objects."""
-        from .platform import Platform  # noqa: PLC0415
+        from ._platform import Platform  # noqa: PLC0415
 
         return Platform.all(self)
 

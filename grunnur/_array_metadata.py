@@ -10,7 +10,7 @@ if TYPE_CHECKING:  # pragma: no cover
     import numpy
     from numpy.typing import DTypeLike, NDArray
 
-    from .array import Array
+    from ._array import Array
 
 
 class AsArrayMetadata(ABC):

@@ -5,9 +5,9 @@ from collections import Counter
 from math import ceil, floor, sqrt
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from .modules import Module, Snippet
-from .template import Template
-from .utils import min_blocks, prod
+from ._modules import Module, Snippet
+from ._template import Template
+from ._utils import min_blocks, prod
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Iterator, Mapping, Sequence

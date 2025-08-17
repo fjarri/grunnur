@@ -7,9 +7,9 @@ import numpy
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray
 
-    from .adapter_base import BufferAdapter
-    from .context import BoundDevice
-    from .queue import Queue
+    from ._adapter_base import BufferAdapter
+    from ._context import BoundDevice
+    from ._queue import Queue
 
 
 class Buffer:

@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 from .. import all_api_ids, cuda_api_id, opencl_api_id
-from .mock_pycuda import MockPyCUDA
-from .mock_pyopencl import MockPyOpenCL
+from ._mock_pycuda import MockPyCUDA
+from ._mock_pyopencl import MockPyOpenCL
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ..adapter_base import APIID
+    from .._adapter_base import APIID
 
 
 # Have to mock it like this since we don't want to make `pytest` a dependency for the main library.
@@ -28,9 +28,9 @@ class MockBackendFactory:
         pycuda_driver = backend.pycuda_driver if backend else None
         pycuda_compiler = backend.pycuda_compiler if backend else None
         pycuda_tools = backend.pycuda_tools if backend else None
-        self.monkeypatch.setattr("grunnur.adapter_cuda.pycuda_driver", pycuda_driver)
-        self.monkeypatch.setattr("grunnur.adapter_cuda.pycuda_compiler", pycuda_compiler)
-        self.monkeypatch.setattr("grunnur.adapter_cuda.pycuda_tools", pycuda_tools)
+        self.monkeypatch.setattr("grunnur._adapter_cuda.pycuda_driver", pycuda_driver)
+        self.monkeypatch.setattr("grunnur._adapter_cuda.pycuda_compiler", pycuda_compiler)
+        self.monkeypatch.setattr("grunnur._adapter_cuda.pycuda_tools", pycuda_tools)
 
     def mock_pycuda(self) -> MockPyCUDA:
         backend = MockPyCUDA()
@@ -42,7 +42,7 @@ class MockBackendFactory:
 
     def _set_backend_opencl(self, backend: MockPyOpenCL | None = None) -> None:
         pyopencl = backend.pyopencl if backend else None
-        self.monkeypatch.setattr("grunnur.adapter_opencl.pyopencl", pyopencl)
+        self.monkeypatch.setattr("grunnur._adapter_opencl.pyopencl", pyopencl)
 
     def mock_pyopencl(self) -> MockPyOpenCL:
         backend = MockPyOpenCL()

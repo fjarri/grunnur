@@ -7,28 +7,28 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 import numpy
 
-from .adapter_base import (
+from ._adapter_base import (
     AdapterCompilationError,
     BufferAdapter,
     KernelAdapter,
     ProgramAdapter,
 )
-from .api import cuda_api_id
-from .array import Array, MultiArray
-from .buffer import Buffer
-from .context import BoundDevice, BoundMultiDevice, Context
-from .device import Device
-from .modules import Snippet, render_with_modules
-from .queue import MultiQueue, Queue
-from .utils import update_dict
+from ._api import cuda_api_id
+from ._array import Array, MultiArray
+from ._buffer import Buffer
+from ._context import BoundDevice, BoundMultiDevice, Context
+from ._device import Device
+from ._modules import Snippet, render_with_modules
+from ._queue import MultiQueue, Queue
+from ._utils import update_dict
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
 
     from numpy.typing import NDArray
 
-    from .array_metadata import AsArrayMetadata
-    from .template import DefTemplate
+    from ._array_metadata import AsArrayMetadata
+    from ._template import DefTemplate
 
 
 class CompilationError(RuntimeError):
@@ -173,7 +173,7 @@ class Program:
 
     kernel: KernelHub
     """
-    An object whose attributes are :py:class:`~grunnur.program.Kernel` objects
+    An object whose attributes are :py:class:`~grunnur._program.Kernel` objects
     with the corresponding names.
     """
 
@@ -252,7 +252,7 @@ class KernelHub:
 
     def __getattr__(self, kernel_name: str) -> Kernel:
         """
-        Returns a :py:class:`~grunnur.program.Kernel` object for a function (CUDA)/kernel (OpenCL)
+        Returns a :py:class:`~grunnur._program.Kernel` object for a function (CUDA)/kernel (OpenCL)
         with the name ``kernel_name``.
         """
         program = self._program_ref

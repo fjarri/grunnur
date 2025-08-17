@@ -4,8 +4,7 @@
 
 import numpy
 
-from grunnur import Array, Context, Queue, VirtualManager, any_api, dtypes
-from grunnur.virtual_alloc import ZeroOffsetManager
+from grunnur import API, Array, Context, Queue, VirtualManager, ZeroOffsetManager, dtypes
 
 
 def demo_array_dependencies(queue: Queue) -> None:
@@ -97,7 +96,7 @@ def demo_object_dependencies(queue: Queue) -> None:
 
 
 if __name__ == "__main__":
-    context = Context.from_devices([any_api.platforms[0].devices[0]])
+    context = Context.from_devices([API.any().platforms[0].devices[0]])
     queue = Queue(context.device)
 
     demo_array_dependencies(queue)

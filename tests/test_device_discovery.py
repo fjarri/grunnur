@@ -1,7 +1,7 @@
 import pytest
 
 from grunnur import DeviceFilter, PlatformFilter
-from grunnur.testing import MockBackendFactory, PyOpenCLDeviceInfo
+from grunnur._testing import MockBackendFactory, PyOpenCLDeviceInfo
 from utils import MockStdin, check_select_devices
 
 

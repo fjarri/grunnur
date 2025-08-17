@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur.sorted_list import SortedList
+from grunnur._sorted_list import SortedList
 
 
 def test_basics() -> None:

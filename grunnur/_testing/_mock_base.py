@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 import mako.template
 
-from ..adapter_base import DeviceType
-from ..template import DefTemplate
+from .._adapter_base import DeviceType
+from .._template import DefTemplate
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Mapping, Sequence

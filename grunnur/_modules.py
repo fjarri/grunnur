@@ -3,8 +3,8 @@ from __future__ import annotations
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, overload
 
-from .template import DefTemplate, RenderError
-from .utils import update_dict
+from ._template import DefTemplate, RenderError
+from ._utils import update_dict
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Iterable, Mapping, Sequence

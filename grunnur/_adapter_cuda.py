@@ -17,7 +17,7 @@ except ImportError:  # pragma: no cover
     pycuda_tools = None  # type: ignore[assignment]
 
 from . import dtypes
-from .adapter_base import (
+from ._adapter_base import (
     APIID,
     AdapterCompilationError,
     APIAdapter,
@@ -33,15 +33,15 @@ from .adapter_base import (
     ProgramAdapter,
     QueueAdapter,
 )
-from .template import Template
-from .utils import get_launch_size, normalize_object_sequence, prod
+from ._template import Template
+from ._utils import get_launch_size, normalize_object_sequence, prod
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Mapping, Sequence
 
     from numpy.typing import NDArray
 
-    from .array_metadata import ArrayMetadata
+    from ._array_metadata import ArrayMetadata
 
 
 # Another way would be to place it in the try block and only set `_avaialable`

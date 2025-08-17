@@ -1,7 +1,7 @@
 import pytest
 
 from grunnur import API, Platform, PlatformFilter, cuda_api_id, opencl_api_id
-from grunnur.testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
+from grunnur._testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
 
 
 def test_all(mock_backend_pyopencl: MockPyOpenCL) -> None:

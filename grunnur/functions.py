@@ -12,8 +12,8 @@ from warnings import warn
 import numpy
 
 from . import dtypes
-from .modules import Module
-from .template import Template
+from ._modules import Module
+from ._template import Template
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import DTypeLike
