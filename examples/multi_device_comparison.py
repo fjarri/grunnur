@@ -12,8 +12,7 @@ from typing import Any
 import numpy
 from numpy.typing import NDArray
 
-from grunnur import Array, Context, MultiArray, MultiQueue, Program, Queue
-from grunnur import opencl_api as api
+from grunnur import API, Array, Context, MultiArray, MultiQueue, Program, Queue
 
 src = """
 KERNEL void sum(GLOBAL_MEM unsigned long *a, int pwr)
@@ -46,6 +45,8 @@ def calc_ref(x: NDArray[Any], pwr: int) -> NDArray[Any]:
 
 def run_single_device(device_idx: int, full_len: int, *, benchmark: bool = False) -> None:
     """Runs the kernel on a single device."""
+    api = API.opencl()
+
     pwr = 50
 
     a = numpy.arange(full_len).astype(numpy.uint64)
@@ -72,6 +73,8 @@ def run_single_device(device_idx: int, full_len: int, *, benchmark: bool = False
 
 def run_multi_device(device_idxs: Sequence[int], full_len: int, *, benchmark: bool = False) -> None:
     """Runs the kernel on a multiple devices."""
+    api = API.opencl()
+
     pwr = 50
 
     a = numpy.arange(full_len).astype(numpy.uint64)

@@ -1,6 +1,6 @@
 import pytest
 
-from grunnur import API, all_api_ids
+from grunnur import API, all_api_ids, cuda_api_id, opencl_api_id
 from grunnur._testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
 
 
@@ -103,3 +103,31 @@ def test_attributes(mock_backend: MockPyCUDA | MockPyOpenCL) -> None:
     assert api.id == mock_backend.api_id
     assert api.shortcut == mock_backend.api_id.shortcut
     assert str(api) == "api(" + api.shortcut + ")"
+
+
+def test_cuda_shortcut(mock_backend_pycuda: MockPyCUDA) -> None:
+    mock_backend_pycuda.add_devices(["Device1", "Device2"])
+    cuda_api = API.cuda()
+    assert cuda_api.id == cuda_api_id()
+
+
+def test_opencl_shortcut(mock_backend_pyopencl: MockPyOpenCL) -> None:
+    mock_backend_pyopencl.add_devices(["Device1", "Device2"])
+    opencl_api = API.opencl()
+    assert opencl_api.id == opencl_api_id()
+
+
+def test_any_shortcut(mock_backend_factory: MockBackendFactory) -> None:
+    mock_backend_factory.mock_pycuda().add_devices(["Device1", "Device2"])
+    mock_backend_factory.mock_pyopencl().add_devices(["Device1", "Device2"])
+    any_api = API.any()
+    assert any_api.id == opencl_api_id() or any_api.id == cuda_api_id()
+
+
+# `mock_backend_factory` disables all existing backends by default
+@pytest.mark.usefixtures("mock_backend_factory")
+def test_any_shortcut_none_available() -> None:
+    with pytest.raises(
+        RuntimeError, match="No APIs are available. Please install either PyCUDA or PyOpenCL"
+    ):
+        API.any()

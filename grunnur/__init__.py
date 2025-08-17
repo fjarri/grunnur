@@ -29,17 +29,3 @@ from ._virtual_alloc import (
     ZeroOffsetManager,
 )
 from ._vsize import VirtualSizeError
-
-
-def __getattr__(name: str) -> API:
-    if name == "cuda_api":
-        return API.from_api_id(cuda_api_id())
-    if name == "opencl_api":
-        return API.from_api_id(opencl_api_id())
-    if name == "any_api":
-        apis = API.all_available()
-        if len(apis) == 0:
-            raise ImportError("No APIs are available. Please install either PyCUDA or PyOpenCL")
-        return apis[0]
-
-    raise ImportError(f"Cannot import name '{name}' from '{__name__}'")

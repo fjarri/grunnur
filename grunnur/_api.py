@@ -99,6 +99,31 @@ class API:
         api_adapter = _ALL_API_ADAPTER_FACTORIES[api_id].make_api_adapter()
         return cls(api_adapter)
 
+    @staticmethod
+    def cuda() -> API:
+        """Returns a CUDA API object, if CUDA backend (that is, ``pycuda`` package) is available."""
+        return API.from_api_id(cuda_api_id())
+
+    @staticmethod
+    def opencl() -> API:
+        """
+        Returns an OpenCL API object, if OpenCL backend
+        (that is, ``pyopencl`` package) is available.
+        """
+        return API.from_api_id(opencl_api_id())
+
+    @staticmethod
+    def any() -> API:
+        """
+        Returns an API object for some available backend.
+
+        Raises ``RuntimeError`` if no backends are available.
+        """
+        apis = API.all_available()
+        if len(apis) == 0:
+            raise RuntimeError("No APIs are available. Please install either PyCUDA or PyOpenCL")
+        return apis[0]
+
     def __init__(self, api_adapter: APIAdapter):
         self._api_adapter = api_adapter
         self.id = api_adapter.id
