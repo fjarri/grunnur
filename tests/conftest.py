@@ -14,14 +14,15 @@ from grunnur import (
     API,
     Context,
     Device,
+    TrivialManager,
     VirtualManager,
+    ZeroOffsetManager,
+    all_api_ids,
     cuda_api_id,
     opencl_api_id,
 )
+from grunnur._adapter_base import APIID
 from grunnur._testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
-from grunnur.adapter_base import APIID
-from grunnur.api import all_api_ids
-from grunnur.virtual_alloc import TrivialManager, ZeroOffsetManager
 from utils import MockStdin
 
 

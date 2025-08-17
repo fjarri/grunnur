@@ -10,8 +10,8 @@ from grunnur import (
     Queue,
     opencl_api_id,
 )
+from grunnur._context import BoundMultiDevice
 from grunnur._testing import MockPyCUDA, MockPyOpenCL
-from grunnur.context import BoundMultiDevice
 
 
 def test_from_devices(mock_backend: MockPyOpenCL | MockPyCUDA) -> None:

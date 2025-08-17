@@ -6,16 +6,24 @@ from typing import TypeVar
 import numpy
 import pytest
 
-from grunnur import Array, Buffer, Context, MultiQueue, Program, Queue, dtypes
-from grunnur._testing import MockPyCUDA
-from grunnur.adapter_base import APIID
-from grunnur.virtual_alloc import (
+from grunnur import (
+    Array,
+    Buffer,
+    Context,
+    MultiQueue,
+    Program,
+    Queue,
     TrivialManager,
     VirtualAllocationStatistics,
     VirtualAllocator,
-    VirtualBufferAdapter,
     VirtualManager,
     ZeroOffsetManager,
+    dtypes,
+)
+from grunnur._adapter_base import APIID
+from grunnur._testing import MockPyCUDA
+from grunnur._virtual_alloc import (
+    VirtualBufferAdapter,
     extract_dependencies,
 )
 

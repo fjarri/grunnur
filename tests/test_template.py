@@ -5,7 +5,8 @@ import numpy
 import pytest
 from mako.template import Template as MakoTemplate
 
-from grunnur.template import DefTemplate, RenderError, Template, _extract_def_source
+from grunnur import DefTemplate, RenderError, Template
+from grunnur._template import _extract_def_source
 
 
 def test_extract_def_source() -> None:

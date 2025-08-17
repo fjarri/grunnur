@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from .api import API
-from .utils import string_matches_masks
+from ._api import API
+from ._utils import string_matches_masks
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .adapter_base import PlatformAdapter
-    from .device import Device
+    from ._adapter_base import PlatformAdapter
+    from ._device import Device
 
 
 class PlatformFilter(NamedTuple):
@@ -104,7 +104,7 @@ class Platform:
     @property
     def devices(self) -> list[Device]:
         """A list of this device's :py:class:`Device` objects."""
-        from .device import Device  # noqa: PLC0415
+        from ._device import Device  # noqa: PLC0415
 
         return Device.all(self)
 

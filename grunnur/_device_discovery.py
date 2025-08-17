@@ -5,13 +5,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .device import Device, DeviceFilter
-from .platform import Platform, PlatformFilter
+from ._device import Device, DeviceFilter
+from ._platform import Platform, PlatformFilter
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
 
-    from .api import API
+    from ._api import API
 
 
 def platforms_and_devices_by_mask(

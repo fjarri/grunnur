@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 
 import numpy
 
-from .modules import Module
-from .utils import bounding_power_of_2, log2, min_blocks, prod
+from ._modules import Module
+from ._utils import bounding_power_of_2, log2, min_blocks, prod
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import DTypeLike, NDArray

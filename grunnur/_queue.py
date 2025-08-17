@@ -4,9 +4,9 @@ import weakref
 from abc import ABC
 from typing import TYPE_CHECKING
 
-from .adapter_base import QueueAdapter
-from .context import BoundDevice, BoundMultiDevice
-from .device import Device
+from ._adapter_base import QueueAdapter
+from ._context import BoundDevice, BoundMultiDevice
+from ._device import Device
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable, Sequence

@@ -14,17 +14,17 @@ from typing import (
 )
 from weakref import ReferenceType
 
-from .adapter_base import BufferAdapter, QueueAdapter
-from .array import Array
-from .buffer import Buffer
-from .sorted_list import SortedList
+from ._adapter_base import BufferAdapter, QueueAdapter
+from ._array import Array
+from ._buffer import Buffer
+from ._sorted_list import SortedList
 
 if TYPE_CHECKING:  # pragma: no cover
     import numpy
     from numpy.typing import NDArray
 
-    from .context import BoundDevice
-    from .queue import Queue
+    from ._context import BoundDevice
+    from ._queue import Queue
 
 
 @runtime_checkable

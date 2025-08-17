@@ -1,8 +1,7 @@
 import pytest
 
-from grunnur import API
+from grunnur import API, all_api_ids
 from grunnur._testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
-from grunnur.api import all_api_ids
 
 
 def test_all(mock_backend_factory: MockBackendFactory) -> None:

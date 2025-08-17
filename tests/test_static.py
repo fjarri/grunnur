@@ -5,6 +5,7 @@ from grunnur import (
     API,
     Array,
     Context,
+    DefTemplate,
     MultiArray,
     MultiQueue,
     Queue,
@@ -20,7 +21,6 @@ from grunnur._testing import (
     PyCUDADeviceInfo,
     PyOpenCLDeviceInfo,
 )
-from grunnur.template import DefTemplate
 from test_program import _test_constant_memory
 
 SRC = """

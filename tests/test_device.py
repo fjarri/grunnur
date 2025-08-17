@@ -1,8 +1,8 @@
 import pytest
 
 from grunnur import API, Device, DeviceFilter, Platform, cuda_api_id, opencl_api_id
+from grunnur._adapter_base import DeviceType
 from grunnur._testing import MockPyCUDA, MockPyOpenCL, PyCUDADeviceInfo, PyOpenCLDeviceInfo
-from grunnur.adapter_base import DeviceType
 
 
 def test_all(mock_backend: MockPyCUDA | MockPyOpenCL) -> None:

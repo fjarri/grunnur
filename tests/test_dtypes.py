@@ -5,8 +5,8 @@ import numpy
 import pytest
 
 from grunnur import dtypes
+from grunnur._modules import render_with_modules
 from grunnur.dtypes import FieldInfo, _WrappedType
-from grunnur.modules import render_with_modules
 
 
 def test_ctype_builtin() -> None:

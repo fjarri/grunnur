@@ -10,7 +10,7 @@ if TYPE_CHECKING:  # pragma: no cover
     import numpy
     from numpy.typing import NDArray
 
-    from .array_metadata import ArrayMetadata
+    from ._array_metadata import ArrayMetadata
 
 
 class DeviceType(Enum):

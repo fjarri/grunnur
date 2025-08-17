@@ -3,14 +3,14 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator, Sequence
 from typing import TYPE_CHECKING, Any, overload
 
-from .api import API, cuda_api_id
-from .device import Device, DeviceFilter
-from .device_discovery import select_devices
-from .platform import Platform, PlatformFilter
-from .utils import all_same, normalize_object_sequence
+from ._api import API, cuda_api_id
+from ._device import Device, DeviceFilter
+from ._device_discovery import select_devices
+from ._platform import Platform, PlatformFilter
+from ._utils import all_same, normalize_object_sequence
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .adapter_base import ContextAdapter, DeviceAdapter
+    from ._adapter_base import ContextAdapter, DeviceAdapter
 
 
 class BoundDevice(Device):
@@ -202,7 +202,7 @@ class Context:
     @property
     def devices(self) -> BoundMultiDevice:
         """
-        Returns the :py:class:`~grunnur.context.BoundMultiDevice`
+        Returns the :py:class:`~grunnur._context.BoundMultiDevice`
         encompassing all the devices in this context.
         """
         # Need to create it on-demand to avoid a circular reference.

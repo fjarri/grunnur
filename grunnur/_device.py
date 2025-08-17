@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from .api import API
-from .platform import Platform
-from .utils import string_matches_masks
+from ._api import API
+from ._platform import Platform
+from ._utils import string_matches_masks
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .adapter_base import DeviceAdapter, DeviceParameters
+    from ._adapter_base import DeviceAdapter, DeviceParameters
 
 
 class DeviceFilter(NamedTuple):

@@ -12,12 +12,14 @@ from grunnur import (
     Buffer,
     CompilationError,
     Context,
+    DefTemplate,
     DeviceFilter,
     MultiArray,
     MultiQueue,
     Program,
     Queue,
     StaticKernel,
+    Template,
     cuda_api_id,
     opencl_api_id,
 )
@@ -31,7 +33,6 @@ from grunnur._testing import (
     _mock_pycuda,
     _mock_pyopencl,
 )
-from grunnur.template import DefTemplate, Template
 
 SRC_OPENCL = """
 __kernel void multiply(__global int *dest, __global int *a, __global int *b, int c)

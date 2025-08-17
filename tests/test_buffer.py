@@ -2,8 +2,8 @@ import numpy
 import pytest
 
 from grunnur import API, Buffer, Context, Queue, cuda_api_id, opencl_api_id
+from grunnur._adapter_opencl import OclBufferAdapter
 from grunnur._testing import MockPyOpenCL
-from grunnur.adapter_opencl import OclBufferAdapter
 
 
 @pytest.mark.parametrize("sync", [False, True], ids=["async", "sync"])

@@ -9,10 +9,9 @@ import numpy
 import pytest
 from numpy.typing import DTypeLike, NDArray
 
-from grunnur import Array, Context, Module, Program, Queue, dtypes, functions
-from grunnur.modules import render_with_modules
-from grunnur.template import RenderError
-from grunnur.utils import prod
+from grunnur import Array, Context, Module, Program, Queue, RenderError, dtypes, functions
+from grunnur._modules import render_with_modules
+from grunnur._utils import prod
 from utils import get_test_array
 
 

@@ -3,8 +3,8 @@
 
 import pytest
 
-from grunnur.modules import Module, Snippet, render_with_modules
-from grunnur.template import DefTemplate, RenderError
+from grunnur import DefTemplate, Module, RenderError, Snippet
+from grunnur._modules import render_with_modules
 
 
 def test_snippet_from_callable() -> None:
