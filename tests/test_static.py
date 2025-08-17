@@ -13,14 +13,14 @@ from grunnur import (
     cuda_api_id,
     opencl_api_id,
 )
-from grunnur.template import DefTemplate
-from grunnur.testing import (
+from grunnur._testing import (
     MockDefTemplate,
     MockKernel,
     MockPyCUDA,
     PyCUDADeviceInfo,
     PyOpenCLDeviceInfo,
 )
+from grunnur.template import DefTemplate
 from test_program import _test_constant_memory
 
 SRC = """

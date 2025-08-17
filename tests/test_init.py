@@ -1,8 +1,8 @@
 import pytest
 
 import grunnur
+from grunnur._testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
 from grunnur.api import all_api_ids, cuda_api_id, opencl_api_id
-from grunnur.testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
 
 
 def test_import_cuda_api(mock_backend_pycuda: MockPyCUDA) -> None:

@@ -4,8 +4,8 @@ import pytest
 
 import grunnur
 from grunnur import cuda_api_id, opencl_api_id
+from grunnur._testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
 from grunnur.adapter_base import APIID
-from grunnur.testing import MockBackendFactory, MockPyCUDA, MockPyOpenCL
 
 
 def test_mock_pyopencl(monkeypatch: pytest.MonkeyPatch) -> None:

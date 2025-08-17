@@ -21,17 +21,17 @@ from grunnur import (
     cuda_api_id,
     opencl_api_id,
 )
-from grunnur.template import DefTemplate, Template
-from grunnur.testing import (
+from grunnur._testing import (
     MockDefTemplate,
     MockKernel,
     MockPyCUDA,
     MockPyOpenCL,
     MockSource,
     PyCUDADeviceInfo,
-    mock_pycuda,
-    mock_pyopencl,
+    _mock_pycuda,
+    _mock_pyopencl,
 )
+from grunnur.template import DefTemplate, Template
 
 SRC_OPENCL = """
 __kernel void multiply(__global int *dest, __global int *a, __global int *b, int c)
@@ -347,10 +347,10 @@ def test_compiler_options(mock_context: Context) -> None:
     adapter = program._sd_programs[mock_context.device]._sd_program_adapter
 
     if mock_context.api.id == opencl_api_id():
-        assert isinstance(adapter._pyopencl_program, mock_pyopencl.Program)
+        assert isinstance(adapter._pyopencl_program, _mock_pyopencl.Program)
         assert "--my_option" in adapter._pyopencl_program.test_get_options()
     elif mock_context.api.id == cuda_api_id():
-        assert isinstance(adapter._pycuda_program, mock_pycuda.BaseSourceModule)
+        assert isinstance(adapter._pycuda_program, _mock_pycuda.BaseSourceModule)
         assert "--my_option" in adapter._pycuda_program.test_get_options()
 
 

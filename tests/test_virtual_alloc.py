@@ -7,8 +7,8 @@ import numpy
 import pytest
 
 from grunnur import Array, Buffer, Context, MultiQueue, Program, Queue, dtypes
+from grunnur._testing import MockPyCUDA
 from grunnur.adapter_base import APIID
-from grunnur.testing import MockPyCUDA
 from grunnur.virtual_alloc import (
     TrivialManager,
     VirtualAllocationStatistics,

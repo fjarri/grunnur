@@ -11,7 +11,7 @@ import numpy
 
 from .. import opencl_api_id
 from ..adapter_base import DeviceType
-from .mock_base import MockKernel, MockSource
+from ._mock_base import MockKernel, MockSource
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence

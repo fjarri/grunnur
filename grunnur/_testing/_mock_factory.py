@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 from .. import all_api_ids, cuda_api_id, opencl_api_id
-from .mock_pycuda import MockPyCUDA
-from .mock_pyopencl import MockPyOpenCL
+from ._mock_pycuda import MockPyCUDA
+from ._mock_pyopencl import MockPyOpenCL
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..adapter_base import APIID
