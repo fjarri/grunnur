@@ -1,6 +1,6 @@
 [project]
 name = "grunnur"
-version = "0.6.0-dev"
+version = "0.6.0"
 description = "Uniform API for PyOpenCL and PyCUDA."
 authors = [
     {name = "Bogdan Opanchuk", email = "bogdan@opanchuk.net"},
