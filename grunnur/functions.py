@@ -115,7 +115,7 @@ def div(
     that divides a value of type ``dividend_dtype`` by a value of type ``divisor_dtype``.
     If ``out_dtype`` is given, it will be set as a return type for this function.
     """
-    in_dtypes, out_dtype = _derive_out_dtype(dividend_dtype, divisor_dtype, out_dtype=out_dtype)
+    _in_dtypes, out_dtype = _derive_out_dtype(dividend_dtype, divisor_dtype, out_dtype=out_dtype)
     return Module(
         TEMPLATE.get_def("div"),
         render_globals=dict(

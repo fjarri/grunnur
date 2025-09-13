@@ -1,6 +1,8 @@
 # Arguments are actually used in templates, but Ruff cannot parse it.
 # ruff: noqa: ARG005
 
+import re
+
 import pytest
 
 from grunnur import DefTemplate, Module, RenderError, Snippet
@@ -63,7 +65,9 @@ def test_render_string() -> None:
 
 
 def test_render_string_with_args() -> None:
-    with pytest.raises(ValueError, match="A textual source cannot have `render_args` set."):
+    with pytest.raises(
+        ValueError, match=re.escape("A textual source cannot have `render_args` set.")
+    ):
         render_with_modules("abcde", render_args=[1, 2])
 
 

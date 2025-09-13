@@ -196,7 +196,7 @@ def test_statistics(mock_context: Context, valloc_cls: type[VirtualManager]) -> 
     queue = Queue(context.device)
     virtual_alloc = valloc_cls(context.device)
 
-    buffers_metadata, buffers = allocate_test_set(
+    buffers_metadata, _buffers = allocate_test_set(
         virtual_alloc, lambda allocator, size: allocator(context.device, size)
     )
 

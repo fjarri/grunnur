@@ -8,7 +8,7 @@ from grunnur._testing import MockPyOpenCL
 
 @pytest.mark.parametrize("sync", [False, True], ids=["async", "sync"])
 def test_transfer(mock_or_real_context: tuple[Context, bool], *, sync: bool) -> None:
-    context, mocked = mock_or_real_context
+    context, _mocked = mock_or_real_context
 
     length = 100
     dtype = numpy.dtype("int32")
@@ -47,7 +47,7 @@ def test_transfer(mock_or_real_context: tuple[Context, bool], *, sync: bool) -> 
 
 @pytest.mark.parametrize("sync", [False, True], ids=["async", "sync"])
 def test_subregion(mock_or_real_context: tuple[Context, bool], *, sync: bool) -> None:
-    context, mocked = mock_or_real_context
+    context, _mocked = mock_or_real_context
 
     length = 200
     dtype = numpy.dtype("int32")
@@ -87,7 +87,7 @@ def test_subregion(mock_or_real_context: tuple[Context, bool], *, sync: bool) ->
 
 @pytest.mark.parametrize("sync", [False, True], ids=["async", "sync"])
 def test_subregion_copy(mock_or_real_context: tuple[Context, bool], *, sync: bool) -> None:
-    context, mocked = mock_or_real_context
+    context, _mocked = mock_or_real_context
 
     length = 100
     dtype = numpy.dtype("int32")

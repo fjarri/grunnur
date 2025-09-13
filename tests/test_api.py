@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from grunnur import API, all_api_ids, cuda_api_id, opencl_api_id
@@ -128,6 +130,7 @@ def test_any_shortcut(mock_backend_factory: MockBackendFactory) -> None:
 @pytest.mark.usefixtures("mock_backend_factory")
 def test_any_shortcut_none_available() -> None:
     with pytest.raises(
-        RuntimeError, match="No APIs are available. Please install either PyCUDA or PyOpenCL"
+        RuntimeError,
+        match=re.escape("No APIs are available. Please install either PyCUDA or PyOpenCL"),
     ):
         API.any()

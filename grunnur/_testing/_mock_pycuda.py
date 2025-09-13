@@ -85,7 +85,7 @@ class MockPyCUDA:
         return idx, address
 
     def get_allocation_buffer(self, idx: int, offset: int, region_size: int) -> bytes:
-        size, context, buf = self._allocations[idx]
+        _size, _context, buf = self._allocations[idx]
         return buf[offset : offset + region_size]
 
     def set_allocation_buffer(self, idx: int, offset: int, data: bytes) -> None:
